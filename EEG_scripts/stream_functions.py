@@ -4,34 +4,41 @@ Created on Fri Feb  8 12:42:04 2019
 
 @author: sofha
 """
+
+# Imports
 from pylsl import StreamInlet, resolve_stream, resolve_byprop
 import csv
 import time
 import numpy as np
 import sys
-test
-
+from paths import EEG_path_init, subject_path_init
+subject_path=subject_path_init()
+# Functions
 
 import csv
 class data_init:
+    # Arguments:
+    #   fs: sampling frequency
+    #   data_type: 'EEG' or 'marker' (trigger from stimuli script)
     def __init__(self, fs,data_type,filename=None):
         self.fs,self.filename,self.data_type = fs,filename,data_type
         
-glo=data_init(500,'test')
-#glo.options.filename=time.strftime("%H%M%S_%d%m%Y")
+
 def save_data(data,sample,timestamp,user_id):
-    gamer_dir='C:\\Users\\nicped\\Documents\\GitLab\\project\\SUBJECTS\\'+user_id+'\\'
-    #sofha_dir='C:\\Users\\sofha\\Documents\\GitLab\\project\\logging\\EEGdata\\'
-    #if exist(glo.options.filename)
-    if data.filename==None:
-        data.filename=gamer_dir+'subject_'+user_id+'_'+data.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
+    #Saves sample and timestamp to csv file
+    # Arguments:
+    #   data: class from data_init
+    #   sample: data chunk or sample to save
+    #   timestamp: timestamp of chunk/sample
+    #   user_id: subject ID
+    
+    if data.filename==None: # if file does not exist create it
+        data.filename=subject_path+'\\'+'subject_'+user_id+'_'+data.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
         with open(data.filename,'w',newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(data.header)
     with open(data.filename,'a',newline='') as csvfile:
-        #fieldnames=['name1','name2']
         writer = csv.writer(csvfile)
-        #time_s=np.array([timestamps]).T
         if len(sample)<=1:
             writer.writerow(np.append(np.array([sample]),np.array([timestamp])))
         else:
@@ -39,36 +46,40 @@ def save_data(data,sample,timestamp,user_id):
     return data
 
 def clear_stream(inlet):
+    # Empty inlet for samples
     sample0, timestamp0 = inlet.pull_chunk(max_samples=1500)
     
     
     
 def read_EEG_stream(fs=500,max_buf=2):
-#import PySimpleGUI as sg    
+# Initialize EEG stream
+# Arguments:
+#   fs: sampling frequency
+#   max_buf: maximum data to have in buffer (seconds)
+    
     streamsEEG = resolve_byprop('type', 'EEG',timeout=10)
     inlet_EEG=StreamInlet(streamsEEG[0],max_buflen=max_buf)
-    store_EEG=data_init(fs,'EEG')
+    store_EEG=data_init(fs,'EEG') # Initialize object
     store_EEG.header=['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4','Timestamp']
     return inlet_EEG,store_EEG
-#%%
-def read_marker_stream(stream_name ='MyMarkerStream3'):#
+
+def read_marker_stream(stream_name ='MyMarkerStream3'):
     index_lsl=[]
     lsl_created=[]
-    streams = resolve_byprop('type', 'Markers',timeout=10)
+    streams = resolve_byprop('type', 'Markers',timeout=10) # look for stream(s)
     for i in range (len(streams)):
         if (streams[i].name() == stream_name):
             index_lsl.append(i)
-            lsl_created.append(streams[i].created_at())
+            lsl_created.append(streams[i].created_at()) # store when stream was created
     if index_lsl:
-        if len(index_lsl)>1:
+        if len(index_lsl)>1: # Multiple stream available
             print("Not unique marker stream name, using most recent one")
             index_lsl=index_lsl[np.argmax(lsl_created)]
-        else:
+        else: # One stream available
             index_lsl=index_lsl[np.argmax(lsl_created)]
         print ("lsl stream available")
         inlet_marker = StreamInlet(streams[index_lsl])
-        lsl_avail=1
-        store_marker=data_init(500,'marker')
+        store_marker=data_init(500,'marker') # Initialize object
         store_marker.header=['Marker','Timestamp']
     else:
         inlet_marker=[]
@@ -76,6 +87,7 @@ def read_marker_stream(stream_name ='MyMarkerStream3'):#
     return inlet_marker,store_marker
 
 def read_save_from_stream(inlet,store,user_id):
+    # read and save data from inlet
     sample, timestamp = inlet.pull_chunk()
     sample=np.asarray(sample)
     timestamp =np.asarray(timestamp) 
@@ -84,12 +96,11 @@ def read_save_from_stream(inlet,store,user_id):
 
 def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[],excess_EEG_time=[],excess_marker=[],excess_marker_time=[],state='stable',look_for_trigger=1,tmax=1):
     fs=500
-    t_latency=0
+    t_latency=0 # latency of EEG in relation to trigger
     tmin=-0.1 # seconds before stimulus onset
-    t_epoch=tmax-tmin # seconds
-    s_epoch=int(t_epoch*fs) # samples
-    s=10 #safety samples
-    rej=0
+    t_epoch=tmax-tmin # length of epoch (seconds)
+    s_epoch=int(t_epoch*fs) # samples in epoch
+    s=10 # extra samples to store for next epoch
     look_for_epoch=1
     multi_triggers=0
     # read from marker stream (sent from psychopy script)
@@ -150,10 +161,8 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
             print(timestamp_EEG[i_start])
             print(timestamp_marker)
             if avail_samples>=s_epoch:
-                rej=0
                 #C+=1
                 epoch=sample_EEG[i_start:i_start+s_epoch,:] #  550x32 
-                #epoch=preproc1epoch(epoch.T,info,projs,reject=20) # in MNE format
                
                 look_for_epoch=0 
                 print(i_start+fs-s)
@@ -169,7 +178,6 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
                 print("Ready to preprocess, marker",sample_marker)
 
             else:
-                rej+=1
                 print("Warning. Not enough EEG samples available")
                 print("Wait time",np.max([0,(s_epoch-avail_samples)/fs]))
                 time.sleep(np.max([0,(s_epoch-avail_samples)/fs])+0.03)
@@ -186,7 +194,6 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
                 #excess_marker_time=timestamp_marker
     
         else:# not sample_lsl.any():
-            rej+=1
             print("Warning. No trigger points recovered")
             t2=time.clock()
             time.sleep(0.1)#max(pull_interval-(t2-t1),0))
