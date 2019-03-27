@@ -17,13 +17,9 @@ def gitlab_dir_init(): # Base directory for GitLab (storage of files)
     gitlab_dir = 'C:\\Users\\nicped\\Documents\\GitLab\\project'
     return gitlab_dir
 
-def stimuli_path_init():
-    stimuli_path = base_dir_init() + '\Stimuli_scripts'
-    return stimuli_path
-
-def EEG_path_init():
-    EEG_path = base_dir_init() + '\EEG_scripts'
-    return EEG_path
+def script_path_init():
+    script_path = base_dir_init() + '\Scripts'
+    return script_path
 
 def data_path_init():
     data_path = gitlab_dir_init() + '\data'
@@ -38,5 +34,6 @@ if __name__ == '__main__':
     base_dir = base_dir_init()
     print('====== Current directory ======')
     print(base_dir)
+    git_dir = gitlab_dir_init()
     print('====== GitLab directory ======')
-    print(gitlab_dir)
+    print(git_dir)

@@ -7,6 +7,14 @@ from pylsl import StreamOutlet,StreamInfo,resolve_byprop,local_clock
 import time
 import os 
 
+
+from paths import data_path_init, stimuli_path_init, subject_path_init
+
+# Paths
+data_path = data_path_init()
+stimuli_path = stimuli_path_init()
+subject_path = subject_path_init()
+
 os.chdir('C:\\Users\\nicped\\Documents\\GitLab\\project\\Python_Scripts')
 from EEG_functions_CL import preproc1epoch, create_info_mne, computeSSP,applySSP,removeEpochs,average_stable
 from EEG_preproc_overview import extractCat
@@ -37,13 +45,13 @@ while marker_not_present:
             marker_not_present = 0
             print("Stream from Psychopy experimental script found")
 
-#%% Start sampling, preprocessing and analyzing EEG data real-time in three phases:
-# 1) Stable (EEG data during stable blocks used for training the decoding classifier. Size: 600 most recent stable trials)
-# 2) Train (training of the decoding classifier, based on the specific run number)
-# 3) Feedback 
+#%% Start sampling, preprocessing and analysis of EEG data real-time in three phases:
+# 1) Stable (EEG data during stable blocks used for training the decoding classifier. EEG data size: 600 most recent stable trials)
+# 2) Train (training of the decoding classifier)
+# 3) Feedback (preprocessing and classification of EEG data)
 
-
-fs=500
+# Variables for 
+fs = 500
 inlet_EEG,store_EEG=read_EEG_stream(fs=fs,max_buf=2)
 inlet_marker,store_marker=read_marker_stream(stream_name ='PsychopyExperiment20')#'MyMarkerStream3'
 info_outlet = StreamInfo('alphaStream','Markers',1,0,'float32','myuniquesourceid23441')
