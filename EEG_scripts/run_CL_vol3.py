@@ -183,5 +183,5 @@ while marker[0]+1<n_trials:
             epoch_prev=epoch
             
     
-    #%%
+#%% Terminate logging of print statements
 Transcript.stop()
