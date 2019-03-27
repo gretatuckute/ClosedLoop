@@ -2,41 +2,41 @@
 """
 Created on Thu Sep 20 13:08:54 2018
 
-Initialization of paths for data, logging
+Initialization of paths for EEG scripts, stimuli scripts, subjects directory, and data directory
 
 @author: gretatuckute
 """
 
 import os
 
-def path_init():
-    data_path = data_path_init()
-    log_path = log_path_init()
-
-    return data_path, log_path
-
-def base_dir_init():
+def base_dir_init(): # Base directory for ClosedLoop GitHub
     this_base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     return this_base_dir
 
-def project_path_init():
-    project_path = base_dir_init() + '\project'
-    return project_path
+def gitlab_dir_init(): # Base directory for GitLab (storage of files)
+    gitlab_dir = 'C:\\Users\\nicped\\Documents\\GitLab\\project'
+    return gitlab_dir
+
+def stimuli_path_init():
+    stimuli_path = base_dir_init() + '\Stimuli_scripts'
+    return stimuli_path
+
+def EEG_path_init():
+    EEG_path = base_dir_init() + '\EEG_scripts'
+    return EEG_path
 
 def data_path_init():
-    data_path = base_dir_init() + '\project\data'
+    data_path = gitlab_dir_init() + '\data'
     return data_path
 
-def log_path_init():
-    log_path = base_dir_init() + '\project\logging'
-    return log_path
-
 def subject_path_init():
-    subject_path = base_dir_init() + '\project\SUBJECTS'
+    subject_path = gitlab_dir_init() + '\SUBJECTS'
     return subject_path
 
 
 if __name__ == '__main__':
     base_dir = base_dir_init()
-    print('====== Current dir ======')
+    print('====== Current directory ======')
     print(base_dir)
+    print('====== GitLab directory ======')
+    print(gitlab_dir)
