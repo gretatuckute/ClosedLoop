@@ -21,23 +21,28 @@ subject_id = '19'
 y = extractCat(gamer_dir+"createIndices_"+subject_id+"_day_2"+".csv",exp_type='fused')
 y = np.array([int(x) for x in y])
 
-#%% Tracking of print outputs. Saved as a log file to the subject ID folder.
+#%% Tracking of print outputs. Saved as a log file to the subject ID folder
 Transcript.start(gamer_dir+'stream_logfile_subject'+subject_id+time.strftime('%m-%d-%y_%H-%M')+'.log')
 
-#%% Look for a recent stream from the Psychopy experimental script.
-marker_not_present = 1 # 
-timeout=1 # time to look for stream in seconds 
+#%% Look for a recent stream from the Psychopy experimental script
+marker_not_present = 1 # Whether to look for a marker stream from other scripts
+timeout = 1 # Time to look for stream in seconds 
 
 while marker_not_present:
-    t=local_clock()
-    streams = resolve_byprop('type', 'Markers',timeout=timeout)
+    t = local_clock()
+    streams = resolve_byprop('type', 'Markers', timeout=timeout)
     for i in range (len(streams)):
-        lsl_created=(streams[i].created_at())
-        if np.abs(lsl_created-t)<20: # stream must be recent
-            marker_not_present=0
-            print("Stream from Psychopy found")
+        lsl_created = (streams[i].created_at())
+        if np.abs(lsl_created - t) < 20: # Make sure that the stream has been created within the last 20 seconds
+            marker_not_present = 0
+            print("Stream from Psychopy experimental script found")
 
-#%%
+#%% Start sampling, preprocessing and analyzing EEG data real-time in three phases:
+# 1) Stable (EEG data during stable blocks used for training the decoding classifier. Size: 600 most recent stable trials)
+# 2) Train (training of the decoding classifier, based on the specific run number)
+# 3) Feedback 
+
+
 fs=500
 inlet_EEG,store_EEG=read_EEG_stream(fs=fs,max_buf=2)
 inlet_marker,store_marker=read_marker_stream(stream_name ='PsychopyExperiment20')#'MyMarkerStream3'
