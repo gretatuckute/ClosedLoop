@@ -34,12 +34,11 @@ import time
 import numpy as np
 import csv
 import pandas as pd
-from paths import data_path_init, log_path_init, project_path_init, subject_path_init
+from paths import data_path_init, stimuli_path_init, subject_path_init
 
 # Paths
 data_path = data_path_init()
-log_path = log_path_init()
-project_path = project_path_init()
+stimuli_path = stimuli_path_init()
 subject_path = subject_path_init()
 
 os.chdir(subject_path)
