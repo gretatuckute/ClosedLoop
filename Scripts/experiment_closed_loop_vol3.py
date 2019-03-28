@@ -43,8 +43,10 @@ script_path = script_path_init()
 
 os.chdir(subject_path)
 
+######### Input subject ID and experiment day #######
+
 subjID = '16'
-expDay = '4'
+expDay = '4' # '2': feedback day
 
 
 ############### Global variables ###############
