@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Feb  7 14:43:08 2019
-Functions for working with EEG in Python: Extract raw EEG data, align EEG to time-locked stimuli, divide EEG into epochs
+Functions for analysing EEG offline partly using MNE: Extract raw EEG data, align EEG to time-locked stimuli, divide EEG into epochs
 based on marker/experimental trial timing, extract experimental categories, computing and analyzing variance of SSP projection
 vectors, preprocessing of epoched EEG data (filtering, baseline correction, rereferencing, resampling)
 
@@ -73,17 +73,19 @@ def extractRaw(EEGfile):
 
 def extractEpochs(EEGfile,markerfile,prefilter=0,marker1=1):
     ''' 
-    Extracts time-locked EEG epochs based on stimuli/marker timing in stream 33.
+    Extracts time-locked EEG epochs based on stimuli/marker timing in channel 33.
     
     # Input
-    - csv file with channels as columns and trials as rows.
-    - csv file with marker time points for each experimental event.
+    - EEGfile: csv file with channels as columns and trials as rows.
+    - markerfile: csv file with marker time points for each experimental event.
+    - prefilter: whether to filter data before extracting epochs
+    - marker1: whether all markers of interest have value '1'
     
     # Output
     - Epoched EEG data (1100 ms. 100 ms before stimulus onset, and 1000 ms after stimulus onset).
-    
+    - marker_start_end: timestamp of the first and last marker
     '''
-    
+    # Initialize
     le = np.zeros(4500000)
     EEGdata = []
     c = 0
@@ -100,7 +102,7 @@ def extractEpochs(EEGfile,markerfile,prefilter=0,marker1=1):
     
     EEGdata = EEGdata[2:]
     eegdata = np.array(EEGdata)
-    eegdata_time=eegdata[:,32]
+    eegdata_time=eegdata[:,32] # timestamps of EEG
     eegdata = eegdata[:,0:32] # Remove marker as the last channel
     if prefilter==1:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
@@ -143,12 +145,10 @@ def extractEpochs(EEGfile,markerfile,prefilter=0,marker1=1):
         eventsM=[int(m) for m in marker]
     eventsM2 = np.asarray(eventsM)
 
+    # match EEG timestamp with marker timestamp (stimuli onset)    
     nEv = len(eventsM)
-
     eventsEEG0 = np.zeros(nEv)
-
     for trial in range(nEv):
-    
         eventsEEG0[trial] = np.argmin(abs(eegdata_time - marker_time2[eventsM2[trial]])) #gives EEG 0 timestamp
 
   
@@ -164,6 +164,7 @@ def extractEpochs(EEGfile,markerfile,prefilter=0,marker1=1):
     
     print('Number of trials extracted: ' + str(nEv))
     marker_start_end=[marker_time2[eventsM2[0]],marker_time2[eventsM2[-1]]]-eegdata_time[0]
+    
     return epochs,marker_start_end
 
 def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
@@ -173,12 +174,14 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
     # Input
     - csv file with channels as columns and trials as rows.
     - csv file with marker time points for each experimental event.
-    
+    - prefilter: whether to filter data before extracting epochs
+    - marker1: whether all markers of interest have value '1'
+    - n_samples: length of epoch to extract
     # Output
     - Epoched EEG data (1100 ms. 100 ms before stimulus onset, and 1000 ms after stimulus onset).
     
     '''
-    
+    n_channels = 32
     le = np.zeros(4500000)
     EEGdata = []
     c = 0
@@ -190,17 +193,17 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
         for row in csvfile:
             rownum = np.fromstring(row,dtype=float,sep=',')
             le[c] = (len(rownum))
-            if le[c]==33:
+            if le[c]==(n_channels+1):
                 EEGdata.append(rownum)
             c += 1
     
     EEGdata = EEGdata[2:]
     eegdata = np.array(EEGdata)
-    eegdata_time=eegdata[:,32]
-    eegdata = eegdata[:,0:32] # Remove marker as the last channel
+    eegdata_time=eegdata[:,n_channels]
+    eegdata = eegdata[:,0:n_channels] # Remove marker as the last channel
     if prefilter==1:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
-        channel_types = ['eeg']*32
+        channel_types = ['eeg']*n_channels
         sfreq = 500  # in Hertz
         montage = 'standard_1020' # Or 1010
         info = mne.create_info(channel_names, sfreq, channel_types, montage)
@@ -239,28 +242,22 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
         eventsM=[int(m) for m in marker]
     eventsM2 = np.asarray(eventsM)
 
+    # match EEG timestamp with marker timestamp (stimuli onset) + tmin 
     nEv = len(eventsM)
-
     eventsEEG0 = np.zeros(nEv)
-
     for trial in range(nEv):
-    
         eventsEEG0[trial] = np.argmin(abs(marker_time2[eventsM2[trial]]+tmin-eegdata_time)) #gives EEG 0 timestamp
 
   
     # Take the eegdata variable and extract epochs
-    epochs = np.zeros([nEv,550,32])
-
-    epoch0_idx = eventsEEG0.tolist()
-    epoch0_idx = [int(i) for i in epoch0_idx]
+    epochs = np.zeros([nEv,n_samples,n_channels])
 
     for count,number in enumerate(epoch0_idx):
-        if number+550<len(eegdata[:,1]):
-            epochs[count,:,:] = eegdata[number:number+550,0:32]
+        if number+n_samples<len(eegdata[:,1]):
+            epochs[count,:,:] = eegdata[number:number+n_samples,0:n_channels]
     
     print('Number of trials extracted: ' + str(nEv))
-    marker_start_end=[marker_time2[eventsM2[0]],marker_time2[eventsM2[-1]]]-eegdata_time[0]
-    return epochs,marker_start_end,eegdata_time,epoch0_idx
+    return epochs
 
 def extractCat(indicesFile,exp_type='fused'):
     ''' 
@@ -611,7 +608,7 @@ def scaleArray(eeg_array):
     return X_z
 
 
-def ERPcomp(eeg_data,sfreq,times,comp='all_ERPs',avg=1):
+def ERPcomp(eeg_data,sfreq,times,comp='all_ERPs',avg=1): # Not currently used
     
     ERP=['P1','N1','vN1','P2','vN2','P3','N3']
     P1=[[0.115], [0.135]]
