@@ -15,7 +15,7 @@ os.chdir(script_path)
 from EEG_analysis_RT import preproc1epoch,create_info_mne,computeSSP,applySSP,removeEpochs,average_stable
 from EEG_analysis_offline import extractCat
 from EEG_classification import sigmoid,testEpoch,trainLogReg_cross,trainLogReg_cross2
-from stream_functions import *
+from stream_functions import read_EEG_stream,read_marker_stream,get_epoch,clear_stream
 
 # Manual input of subject ID for streaming and logging
 subject_id = '19' 
@@ -51,43 +51,50 @@ inlet_EEG,store_EEG = read_EEG_stream(fs=fs,max_buf=2) # EEG stream
 inlet_marker,store_marker = read_marker_stream(stream_name ='PsychopyExperiment20') # Experimental marker stream
 info_outlet = StreamInfo('alphaStream','Markers',1,0,'float32','myuniquesourceid23441') # Outlet for alpha values from the trained classifier. Used for updating the experimental stimuli
 outlet_alpha = StreamOutlet(info_outlet)
-info_fs500 = create_info_mne(reject_ch=0,sfreq=500)
-info_fs100 = create_info_mne(reject_ch=1,sfreq=100)
-
-look_for_trigger = 1
-state = 'stable' # Initialization state
 
 # Variables for sampling of EEG and classifier training/feedback
-t_latency = 0.05 # Seconds
+t_latency = 0.0 # Seconds (currently not used)
 baseline_tmin = -0.1 # Seconds
 tmax = 0.800 # Seconds
 fs_new = 100 # Sampling rate after resampling
 n_time = int((tmax-baseline_tmin)*fs_new)
 n_channels = 23
-
-excess_EEG = []
-excess_EEG_time = []
-excess_marker = []
-excess_marker_time = []
+info_fs500 = create_info_mne(reject_ch=0,sfreq=fs)
+info_fs100 = create_info_mne(reject_ch=1,sfreq=fs_new)
 
 # Clear EEG and experiment streams to ensure a clean start
 clear_stream(inlet_marker)
 clear_stream(inlet_EEG)
-time.sleep(1.1) # Wait one epoch
 
-stable_blocks = np.zeros((600,n_channels,n_time))
-stable_blocks0 = np.zeros((200,n_channels,n_time))
+n_runs = 6 # No. runs
+n_stable = 600 # No. stable epochs used for training
+n_stable_epochs = 200 # No. stable epochs in each run (after first run)
+n_feedback_epochs = 200 # No. feedback epochs in each run (after first run)
+n_epochs = n_feedback_epochs + n_stable_epochs
+
+# Initializations
+excess_EEG = []
+excess_EEG_time = []
+excess_marker = []
+excess_marker_time = []
+stable_blocks = np.zeros((n_stable,n_channels,n_time))
+stable_blocks0 = np.zeros((n_stable_epochs,n_channels,n_time)) # 
 marker_all = []
+look_for_trigger = 1
+state = 'stable' # Initialization state
 n_run = 0
 reject = None
 flat = None 
 threshold = 0.1 # SSP variance threshold for rejection of SSP projections
-y_run = y[0:600]
-n_trials = 2400 # Or total length of the experimental stimuli (y)
+y_run = y[0:n_stable]
+n_trials = n_stable*n_runs # Or total length of the experimental stimuli (y)
 marker = [0]
 alphaAll = []
-epochs_fb = np.zeros((200,n_channels,n_time))
-y_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400])) # Neurofeedback blocks
+epochs_fb = np.zeros((n_feedback_epochs,n_channels,n_time))
+fb_starts = [t*200 for t in range(n_runs)]
+#y_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400])) # Neurofeedback blocks
+y_feedback=np.concatenate(([y[(r+1)*n_epochs+n_stable_epochs:(r+2)*n_epochs] for r in range(n_runs)])) # Neurofeedback blocks
+
 
 # Start sampling (continues as long as the marker from the experimental script is below the number of total trials)
 while marker[0]+1 < n_trials:
@@ -99,7 +106,7 @@ while marker[0]+1 < n_trials:
         # Preprocess one epoch at a time and append to stable_blocks array
         if len(epoch):
             epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=1,reject_ch=True,flat=None)
-            stable_blocks[marker[0]-n_run*400,:,:] = epoch
+            stable_blocks[marker[0]-n_run*n_epochs,:,:] = epoch
             marker_all.append(marker)
             
     elif state == 'train':
@@ -138,8 +145,8 @@ while marker[0]+1 < n_trials:
             
             # Append SSP corrected neurofeedback blocks to array with SSP corrected stable blocks (stable_blocksSSP_append)
             stable_blocksSSP_append = np.append(stable_blocksSSP,epochs_fb,axis=0)
-            fb_start = (n_run-1)*200
-            y_run_append = np.append(y_run,y_feedback[fb_start:fb_start+200])
+            fb_start = (n_run-1)*n_feedback_epochs
+            y_run_append = np.append(y_run,y_feedback[fb_start:fb_start+n_feedback_epochs])
             print('About to train classifier for n_run > 0')
             clf,offset = trainLogReg_cross2(stable_blocksSSP_append,y_run_append)
 
@@ -156,22 +163,22 @@ while marker[0]+1 < n_trials:
         print('Offset: ' + str(offset))
         
         # Prepare stable_blocks for next run (remove first 200 trials and pre-initialize to 600 trials)
-        stable_blocks = stable_blocks[200:,:,:]
+        stable_blocks = stable_blocks[n_stable_epochs:,:,:]
         stable_blocks = np.concatenate((stable_blocks,stable_blocks0),axis=0)
-        y_run = np.concatenate((y_run[200:],y[800+400*n_run:1000+400*n_run]))
+        y_run = np.concatenate((y_run[n_stable_epochs:],y[n_epochs*(n_run+2):n_stable_epochs+n_epochs*(n_run+2)]))#[800+400*n_run:1000+400*n_run]
         
         
         print('Classifier training finished, commencing onto neurofeedback')
         state = 'feedback'
         n_run += 1
-        epochs_fb = np.zeros((200,n_channels,n_time))
+        epochs_fb = np.zeros((n_feedback_epochs,n_channels,n_time))
 
 
     elif state=='feedback':
         epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger=get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax,fs=fs)
         
-        # Test which number epoch is currently sampled and about to be preprocessed
-        t_test = marker-600-400*(n_run-1)
+        # Test which number epoch i run is currently sampled and about to be preprocessed
+        t_test = marker-n_stable_epochs-n_epochs*n_run#marker-600-400*(n_run-1)
         if len(epoch):
             epoch = preproc1epoch(epoch,info_fs500,projs=projs,SSP=True,reject=reject,mne_reject=1,reject_ch=True,flat=flat)
             if t_test > 0:    
