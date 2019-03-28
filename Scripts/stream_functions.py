@@ -11,87 +11,89 @@ import csv
 import time
 import numpy as np
 import sys
-from paths import EEG_path_init, subject_path_init
-subject_path=subject_path_init()
-# Functions
+from paths import subject_path_init
+subject_path = subject_path_init()
 
-import csv
+
 class data_init:
-    # Arguments:
-    #   fs: sampling frequency
-    #   data_type: 'EEG' or 'marker' (trigger from stimuli script)
-    def __init__(self, fs,data_type,filename=None):
+    
+    def __init__(self,fs,data_type,filename=None):
+        '''
+        Input:
+        - fs: Sampling frequency
+        - data_type: 'EEG' or 'marker' (trigger from experimental stimuli script)
+        '''
         self.fs,self.filename,self.data_type = fs,filename,data_type
         
 
-def save_data(data,sample,timestamp,user_id):
+def save_data(data_info,sample,timestamp,user_id):
     #Saves sample and timestamp to csv file
     # Arguments:
-    #   data: class from data_init
+    #   data_info: class from data_init
     #   sample: data chunk or sample to save
     #   timestamp: timestamp of chunk/sample
     #   user_id: subject ID
     
-    if data.filename==None: # if file does not exist create it
-        data.filename=subject_path+'\\'+'subject_'+user_id+'_'+data.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
-        with open(data.filename,'w',newline='') as csvfile:
+    if data_info.filename == None: # if file does not exist create it
+        data_info.filename = subject_path+'\\'+'subject_'+user_id+'_'+data_info.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
+        with open(data_info.filename,'w',newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(data.header)
-    with open(data.filename,'a',newline='') as csvfile:
+            writer.writerow(data_info.header)
+    with open(data_info.filename,'a',newline='') as csvfile:
         writer = csv.writer(csvfile)
-        if len(sample)<=1:
+        if len(sample) <= 1:
             writer.writerow(np.append(np.array([sample]),np.array([timestamp])))
         else:
             writer.writerows(np.append(sample,np.array([timestamp]).T,axis=1))
-    return data
+    return data_info
 
 def clear_stream(inlet):
-    # Empty inlet for samples
+    # Empty inlet for samples (pull all samples from the inlet)
     sample0, timestamp0 = inlet.pull_chunk(max_samples=1500)
-    
     
     
 def read_EEG_stream(fs=500,max_buf=2):
 # Initialize EEG stream
 # Arguments:
 #   fs: sampling frequency
+    # timeout: max time to look for whether EEG stream is available (seconds)
 #   max_buf: maximum data to have in buffer (seconds)
     
-    streamsEEG = resolve_byprop('type', 'EEG',timeout=10)
-    inlet_EEG=StreamInlet(streamsEEG[0],max_buflen=max_buf)
-    store_EEG=data_init(fs,'EEG') # Initialize object
-    store_EEG.header=['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4','Timestamp']
+    streamsEEG = resolve_byprop('type','EEG',timeout=1)
+    inlet_EEG = StreamInlet(streamsEEG[0],max_buflen=max_buf)
+    store_EEG = data_init(fs,'EEG') # Initialize object
+    store_EEG.header = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4','Timestamp']
     return inlet_EEG,store_EEG
 
 def read_marker_stream(stream_name ='MyMarkerStream3'):
-    index_lsl=[]
-    lsl_created=[]
+    index_lsl = []
+    lsl_created = []
     streams = resolve_byprop('type', 'Markers',timeout=10) # look for stream(s)
-    for i in range (len(streams)):
+    for i in range(len(streams)):
         if (streams[i].name() == stream_name):
             index_lsl.append(i)
             lsl_created.append(streams[i].created_at()) # store when stream was created
     if index_lsl:
-        if len(index_lsl)>1: # Multiple stream available
+        if len(index_lsl) > 1: # Multiple stream available
             print("Not unique marker stream name, using most recent one")
-            index_lsl=index_lsl[np.argmax(lsl_created)]
+            index_lsl = index_lsl[np.argmax(lsl_created)]
         else: # One stream available
-            index_lsl=index_lsl[np.argmax(lsl_created)]
+            index_lsl = index_lsl[np.argmax(lsl_created)]
         print ("lsl stream available")
         inlet_marker = StreamInlet(streams[index_lsl])
-        store_marker=data_init(500,'marker') # Initialize object
-        store_marker.header=['Marker','Timestamp']
+        store_marker = data_init(500,'marker') # Initialize marker object
+        store_marker.header = ['Marker','Timestamp']
     else:
-        inlet_marker=[]
+        inlet_marker = []
         print('Warning: No marker inlet available')
     return inlet_marker,store_marker
 
 def read_save_from_stream(inlet,store,user_id):
     # read and save data from inlet
     sample, timestamp = inlet.pull_chunk()
-    sample=np.asarray(sample)
-    timestamp =np.asarray(timestamp) 
-    store=save_data(store,sample,timestamp,user_id)
+    sample = np.asarray(sample)
+    timestamp = np.asarray(timestamp) 
+    store = save_data(store,sample,timestamp,user_id)
     return sample,timestamp,store
 
 def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[],excess_EEG_time=[],excess_marker=[],excess_marker_time=[],state='stable',look_for_trigger=1,tmax=1,fs=500):
@@ -110,123 +112,122 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
     #   sample_marker: marker/trigger for stimuli onset
     #   and as above..
     
-    
-
-    t_latency=0 # latency of EEG in relation to trigger
-    tmin=-0.1 # seconds before stimulus onset
-    t_epoch=tmax-tmin # length of epoch (seconds)
-    s_epoch=int(t_epoch*fs) # samples in epoch
-    s=10 # extra samples to store for next epoch
-    look_for_epoch=1
-    use_excess_triggers=1
+    t_latency = 0 # latency of EEG in relation to trigger
+    tmin = -0.1 # seconds before stimulus onset
+    t_epoch = tmax-tmin # length of epoch (seconds)
+    s_epoch = int(t_epoch*fs) # samples in epoch
+    s = 10 # extra samples to store for next epoch
+    look_for_epoch = 1
+    use_excess_triggers = 1
     
     
     while look_for_epoch:
 
         # read from marker stream 
         if look_for_trigger:
-            sample_marker, timestamp_marker,store_marker=read_save_from_stream(inlet_marker,store_marker,user_id)
-        if use_excess_triggers==1: # Only go to excess trigger if current trigger has been processed
+            sample_marker,timestamp_marker,store_marker = read_save_from_stream(inlet_marker,store_marker,user_id)
+        if use_excess_triggers == 1: # Only go to excess trigger if current trigger has been processed
             if excess_marker: # if delay in system has caused markers to be buffered
-                print('Using excess marker '+str(excess_marker))
-                sample_marker=excess_marker
-                timestamp_marker=excess_marker_time
-                excess_marker=[]
-                excess_marker_time=[]    
+                print('Using excess marker ' + str(excess_marker))
+                sample_marker = excess_marker
+                timestamp_marker = excess_marker_time
+                excess_marker = []
+                excess_marker_time = []    
             
         # read from EEG stream
-        sample_EEG,timestamp_EEG,store_EEG=read_save_from_stream(inlet_EEG,store_EEG,user_id)
+        sample_EEG,timestamp_EEG,store_EEG = read_save_from_stream(inlet_EEG,store_EEG,user_id)
         if len(excess_EEG): 
             if len(sample_EEG):
                 print(sample_EEG.shape)
                 print(excess_EEG.shape)
-                sample_EEG=np.concatenate((excess_EEG, sample_EEG),axis=0)
-                timestamp_EEG=np.concatenate((excess_EEG_time, timestamp_EEG),axis=0)
+                sample_EEG = np.concatenate((excess_EEG,sample_EEG),axis=0)
+                timestamp_EEG = np.concatenate((excess_EEG_time,timestamp_EEG),axis=0)
             else: # if no new EEG data was read
-                sample_EEG=excess_EEG
-                timestamp_EEG=excess_EEG_time
+                sample_EEG = excess_EEG
+                timestamp_EEG = excess_EEG_time
 
-        epoch=[] # initialize
+        epoch = [] # initialize
         # Find stimuli marker onset in EEG
         if len(sample_marker): # if marker is present
-            if len(sample_marker)>1: # if more than one marker is present
+            if len(sample_marker) > 1: # if more than one marker is present
                 print("Warning. More than one trigger point recovered, using second recent one")
-                excess_marker=np.asarray([sample_marker[-1]])
-                excess_marker_time=np.asarray([timestamp_marker[-1]])
-                sample_marker=np.asarray([sample_marker[-2]])
-                timestamp_marker=np.asarray([timestamp_marker[-2]])            
-                look_for_trigger=0
-                use_excess_triggers=0
+                excess_marker = np.asarray([sample_marker[-1]])
+                excess_marker_time = np.asarray([timestamp_marker[-1]])
+                sample_marker = np.asarray([sample_marker[-2]])
+                timestamp_marker = np.asarray([timestamp_marker[-2]])            
+                look_for_trigger = 0
+                use_excess_triggers = 0
             else: 
-                look_for_trigger=1
+                look_for_trigger = 1
+                
             # Find timesample of EEG nearest stimuli onset plus tmin
-            i_start=np.argmin(np.abs(timestamp_marker+ t_latency+tmin-timestamp_EEG )) # find closest sample in the EEG corresponding to marker plus latency and baseline
-            t_diff=timestamp_marker+t_latency+tmin-timestamp_EEG[i_start] # distance between EEG time sample and marker
-            if np.abs(t_diff)>1/fs:
+            i_start = np.argmin(np.abs(timestamp_marker+t_latency+tmin-timestamp_EEG)) # find closest sample in the EEG corresponding to marker plus latency and baseline
+            t_diff = timestamp_marker+t_latency+tmin-timestamp_EEG[i_start] # distance between EEG time sample and marker
+            if np.abs(t_diff) > (1/fs): # Sample missing 
                 print("Warning. TOO LONG BETWEEN EEG AND MARKER: ",t_diff)
             else:
                 print("Time between EEG and marker: ",t_diff)
             
-            avail_samples=(len(timestamp_EEG)-i_start) # No. samples from stimuli onset + tmin
-            if avail_samples>=s_epoch: # if one EEG epoch has been recovered
-                epoch=sample_EEG[i_start:i_start+s_epoch,:] #  samples x channels
+            avail_samples = (len(timestamp_EEG)-i_start) # No. samples from stimuli onset + tmin. i_start is timestamp of the EEG closely matched to timestamp of the marker, minus 0.1 sec
+            if avail_samples >= s_epoch: # if one EEG epoch has been recovered
+                epoch = sample_EEG[i_start:i_start+s_epoch,:] #  samples x channels. Add an epoch of size 900 ms, 450 samples
                
-                look_for_epoch=0 # done looking for epoch
+                look_for_epoch = 0 # done looking for epoch
                 
                 # Save EEG samples for next epoch
-                if t_diff<-2/fs: # Make sure that mismatches between EEG and marker do not accumlate over time
-                    s_diff=int(np.abs(t_diff*fs)) # no. samples
-                    print('Increasing excess_EEG by: '+str(s_diff)) # mostly relevant if epochs are overlapping
-                    excess_EEG=sample_EEG[i_start+fs-s-s_diff:,:]
-                    excess_EEG_time=timestamp_EEG[i_start+fs-s-s_diff:]
+                if t_diff<-2/fs: # Make sure that mismatches between EEG and marker do not accumlate over time. 
+                    s_diff = int(np.abs(t_diff*fs)) # no. samples
+                    print('Increasing excess_EEG by: ' + str(s_diff)) # mostly relevant if epochs are overlapping
+                    excess_EEG = sample_EEG[i_start+fs-s-s_diff:,:]
+                    excess_EEG_time = timestamp_EEG[i_start+fs-s-s_diff:]
                 else:
-                    excess_EEG=sample_EEG[i_start+fs-s:,:]
+                    excess_EEG = sample_EEG[i_start+fs-s:,:]
                     print('saving' + str(excess_EEG.shape))
-                    excess_EEG_time=timestamp_EEG[i_start+fs-s:]
-                print("Ready to preprocess, marker",sample_marker)
+                    excess_EEG_time = timestamp_EEG[i_start+fs-s:]
+                print("Ready to preprocess, marker: ",sample_marker)
 
             else:
                 print("Warning. Not enough EEG samples available")
                 print("Wait time",np.max([0,(s_epoch-avail_samples)/fs]))
                 time.sleep(np.max([0,(s_epoch-avail_samples)/fs])+0.03)
-                look_for_trigger=0
-                excess_EEG=sample_EEG
-                excess_EEG_time=timestamp_EEG
+                look_for_trigger = 0
+                excess_EEG = sample_EEG
+                excess_EEG_time = timestamp_EEG
                
         else:
             print("Warning. No trigger points recovered")
             time.sleep(0.1)
-            look_for_trigger=1
-            excess_EEG=sample_EEG
-            excess_EEG_time=timestamp_EEG
+            look_for_trigger = 1
+            excess_EEG = sample_EEG
+            excess_EEG_time = timestamp_EEG
     
     # Get ready for next epoch, update state
-    if sample_marker>598: 
+    if sample_marker > 598: 
         if not (sample_marker+1)%400: # if 400, 800, 1200...
             print('Feedback done, ready to collect stable blocks')
-            state='stable'
-            excess_EEG=[]
-            excess_EEG_time=[]
-            excess_marker=[]
-            excess_marker_time=[]
-            look_for_trigger=1
-        elif (sample_marker+1)%400==200: # if 600, 1000, 1400..
-            state='train'
+            state = 'stable'
+            excess_EEG = []
+            excess_EEG_time = []
+            excess_marker = []
+            excess_marker_time = []
+            look_for_trigger = 1
+        elif (sample_marker+1)%400 == 200: # if 600, 1000, 1400.. starting a sampling of stable blocks
+            state = 'train'
             print('Training')
-            excess_EEG=[]
-            excess_EEG_time=[]
-            excess_marker=[]
-            excess_marker_time=[]
-            look_for_trigger=1
+            excess_EEG = []
+            excess_EEG_time = []
+            excess_marker = []
+            excess_marker_time = []
+            look_for_trigger = 1
     #else:    
      #   
     state,reset=get_state(state,sample_marker)
-    if reset==0:
-        excess_EEG=[]
-        excess_EEG_time=[]
-        excess_marker=[]
-        excess_marker_time=[]
-        look_for_trigger=1
+    if reset == 0: # If state has been changed
+        excess_EEG = []
+        excess_EEG_time = []
+        excess_marker = []
+        excess_marker_time = []
+        look_for_trigger = 1
         
     return epoch,state,sample_marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger
 

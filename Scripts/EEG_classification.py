@@ -19,8 +19,8 @@ def scale2DArray(eeg_array,axis=1):
     Scales a 3D array to a 2D array, with scaling on the specified axis.
     
     Input:
-    - eeg_array in the following format: (trials, channels, time samples).
-    - axis: normalization axis (mean 0, std 1)
+    - eeg_array: Array of EEG data in the following format: (trials, channels, time samples).
+    - axis: Normalization axis (mean 0, std 1)
     '''
     
     no_trials = eeg_array.shape[0]
@@ -37,8 +37,8 @@ def scale1DArray(eeg_array,axis=1):
     Scales a 2D array, with scaling on the specified axis.
     
     Input:
-    - eeg_array in the following format: (channels, time samples).
-    - axis: normalization axis (mean 0, std 1)
+    - eeg_array: Array of EEG data in the following format: (channels, time samples).
+    - axis: Normalization axis (mean 0, std 1)
 
     '''
     no_chs = eeg_array.shape[0]

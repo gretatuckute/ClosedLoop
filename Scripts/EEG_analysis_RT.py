@@ -195,7 +195,7 @@ def create_info_mne(reject_ch=0,sfreq=100):
     else:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
         channel_types = ['eeg']*32
-    montage = 'standard_1020' # Or 1010
+    montage = 'standard_1020' 
     info = mne.create_info(channel_names, sfreq, channel_types, montage)
     return info
     
