@@ -1,36 +1,31 @@
 # Imports
 import numpy as np
 import mne
-import pylsl
-import warnings
 from pylsl import StreamOutlet,StreamInfo,resolve_byprop,local_clock
 import time
 import os 
 
-
-from paths import data_path_init, stimuli_path_init, subject_path_init
+from paths import script_path_init, subject_path_init
 
 # Paths
-data_path = data_path_init()
-stimuli_path = stimuli_path_init()
+script_path = script_path_init()
 subject_path = subject_path_init()
+os.chdir(script_path)
 
-os.chdir('C:\\Users\\nicped\\Documents\\GitLab\\project\\Python_Scripts')
-from EEG_functions_CL import preproc1epoch, create_info_mne, computeSSP,applySSP,removeEpochs,average_stable
-from EEG_preproc_overview import extractCat
-from EEG_classification import sigmoid, trainLogReg,testEpoch,trainLogReg_cross,trainLogReg_cross2
+from EEG_analysis_RT import preproc1epoch,create_info_mne,computeSSP,applySSP,removeEpochs,average_stable
+from EEG_analysis_offline import extractCat
+from EEG_classification import sigmoid,testEpoch,trainLogReg_cross,trainLogReg_cross2
 from stream_functions import *
-gamer_dir = "C:\\Users\\nicped\\Documents\\GitLab\\project\\SUBJECTS\\"+subject_id+"\\"
 
 # Manual input of subject ID for streaming and logging
 subject_id = '19' 
 
 # Extract experimental categories 
-y = extractCat(gamer_dir+"createIndices_"+subject_id+"_day_2"+".csv",exp_type='fused')
+y = extractCat(subject_path+'\\'+subject_id+'\\createIndices_'+subject_id+'_day_2.csv',exp_type='fused')
 y = np.array([int(x) for x in y])
 
 #%% Tracking of print outputs. Saved as a log file to the subject ID folder
-Transcript.start(gamer_dir+'stream_logfile_subject'+subject_id+time.strftime('%m-%d-%y_%H-%M')+'.log')
+Transcript.start(subject_path+'\\'+subject_id+'\\stream_logfile_subject'+subject_id+time.strftime('%m-%d-%y_%H-%M')+'.log')
 
 #%% Look for a recent stream from the Psychopy experimental script
 marker_not_present = 1 # Whether to look for a marker stream from other scripts
@@ -45,155 +40,162 @@ while marker_not_present:
             marker_not_present = 0
             print("Stream from Psychopy experimental script found")
 
-#%% Start sampling, preprocessing and analysis of EEG data real-time in three phases:
+#%% Start sampling, preprocessing and analysis of EEG data real-time in three states:
 # 1) Stable (EEG data during stable blocks used for training the decoding classifier. EEG data size: 600 most recent stable trials)
 # 2) Train (training of the decoding classifier)
-# 3) Feedback (preprocessing and classification of EEG data)
+# 3) Feedback (preprocessing and classification of EEG data for neurofeedback)
 
-# Variables for 
-fs = 500
-inlet_EEG,store_EEG=read_EEG_stream(fs=fs,max_buf=2)
-inlet_marker,store_marker=read_marker_stream(stream_name ='PsychopyExperiment20')#'MyMarkerStream3'
-info_outlet = StreamInfo('alphaStream','Markers',1,0,'float32','myuniquesourceid23441')
-outlet_alpha =StreamOutlet(info_outlet)
-info_fs500=create_info_mne(reject_ch=0,sfreq=500)
-info_fs100=create_info_mne(reject_ch=1,sfreq=100)
+# Read EEG data stream and experimental script marker stream
+fs = 500 # Sampling rate
+inlet_EEG,store_EEG = read_EEG_stream(fs=fs,max_buf=2) # EEG stream
+inlet_marker,store_marker = read_marker_stream(stream_name ='PsychopyExperiment20') # Experimental marker stream
+info_outlet = StreamInfo('alphaStream','Markers',1,0,'float32','myuniquesourceid23441') # Outlet for alpha values from the trained classifier. Used for updating the experimental stimuli
+outlet_alpha = StreamOutlet(info_outlet)
+info_fs500 = create_info_mne(reject_ch=0,sfreq=500)
+info_fs100 = create_info_mne(reject_ch=1,sfreq=100)
 
-look_for_trigger=1
-C=1
-t_latency=0.05 # s
-baseline_tmin=-0.1
-tmax=0.800
-fs_new=100
-n_time=int((tmax-baseline_tmin)*fs_new)
-state='stable'
-excess_EEG=[]
-excess_EEG_time=[]
-excess_marker=[]
-excess_marker_time=[]
+look_for_trigger = 1
+state = 'stable' # Initialization state
+
+# Variables for sampling of EEG and classifier training/feedback
+t_latency = 0.05 # Seconds
+baseline_tmin = -0.1 # Seconds
+tmax = 0.800 # Seconds
+fs_new = 100 # Sampling rate after resampling
+n_time = int((tmax-baseline_tmin)*fs_new)
+n_channels = 23
+
+excess_EEG = []
+excess_EEG_time = []
+excess_marker = []
+excess_marker_time = []
+
+# Clear EEG and experiment streams to ensure a clean start
 clear_stream(inlet_marker)
 clear_stream(inlet_EEG)
-time.sleep(1.1) # wait one epoch
-n_channels=23
-stable_blocks=np.zeros((600,n_channels,n_time))
-stable_blocks0=np.zeros((200,n_channels,n_time))
-marker_all=[]
-n_run=0
-reject=None#dict(eeg=100)
-flat=None#dict(eeg=5)
-threshold=0.1
-y_run=y[0:600]
-n_trials=2400#len(y)
-marker=[0]
-alphaAll=[]
-epochs_fb=np.zeros((200,n_channels,n_time))
-y_feedback=np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400]))
-while marker[0]+1<n_trials:
+time.sleep(1.1) # Wait one epoch
 
-    #if rej>10:
-        #popupmsg("More than 5 errors")
-        #messagebox.showinfo("Data problems", "High number of mismatch")
-        #messagebox.showwarning("Warning","Warning message")
-        #sg.Popup('Error', 'Too many mismatches')
-    if state=='stable':
+stable_blocks = np.zeros((600,n_channels,n_time))
+stable_blocks0 = np.zeros((200,n_channels,n_time))
+marker_all = []
+n_run = 0
+reject = None
+flat = None 
+threshold = 0.1 # SSP variance threshold for rejection of SSP projections
+y_run = y[0:600]
+n_trials = 2400 # Or total length of the experimental stimuli (y)
+marker = [0]
+alphaAll = []
+epochs_fb = np.zeros((200,n_channels,n_time))
+y_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400])) # Neurofeedback blocks
 
-        epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger=get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax)
-        '''
-        håndter når der er mere end 2 markers tilgængelige i stabile blokke
-        '''
+# Start sampling (continues as long as the marker from the experimental script is below the number of total trials)
+while marker[0]+1 < n_trials:
+
+    if state == 'stable':
+        # Extract epoch
+        epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger = get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax,fs=fs)
+        
+        # Preprocess one epoch at a time and append to stable_blocks array
         if len(epoch):
-            epoch=preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=1,reject_ch=True,flat=None)
-            stable_blocks[marker[0]-n_run*400,:,:]=epoch
+            epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=1,reject_ch=True,flat=None)
+            stable_blocks[marker[0]-n_run*400,:,:] = epoch
             marker_all.append(marker)
             
-    elif state=='train':
-        
-        
-
-        # test if epochs are missing:
-        ss=np.sum(np.sum(np.abs(stable_blocks),axis=2),axis=1)
-        epochs0_idx=np.where(ss==0)[0]
+    elif state == 'train':
+        # Test if stable block epochs are missing
+        ss = np.sum(np.sum(np.abs(stable_blocks),axis=2),axis=1)
+        epochs0_idx = np.where(ss==0)[0]
         if len(epochs0_idx):
-            rep=0
-            while rep<30:
-                print('WARNING missing '+str(len(epochs0_idx))+' stable epochs\n')
-                rep+=1
-            epochs_non0_avg=np.mean(np.delete(stable_blocks,epochs0_idx,axis=0),axis=0)
-            stable_blocks[epochs0_idx]=epochs_non0_avg
+            rep = 0
+            while rep < 30:
+                print('WARNING missing ' + str(len(epochs0_idx)) + ' stable epochs\n')
+                rep += 1
+            epochs_non0_avg = np.mean(np.delete(stable_blocks,epochs0_idx,axis=0),axis=0)
+            stable_blocks[epochs0_idx] = epochs_non0_avg
         
-        # run SSP
-        projs,stable_blocksSSP=applySSP(stable_blocks,info_fs100,threshold=threshold)
-        stable_blocksSSP=average_stable(stable_blocksSSP)
-        #stable_blocksSSP_rem,reject,flat,bad_channels=removeEpochs(stable_blocksSSP,info_fs100)
-        print('Training classifier') # on stable_blocksSSP   
-        if n_run>0:
-            print('Run more than 0 loop')
-            ss_fb=np.sum(np.sum(np.abs(epochs_fb),axis=2),axis=1)
-            epochs0_idx=np.where(ss_fb==0)[0]
+        # Compute SSP projectors based on stable blocks (training EEG data) 
+        projs,stable_blocksSSP = applySSP(stable_blocks,info_fs100,threshold=threshold)
+
+        # Average two consecutive trials over a moving window 
+        stable_blocksSSP = average_stable(stable_blocksSSP)
+
+        print('Training classifier on SSP corrected EEG data')
+        
+        # Train classifier for other runs than the first run and estimate classifier bias for offset correction
+        if n_run > 0:
+            print('Number of run is above 1')
+            # Test if neurofeedback epochs are missing
+            ss_fb = np.sum(np.sum(np.abs(epochs_fb),axis=2),axis=1)
+            epochs0_idx = np.where(ss_fb==0)[0]
             if len(epochs0_idx):
-                rep=0
-                while rep<30:
-                    print('WARNING missing '+str(len(epochs0_idx))+' feedback epochs\n')
-                    rep+=1
-                    epochs_non0_avg=np.mean(np.delete(epochs_fb,epochs0_idx,axis=0),axis=0)
-                    epochs_fb[epochs0_idx]=epochs_non0_avg
+                rep = 0
+                while rep < 30:
+                    print('WARNING missing '+str(len(epochs0_idx))+' neurofeedback epochs\n')
+                    rep += 1
+                    epochs_non0_avg = np.mean(np.delete(epochs_fb,epochs0_idx,axis=0),axis=0)
+                    epochs_fb[epochs0_idx] = epochs_non0_avg
             
-            stable_blocksSSP_append=np.append(stable_blocksSSP,epochs_fb,axis=0)
-            fb_start=(n_run-1)*200
-            y_run_append=np.append(y_run,y_feedback[fb_start:fb_start+200])
-            print('About to train classifier cross2')
-            clf,offset=trainLogReg_cross2(stable_blocksSSP_append,y_run_append)
-            print('classifier cross2 trained')
-            print('mean ' + str(np.mean(clf.coef_)))
+            # Append SSP corrected neurofeedback blocks to array with SSP corrected stable blocks (stable_blocksSSP_append)
+            stable_blocksSSP_append = np.append(stable_blocksSSP,epochs_fb,axis=0)
+            fb_start = (n_run-1)*200
+            y_run_append = np.append(y_run,y_feedback[fb_start:fb_start+200])
+            print('About to train classifier for n_run > 0')
+            clf,offset = trainLogReg_cross2(stable_blocksSSP_append,y_run_append)
 
+            print('Mean classifier coefficient' + str(np.mean(clf.coef_)))
+        
+        # Train classifier for the first run and estimate classifier bias for offset correction 
         else:
-            print('About to train classifier cross, nrun=0')
-            clf,offset=trainLogReg_cross(stable_blocksSSP,y_run)
-            print('mean ' + str(np.mean(clf.coef_)))
-        offset=(np.max([np.min([offset,0.25]),-0.25]))/2
-        print('Offset:' +str(offset))
-        # prepare stable_blocks for next round (remove first 200 trials and pre-initialize to 600 trials)
-        stable_blocks=stable_blocks[200:,:,:]
-        stable_blocks=np.concatenate((stable_blocks,stable_blocks0),axis=0)
-        y_run=np.concatenate((y_run[200:],y[800+400*n_run:1000+400*n_run]))
+            print('About to train classifier for n_run = 0')
+            clf,offset = trainLogReg_cross(stable_blocksSSP,y_run)
+            print('Mean ' + str(np.mean(clf.coef_)))
+        
+        # Limit offset correction to abs(0.125)
+        offset = (np.max([np.min([offset,0.25]),-0.25]))/2
+        print('Offset: ' + str(offset))
+        
+        # Prepare stable_blocks for next run (remove first 200 trials and pre-initialize to 600 trials)
+        stable_blocks = stable_blocks[200:,:,:]
+        stable_blocks = np.concatenate((stable_blocks,stable_blocks0),axis=0)
+        y_run = np.concatenate((y_run[200:],y[800+400*n_run:1000+400*n_run]))
         
         
-        print('Done training, moving to feedback')
-        state='feedback'
-        n_run+=1
-        epochs_fb=np.zeros((200,n_channels,n_time))
+        print('Classifier training finished, commencing onto neurofeedback')
+        state = 'feedback'
+        n_run += 1
+        epochs_fb = np.zeros((200,n_channels,n_time))
 
 
-                
     elif state=='feedback':
-        #cnt_stable=800
+        epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger=get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax,fs=fs)
         
-#        if marker==613:
-#            time.sleep(1.2)
-#            
-#        if marker==620:
-#            time.sleep(3)
-        
-        epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger=get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax)
-    
-        t_test=marker-600-400*(n_run-1)
+        # Test which number epoch is currently sampled and about to be preprocessed
+        t_test = marker-600-400*(n_run-1)
         if len(epoch):
-            epoch=preproc1epoch(epoch,info_fs500,projs=projs,SSP=True,reject=reject,mne_reject=1,reject_ch=True,flat=flat)
-            if t_test>0:    
-                epoch=(epoch+epoch_prev)/2
+            epoch = preproc1epoch(epoch,info_fs500,projs=projs,SSP=True,reject=reject,mne_reject=1,reject_ch=True,flat=flat)
+            if t_test > 0:    
+                epoch = (epoch+epoch_prev)/2
             
-            epochs_fb[t_test,:,:]=epoch
-            print(t_test)
-            #apply classifier
-            pred_prob=testEpoch(clf,epoch)
-            pred_prob[0][0,0]=np.min([ np.max([pred_prob[0][0,0]+offset,0]),1]) 
-            pred_prob[0][0,1]=np.min([ np.max([pred_prob[0][0,1]-offset,0]),1])
-            clf_output=pred_prob[0][0,int(y[marker[0]])]-pred_prob[0][0,int(y[marker[0]]-1)]
-            alpha=sigmoid(clf_output)
-            marker_alpha=[marker[0][0],alpha]
-            print(marker_alpha)
+            epochs_fb[t_test,:,:] = epoch
+            print('Epoch number: ' + str(t_test))
+            
+            # Apply classifier for real-time decoding
+            pred_prob = testEpoch(clf,epoch)
+            
+            # Apply offset correction for both binary categories. Limit prediction probability to a value between 0 and 1
+            pred_prob[0][0,0] = np.min([np.max([pred_prob[0][0,0]+offset,0]),1]) 
+            pred_prob[0][0,1] = np.min([np.max([pred_prob[0][0,1]-offset,0]),1])
+            clf_output = pred_prob[0][0,int(y[marker[0]])]-pred_prob[0][0,int(y[marker[0]]-1)]
+            
+            # Compute alpha from the corrected classifier output using a sigmoid transfer function. Alpha value used for updating experimental stimuli.
+            alpha = sigmoid(clf_output)
+            marker_alpha = [marker[0][0],alpha]
+            print('Marker number: ' + str(marker_alpha)) 
+            
+            # Push alpha value to an outlet for use in experimental script
             outlet_alpha.push_sample([alpha])
-            epoch_prev=epoch
+            epoch_prev = epoch
             
     
 #%% Terminate logging of print statements
