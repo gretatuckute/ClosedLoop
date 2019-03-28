@@ -175,7 +175,7 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
                 look_for_epoch = 0 # done looking for epoch
                 
                 # Save EEG samples for next epoch
-                if t_diff<-2/fs: # Make sure that mismatches between EEG and marker do not accumlate over time. 
+                if t_diff < (-2/fs): # Make sure that mismatches between EEG and marker do not accumlate over time. 
                     s_diff = int(np.abs(t_diff*fs)) # no. samples
                     print('Increasing excess_EEG by: ' + str(s_diff)) # mostly relevant if epochs are overlapping
                     excess_EEG = sample_EEG[i_start+fs-s-s_diff:,:]
@@ -188,7 +188,7 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
 
             else:
                 print("Warning. Not enough EEG samples available")
-                print("Wait time",np.max([0,(s_epoch-avail_samples)/fs]))
+                print("Wait time",np.max([0,(s_epoch-avail_samples)/fs])) #in sec
                 time.sleep(np.max([0,(s_epoch-avail_samples)/fs])+0.03)
                 look_for_trigger = 0
                 excess_EEG = sample_EEG
