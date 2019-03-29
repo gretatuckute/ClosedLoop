@@ -202,23 +202,23 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
             excess_EEG_time = timestamp_EEG
     
     # Get ready for next epoch, update state
-    if sample_marker > 598: 
-        if not (sample_marker+1)%400: # if 400, 800, 1200...
-            print('Feedback done, ready to collect stable blocks')
-            state = 'stable'
-            excess_EEG = []
-            excess_EEG_time = []
-            excess_marker = []
-            excess_marker_time = []
-            look_for_trigger = 1
-        elif (sample_marker+1)%400 == 200: # if 600, 1000, 1400.. starting a sampling of stable blocks
-            state = 'train'
-            print('Training')
-            excess_EEG = []
-            excess_EEG_time = []
-            excess_marker = []
-            excess_marker_time = []
-            look_for_trigger = 1
+#    if sample_marker > 598: 
+#        if not (sample_marker+1)%400: # if 400, 800, 1200...
+#            print('Feedback done, ready to collect stable blocks')
+#            state = 'stable'
+#            excess_EEG = []
+#            excess_EEG_time = []
+#            excess_marker = []
+#            excess_marker_time = []
+#            look_for_trigger = 1
+#        elif (sample_marker+1)%400 == 200: # if 600, 1000, 1400.. starting a sampling of stable blocks
+#            state = 'train'
+#            print('Training')
+#            excess_EEG = []
+#            excess_EEG_time = []
+#            excess_marker = []
+#            excess_marker_time = []
+#            look_for_trigger = 1
     #else:    
      #   
     state,reset=get_state(state,sample_marker)
