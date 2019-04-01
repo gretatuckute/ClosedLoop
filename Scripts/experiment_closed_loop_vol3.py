@@ -87,9 +87,9 @@ textFix = visual.TextStim(win=win, name='textFix', text='+', font='Arial',units=
 
 # Initializing stimuli presentation times (in Hz)
 frameRate = 60
-probeTime = 360
-fixTime = 120
-stimTime = 60 # stimuli time for presenting each image
+probeTime = 360 # frames to display probe word
+fixTime = 120 # frames to display fixation cross
+stimTime = 60 # frames for presenting each image
 
 # Initialization of button press
 globalClock = core.Clock() 
@@ -555,10 +555,10 @@ def runBreak(breakLen,message):
     """Runs a break the defined experimental window (win).
     
     # Arguments:
-        breakLen: in Hz
+        breakLen: in frames
     
     # Output:
-        Displays the break in a predefined no. of Hz
+        Displays the break in a predefined no. of frames
     """
     
     message = str(message)
@@ -648,24 +648,16 @@ def read_marker_stream(stream_name ='alphaStream'):
         #print ("alpha stream available")
         #inlet = StreamInlet(streams[index_alpha[0]]) #REAL ONE
         inlet = StreamInlet(streams[index_alpha[0]])
-
-        alpha_avail=1
-#        store_marker=data_init(500,'marker')
-#        store_marker.header=['Marker','Timestamp']
     else:
-        inlet_marker=[]
         print('Warning: No marker inlet available')
     return inlet
 
 def runTest(day='1'):
     '''
     Runs a demo version of the experimental script (either day 1 and or 3) without EEG recordings.
-    GENERATE FILES FROM GPU comp
-    Change break time
-    Add an alpha file 
     
     # Input
-    - day: either 1 or 2. Day 2 illustrates neurofeedback blocks.
+    - day: either '1' or '2'. Day 1 illustrate stable blocks and day 2 illustrates neurofeedback blocks.
     
     '''    
     
@@ -756,7 +748,7 @@ def runBehDay(numRuns=2,numBlocks=8,blockLen=50,day=1):
     
     time.sleep(25)
 
-    runLen = numBlocks * blockLen # Should be 8 * 50
+    runLen = numBlocks * blockLen # Should be 8 * 50 
     runLenHalf = runLen/2
         
     for run in list(range(0,numRuns)):
@@ -797,6 +789,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
     runLen = numBlocks * blockLen # Should be 8 * 50
     runLenHalf = int(runLen/2)
     
+    # read whether subject is control or feedback subject from file generated at day 1
     control_file = open(subject_path + '\\' + subjID + '\\feedback_subjID' + str(subjID) + '.txt','r')
     control = [x.rstrip("\n") for x in control_file.readlines()]
 
@@ -804,7 +797,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
     if control[0] == '0':
         subj_orig=copy.copy(subjID) #True copy
         
-        subjID=control[1]
+        subjID=control[1] # use alpha (fuse) file and createIndices file from matched feedback subject
         alphafile = subject_path + '\\' + subjID + '\\alpha_subjID_' + str(subjID) + '.csv'
 
         with open(alphafile) as csv_file:
