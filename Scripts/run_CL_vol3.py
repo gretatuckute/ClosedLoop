@@ -15,10 +15,10 @@ os.chdir(script_path)
 from EEG_analysis_RT import preproc1epoch,create_info_mne,computeSSP,applySSP,removeEpochs,average_stable
 from EEG_analysis_offline import extractCat
 from EEG_classification import sigmoid,testEpoch,trainLogReg_cross,trainLogReg_cross2
-from stream_functions import read_EEG_stream,read_marker_stream,get_epoch,clear_stream
+from stream_functions import *
 
 # Manual input of subject ID for streaming and logging
-subject_id = '19' 
+subject_id = '90' 
 
 # Extract experimental categories 
 y = extractCat(subject_path+'\\'+subject_id+'\\createIndices_'+subject_id+'_day_2.csv',exp_type='fused')

@@ -35,7 +35,7 @@ def save_data(data_info,sample,timestamp,user_id):
     #   user_id: subject ID
     
     if data_info.filename == None: # if file does not exist create it
-        data_info.filename = subject_path+'\\'+'subject_'+user_id+'_'+data_info.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
+        data_info.filename = subject_path+'\\'+user_id+'\\subject_'+user_id+'_'+data_info.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
         with open(data_info.filename,'w',newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(data_info.header)
