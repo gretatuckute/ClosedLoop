@@ -41,7 +41,10 @@ def passWarning(splitLst):
     
     for entry in splitLst:
         if len(entry) == 4:
-            times.append(float(entry[0]))
+            try:
+                times.append(float(entry[0]))
+            except ValueError:
+                print('VALUE ERROR, check split1 list')
         else:
             warningLst.append(entry)
             
@@ -242,24 +245,24 @@ def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, 
             if surrounding == 'a': #after
                 idxn = idx + number
             
-            print('lure idx new: ', idxn)
+            # print('lure idx new: ', idxn)
             
             if -1 < idxn < (len(responseTimeLst)-1): # Ensure that the response time is within the limits of the experiment
                 
-                print('Lure idx new available in response times lst')
+                # print('Lure idx new available in response times lst')
                 # Check whether idxn (new idx) is also a lure
                 if idxn in lureIdx: 
                     # Check whether the response time was also a lure. In that case, append None
-                    print('wups,coincide!')
+                    # print('wups,coincide!')
                     lure_RT_add[count] = None
                     
                 
                 if idxn not in lureIdx:
-                    print('hugh, all good, no overlap')
+                    # print('hugh, all good, no overlap')
                     lure_RT_add[count] = responseTimeLst[idxn]
                     
             else:
-                print('Lure idx new NOT available in response times lst')
+                # print('Lure idx new NOT available in response times lst')
                 lure_RT_add[count] = None
     
     if number == 0:

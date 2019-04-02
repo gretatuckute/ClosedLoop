@@ -24,17 +24,19 @@ import collections
 import pickle
 from responseTime_func import * 
 
-subjID = '07'
+subjID = '15'
 
 # Initialize dict
 d = {}
 d['subjID'] = subjID
 
 #%%
-expDay = '3'
+expDay = '5'
+
+
 d['expDay'] = expDay
 
-dataDir = 'P:\\closed_loop_data\\' + str(subjID)
+dataDir = 'P:\\closed_loop_data\\' + str(subjID) + '\\'
 os.chdir(dataDir)
 
 fileLst = glob.glob(dataDir + '/*.csv') 
@@ -64,6 +66,7 @@ for entry in charLst:
     
     # Find imageTime and keypress files
     if len(entry) >= 5:
+        
         if entry[4] == expDay:
             if entry[0] == 'imageTime':
                 expTime = entry[-1]
@@ -76,6 +79,7 @@ for entry in charLst:
                 keyTimeLst.append(keyTime)
                 fileNameKey = '_'.join(entry)
                 keypressTimeLst.append(fileNameKey)
+            
                 
 # Check if several imageTime files exist               
 if len(imageTimeLst) == 1:
@@ -108,6 +112,14 @@ stimuliTimes = extractStimuliTimes(data2)
 # Matching the times
 nStimuli = len(stimuliTimes)
 nKeypress = len(keypressTimes)
+
+if nStimuli != 800:
+    print('WARNING, number of createIndices not 800')
+    raise ValueError
+
+if 500 > nKeypress > 1100:
+    print('WARNING, number of keypresses too low/high')
+    raise ValueError
 
 responseTimes,pairs = matchTimes(stimuliTimes, keypressTimes, 0.2, 1)
 
@@ -196,10 +208,12 @@ d['surrounding_CR_Lst_day_'+str(expDay)] = surrounding_CR_Lst
 d['surrounding_FR_Lst_day_'+str(expDay)] = surrounding_FR_Lst
 
 
+del catFile, stimuliFile, keypressFile
+
 #%% Save pckl file
 pkl_arr = [d]
 
-saveDir = 'P:\\closed_loop_data\\beh_anaysis\\'
+saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
 os.chdir(saveDir)
 
 # PICKLE TIME
