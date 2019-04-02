@@ -5,9 +5,7 @@ Created on Mon Jan 14 11:38:12 2019
 @author: Greta
 """
 
-import os
-os.chdir('P:\\closed_loop_data\\pilots\\02\\')
-# os.chdir('C:\\Users\\nicped\\Documents\\GitLab\\project\\SUBJECTS\\02\\')
+# IMPORTS 
 
 import numpy as np
 import csv
@@ -16,12 +14,7 @@ import pandas as pd
 from scipy.spatial import distance
 import collections
 
-
-keypressFile = 'keypress_subjID_02_day_1_03-04-19_15-14.csv'
-stimuliFile = 'imageTime_subjID_02_day_1_03-04-19_15-14.csv'
-catFile = 'createIndices_02_day_1.csv'
-
-#%%
+#%% FUNCTIONS
 
 def extractInfo(timeFile):
     data = []
@@ -47,14 +40,10 @@ def passWarning(splitLst):
     warningLst = []
     
     for entry in splitLst:
-        print(entry)
-        if len(entry) > 0:
-            
-            if entry[1] == 'WARNING' or entry[0] == 'but' or entry[1] == 'Using':
-                warningLst.append(entry)
-
-            else:
-                times.append(float(entry[0]))
+        if len(entry) == 4:
+            times.append(float(entry[0]))
+        else:
+            warningLst.append(entry)
             
     return times, warningLst
 
@@ -158,23 +147,6 @@ def matchTimes(stimLst, keyLst, minVal, maxVal):
     return responseTimes,pairs
 
 
-#%% Extract keypress and stimuli time data
-data1 = extractInfo(keypressFile)
-data2 = extractInfo(stimuliFile)
-
-split1 = splitString(data1)
-
-keypressTimes, warningLst1 = passWarning(split1)
-stimuliTimes = extractStimuliTimes(data2)
-
-# Matching the times
-nStimuli = len(stimuliTimes)
-nKeypress = len(keypressTimes)
-
-responseTimes1,pairs1 = matchTimes(stimuliTimes, keypressTimes, 0.2, 1)
-
-#%% Categories and lures
-
 def findRTs(catFile, responseTimeLst):
     '''
     Extracts when lures where shown in the experiment, and matches response times to lures and non-lures.
@@ -210,7 +182,7 @@ def findRTs(catFile, responseTimeLst):
             lureLst.append('lure')
             lureIdx.append(count)
         
-    allIdx = range(domCats) 
+    allIdx = range(len(domCats)) 
     non_lureIdx = [x for x in allIdx if x not in lureIdx]
 
     # Response times of lures and non lures       
@@ -246,16 +218,6 @@ def findRTs(catFile, responseTimeLst):
     
     return lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx
 
-#%% Extract lure indices and RTs
-
-lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx = findRTs(catFile,responseTimes1)
-
-correctInhib = collections.Counter(lure_RT).most_common(1)
-falseInhib = collections.Counter(nonlure_RT).most_common(1) #How many times a keypress was withheld during a non lure stimuli
-
-
-#%% Check RTs based on either correct or false response (surrounding that lure)
-# Extract RTs around lure idx. Extract vals before the lure
 
 def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, FR_idx):
     '''
@@ -271,34 +233,38 @@ def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, 
     
     lure_RT_add = np.zeros(len(lureIdx))
     
-    for count, idx in enumerate(lureIdx):
-        if surrounding == 'b': #before    
-            idxn = idx - number
+    if number != 0:
+        
+        for count, idx in enumerate(lureIdx):
+            if surrounding == 'b': #before    
+                idxn = idx - number
+                        
+            if surrounding == 'a': #after
+                idxn = idx + number
+            
+            print('lure idx new: ', idxn)
+            
+            if -1 < idxn < (len(responseTimeLst)-1): # Ensure that the response time is within the limits of the experiment
+                
+                print('Lure idx new available in response times lst')
+                # Check whether idxn (new idx) is also a lure
+                if idxn in lureIdx: 
+                    # Check whether the response time was also a lure. In that case, append None
+                    print('wups,coincide!')
+                    lure_RT_add[count] = None
                     
-        if surrounding == 'a': #after
-            idxn = idx + number
-        
-        print('lure idx new: ', idxn)
-        
-        if -1 < idxn < (len(responseTimeLst)-1): # Ensure that the response time is within the limits of the experiment
-            
-            print('Lure idx new available in response times lst')
-            # Check whether idxn (new idx) is also a lure
-            if idxn in lureIdx: 
-                # Check whether the response time was also a lure. In that case, append None
-                print('wups,coincide!')
+                
+                if idxn not in lureIdx:
+                    print('hugh, all good, no overlap')
+                    lure_RT_add[count] = responseTimeLst[idxn]
+                    
+            else:
+                print('Lure idx new NOT available in response times lst')
                 lure_RT_add[count] = None
-                
-            
-            if idxn not in lureIdx:
-                print('hugh, all good, no overlap')
-                lure_RT_add[count] = responseTimeLst[idxn]
-                
-        else:
-            print('Lure idx new NOT available in response times lst')
-            lure_RT_add[count] = None
     
-    # 
+    if number == 0:
+        for count, idx in enumerate(lureIdx):
+            lure_RT_add[count] = responseTimeLst[idx]
     
     surrounding_CR = np.zeros(len(CR_idx))
     surrounding_FR = np.zeros(len(FR_idx))
@@ -316,8 +282,6 @@ def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, 
     
     return lure_RT_add, surrounding_CR, surrounding_CR_mean, surrounding_FR, surrounding_FR_mean
     
-#%%
 
-lure_RT_add1,surrounding_CR1, surrounding_CR_mean1, surrounding_FR1, surrounding_FR_mean1 = RTaroundLure(lureIdx, lure_RT, responseTimes1,'b',1,CR_idx,FR_idx)    
     
 
