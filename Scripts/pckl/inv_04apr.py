@@ -10,40 +10,46 @@ from matplotlib import pyplot as plt
 import itertools
 from sklearn.metrics import confusion_matrix
 import os
+import numpy as np
 
 os.chdir('C:\\Users\\Greta\\Documents\\GitLab\\project\\Python_Scripts\\18Mar_RT_files\\')
-
-
-
-# Extract values from dict
-#dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
-#
-#wanted_keys = ("alpha_fromfile_overall","alpha_fromfile_run")
-#
-#result = dictfilt(pkl_arr[0], wanted_keys)
-#
-#g = list(result.values())
     
 #%%
 
 with open('18Mar_subj_07.pkl', "rb") as fin:
     sub07 = (pickle.load(fin))[0]
 
-with open('18Mar_subj_08.pkl', "rb") as fin:
-    sub08 = (pickle.load(fin))[0]
-
-with open('18Mar_subj_11.pkl', "rb") as fin:
-    sub11 = (pickle.load(fin))[0]
+#%%
+os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\pckl\\pckl_V1\\')
     
-with open('18Mar_subj_92.pkl', "rb") as fin:
-    sub92 = (pickle.load(fin))[0]
-
-with open('18Mar_subj_95.pkl', "rb") as fin:
-    sub95 = (pickle.load(fin))[0]
-
-with open('18Mar_subj_97.pkl', "rb") as fin:
-    sub97 = (pickle.load(fin))[0]
+with open('04April_subj_07.pkl', "rb") as fin:
+    sub07new = (pickle.load(fin))[0] 
     
+# Sub07 and sub07new are identical. Sub07 uses the new, updated scripts.
+
+#%%
+os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\pckl\\')
+
+with open('04April_V2_subj_07.pkl', "rb") as fin:
+    sub07new2 = (pickle.load(fin))[0] 
+    
+with open('04April_V2_subj_08.pkl', "rb") as fin:
+    sub08 = (pickle.load(fin))[0] 
+    
+with open('04April_V2_subj_11.pkl', "rb") as fin:
+    sub11 = (pickle.load(fin))[0] 
+
+with open('04April_V2_subj_13.pkl', "rb") as fin:
+    sub13 = (pickle.load(fin))[0] 
+    
+with open('04April_V2_subj_14.pkl', "rb") as fin:
+    sub14 = (pickle.load(fin))[0] 
+    
+with open('04April_V2_subj_17.pkl', "rb") as fin:
+    sub17 = (pickle.load(fin))[0] 
+
+
+
 #%%
 # Plot showing where the correct predictions are located pr. run.
 

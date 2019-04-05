@@ -8,12 +8,13 @@
 #
 #
 # Edits:
-# 04 April 2019, new path scripts
+# 04 April 2019, new path scripts, extract 450 samples, confusion matrices for training, 
 
 
 #%% Imports
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
+from matplotlib import pyplot as plt
 
 from sklearn import metrics
 import numpy as np
@@ -158,11 +159,9 @@ if subj == '27':
     alphaFile = 'alpha_subjID_27.csv' 
     n_it = 5
 
-
-
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\17\\'
+#data_dir = 'P:\\closed_loop_data\\14\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run
@@ -179,10 +178,12 @@ for ii in range(n_it):
 d['alpha_fromfile_overall'] = above_chance
 d['alpha_fromfile_run'] = alpha_per_run
 
-
 #%% Extract epochs from EEG data
 prefilter = 0
-e = extractEpochs_tmin(EEGfile,markerfile,prefilter=prefilter,marker1=0)
+n_samples_500 = 450 # Number of samples to extract for each epoch, sampling frequency 500
+n_samples_100 = int(450/5) # Number of samples, sampling frequency 100 (resampled)
+
+e = extractEpochs_tmin(EEGfile,markerfile,prefilter=prefilter,marker1=0,n_samples=n_samples_500)
 cat = extractCat(idxFile,exp_type='fused')
 
 # MNE info files
@@ -202,7 +203,7 @@ opt_detrend = 1
 bad_channels = None
 
 stable_blocks0 = e[:600,:,:] # First run
-stable_blocks1 = np.zeros((600,n_channels,110))
+stable_blocks1 = np.zeros((600,n_channels,n_samples_100)) 
 
 y = np.array([int(x) for x in cat])
 y_run = y[:600]
@@ -226,9 +227,9 @@ val = 1 # Offset validation
 offset_pred = 0 # Offset prediction
 offset_Pred = []
 Score = np.zeros((n_it,3))
-epochs_fb = np.zeros((200,23,110)) # Epochs feedback
-epochavg = np.zeros((2,23,110))
-epochavg_train = np.zeros((2,23,110))
+epochs_fb = np.zeros((200,23,n_samples_100)) # Epochs feedback
+epochavg = np.zeros((2,23,n_samples_100)) 
+epochavg_train = np.zeros((2,23,n_samples_100)) 
 
 # Implement averaging of training and test epochs
 average_train = 1
@@ -275,7 +276,7 @@ for b in range(n_it):
     train_acc[b] = len(np.where(np.array(y_pred_train1[0:len(y_run)])==np.array(y_run))[0])/len(y_run)
     
     stable_blocks1 = stable_blocks1[200:,:,:]
-    stable_blocks1 = np.concatenate((stable_blocks1,np.zeros((200,n_channels,110))),axis=0)
+    stable_blocks1 = np.concatenate((stable_blocks1,np.zeros((200,n_channels,n_samples_100))),axis=0)
     
     s_begin = 800+b*400
     offset = 400 # Indexing offset for EEG data and y
@@ -360,14 +361,21 @@ alpha_test_c[alpha_test_c < 0.5] = False
 alpha_predcat = np.argmax(pred_prob_test_corr,axis=1)
         
 conf_uncorr = confusion_matrix(y_test_feedback[:n_it_trials],y_pred_test1[:n_it_trials])
-conf_corr = confusion_matrix(y_test_feedback[:n_it_trials],alpha_predcat[:n_it_trials])    
-    
+conf_corr = confusion_matrix(y_test_feedback[:n_it_trials],alpha_predcat[:n_it_trials])
+
+# Separate into scenes and faces accuracy  
+scene_acc = conf_corr[0,0]/(conf_corr[0,0]+conf_corr[0,1])
+face_acc = conf_corr[1,1]/(conf_corr[1,0]+conf_corr[1,1])
+
 d['correct_NFtest_pred'] = correct
 d['conf_corr'] = conf_corr
 d['conf_uncorr'] = conf_uncorr
 
+d['scene_acc'] = scene_acc
+d['face_acc'] = face_acc
+
 # Training confusion matrices
-conf_train=[]
+conf_train = []
 for b in range(n_it):
     conf_train.append(confusion_matrix(Y_run[b,:], Y_train[b,:]))
     
@@ -378,26 +386,28 @@ offset_pred_lst = []
 c_test = 0
 
 no_sb = 8+4*n_it # Number stable blocks
-pred_prob_test = np.zeros((no_sb*50,2)) # Prediction probability test. Block length of 50 trials
-pred_prob_test_corr = np.zeros((no_sb*50,2)) # Prediction probability test, corrected for bias
-alpha_test = np.zeros((no_sb*50)) # Alpha values for stable blocks
+block_len = 50
+
+pred_prob_test = np.zeros((no_sb*block_len,2)) # Prediction probability test. Block length of 50 trials
+pred_prob_test_corr = np.zeros((no_sb*block_len,2)) # Prediction probability test, corrected for bias
+alpha_test = np.zeros((no_sb*block_len)) # Alpha values for stable blocks
 
 stable_blocks_fbrun = np.concatenate([e[400+n*400:600+n*400] for n in range(n_it)]) # Stable blocks feedback run
 y_stable_blocks_fbrun = np.concatenate([y[400+n*400:600+n*400] for n in range(n_it)])
 
 stable_blocks = np.concatenate((e[:400,:,:], stable_blocks_fbrun))
-y_stable_blocks=np.concatenate((y[:400], y_stable_blocks_fbrun))
+y_stable_blocks = np.concatenate((y[:400], y_stable_blocks_fbrun))
 
-y_pred = np.zeros(no_sb*50) 
+y_pred = np.zeros(no_sb*block_len) 
 
 for sb in range(no_sb):
-    val_indices = range(sb*50,(sb+1)*50) # Validation block index
+    val_indices = range(sb*block_len,(sb+1)*block_len) # Validation block index
     stable_blocks_val = stable_blocks[val_indices]
     y_val = y_stable_blocks[val_indices]
     
     stable_blocks_train = np.delete(stable_blocks, val_indices, axis=0)
     y_train = np.delete(y_stable_blocks, val_indices)
-    stable_blocks_train_prep = np.zeros((len(y_train),23,110))
+    stable_blocks_train_prep = np.zeros((len(y_train),23,n_samples_100))
     
     for t in range(stable_blocks_train.shape[0]):
         epoch = stable_blocks_train[t,:,:]
@@ -413,7 +423,7 @@ for sb in range(no_sb):
     offset_pred_lst.append(offset_pred)
     
     # Test epochs in validation block. Preprocessing and testing epoch-wise
-    for t in range(50):
+    for t in range(block_len):
         epoch = stable_blocks_val[t,:,:]
         epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
         
@@ -432,86 +442,160 @@ for sb in range(no_sb):
         epoch_prev = epoch
         
         c_test += 1
-    print('No c_test: ' + str(c_test) + 'out of ' + str(no_sb*50))
+        
+    print('No c_test: ' + str(c_test) + 'out of ' + str(no_sb*block_len))
         
 above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
 print('Above chance alpha train (corrected): ' + str(above_chance_train))    
 
-d['train_offsets_stable'] = offset_pred_lst
-d['train_acc_stable'] = above_chance_train
+score = metrics.accuracy_score(y_stable_blocks, y_pred) 
 
-#%% Training accuracy, training on stable and NF - leave one block out CV. Accuracy can be based on either stable+NF, or only stable
+d['train_offsets_stable'] = offset_pred_lst
+d['train_acc_stable_corr'] = above_chance_train
+d['train_acc_stable_uncorr'] = score
+
+
+#%% Confusion matrices - stable blocks accuracy, LOBO
+
+# y_stable_blocks has the correct y vals, y_pred has the predicted vals. For uncorrected prediction.
+
+# Uncorrected
+correct = (y_stable_blocks == y_pred)
+conf_train_stable_uncorr = confusion_matrix(y_stable_blocks,y_pred)
+
+# Separate into scenes and faces accuracy  
+scene_acc_uncorr = conf_train_stable_uncorr[0,0]/(conf_train_stable_uncorr[0,0]+conf_train_stable_uncorr[0,1])
+face_acc_uncorr = conf_train_stable_uncorr[1,1]/(conf_train_stable_uncorr[1,0]+conf_train_stable_uncorr[1,1])
+
+# Corrected
+alpha_test_c = np.copy(alpha_test)
+alpha_test_c[alpha_test_c > 0.5] = True # 1 is a correctly predicted 
+alpha_test_c[alpha_test_c < 0.5] = False
+
+alpha_predcat = np.argmax(pred_prob_test_corr,axis=1)
+conf_train_stable = confusion_matrix(y_stable_blocks,alpha_predcat)
+
+# Separate into scenes and faces accuracy  
+scene_acc = conf_train_stable[0,0]/(conf_train_stable[0,0]+conf_train_stable[0,1])
+face_acc = conf_train_stable[1,1]/(conf_train_stable[1,0]+conf_train_stable[1,1])
+
+d['conf_uncorr_stable_train'] = conf_train_stable_uncorr
+d['scene_acc_uncorr_stable_train'] = scene_acc_uncorr
+d['face_acc_uncorr_stable_train'] = face_acc_uncorr
+
+d['conf_corr_stable_train'] = conf_train_stable
+d['scene_acc_corr_stable_train'] = scene_acc
+d['face_acc_corr_stable_train'] = face_acc
+
+#%% Training accuracy, training on stable and NF - leave one block out CV. Accuracy can be based on either stable+NF, only stable or only NF blocks
 offset_pred_lst = []
 c_test = 0
 
-no_b=8+8*n_it #number blocks total
-pred_prob_test=np.zeros((no_b*50,2))
-pred_prob_test_corr=np.zeros((no_b*50,2))
-alpha_test=np.zeros((no_b*50))
-
-y_pred=np.zeros(no_b*50) #blocklen of 50
+no_b = 8+8*n_it # Number blocks total
+pred_prob_test = np.zeros((no_b*block_len,2))
+pred_prob_test_corr = np.zeros((no_b*block_len,2))
+alpha_test = np.zeros((no_b*block_len))
+y_pred = np.zeros(no_b*block_len) 
 
 for b in range(no_b):
-    val_indices=range(b*50,(b+1)*50)
-    blocks_val=e[val_indices]
-    y_val=y[val_indices]
+    val_indices = range(b*block_len,(b+1)*block_len)
+    blocks_val = e[val_indices]
+    y_val = y[val_indices]
     
-    blocks_train=np.delete(e, val_indices,axis=0)
-    y_train=np.delete(y, val_indices)
-    blocks_train_prep=np.zeros((len(y_train),23,110))
+    blocks_train = np.delete(e, val_indices,axis=0)
+    y_train = np.delete(y, val_indices)
+    blocks_train_prep = np.zeros((len(y_train),23,n_samples_100))
     
     for t in range(blocks_train_prep.shape[0]):
-        epoch=blocks_train[t,:,:]
-        epoch=preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)#stable_blocks.shape[0])
-        blocks_train_prep[t,:,:]=epoch
+        epoch = blocks_train[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)#stable_blocks.shape[0])
+        blocks_train_prep[t,:,:] = epoch
 
-    projs1,blocksSSP_train=applySSP(blocks_train_prep,info_fs100,threshold=threshold)
+    projs1,blocksSSP_train = applySSP(blocks_train_prep,info_fs100,threshold=threshold)
     
-    # avg after SSP
-    blocksSSP_train=average_stable(blocksSSP_train)
-    clf,offset_pred=trainLogReg_cross_offline(blocksSSP_train,y_train) #cur. in EEG_classification1203
-    offset_pred=np.min([np.max([offset_pred,-0.25]),0.25])/2
+    # Average after SSP correction
+    blocksSSP_train = average_stable(blocksSSP_train)
+    clf,offset_pred = trainLogReg_cross_offline(blocksSSP_train,y_train) #cur. in EEG_classification
+    offset_pred = np.min([np.max([offset_pred,-0.25]),0.25])/2
     offset_pred_lst.append(offset_pred)
     
-    for t in range(50):
+    # Test epochs in left out block
+    for t in range(block_len):
+        epoch = blocks_val[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
         
-        epoch=blocks_val[t,:,:]
-        epoch=preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
-        
-        if t>0:
-            epoch=(epoch+epoch_prev)/2
+        if t > 0:
+            epoch = (epoch+epoch_prev)/2
             
-        pred_prob_test[c_test,:],y_pred[c_test]=testEpoch(clf,epoch)
+        pred_prob_test[c_test,:],y_pred[c_test] = testEpoch(clf,epoch)
         
         # Correct the prediction bias offset
-        pred_prob_test_corr[c_test,0]=np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
-        pred_prob_test_corr[c_test,1]=np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
+        pred_prob_test_corr[c_test,0] = np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
+        pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
         
-        clf_output=pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
-        alpha_test[c_test]=sigmoid(clf_output)
+        clf_output = pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
+        alpha_test[c_test] = sigmoid(clf_output)
         
-        epoch_prev=epoch
+        epoch_prev = epoch
         
         c_test += 1
-    print('No c_test: ' + str(c_test) + ' out of ' + str(no_b*50))
         
-above_chance_train=len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
+    print('No c_test: ' + str(c_test) + ' out of ' + str(no_b*block_len))
+        
+above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
 print('Above chance alpha train (corrected) on both stable and NF: ' + str(above_chance_train))
 
 # Separate in stable only, and stable + NF
-e_mock=np.arange((8+n_it*8)*50)
-stable_blocks_fbrun=np.concatenate([e_mock[400+n*400:600+n*400] for n in range(n_it)]) #stable blocks feedback run
-stable_blocks_idx=np.concatenate((e_mock[:400],stable_blocks_fbrun))
+e_mock = np.arange((8+n_it*8)*block_len)
+stable_blocks_fbrun = np.concatenate([e_mock[400+n*400:600+n*400] for n in range(n_it)]) # Stable blocks feedback run
+stable_blocks_idx = np.concatenate((e_mock[:400],stable_blocks_fbrun))
 
 a = alpha_test[stable_blocks_idx] 
 
-above_chance_stable=len(np.where((np.array(a)>0.5))[0])/len(a)
+above_chance_stable = len(np.where((np.array(a)>0.5))[0])/len(a)
 print('Above chance alpha train (corrected) on stable blocks: ' + str(above_chance_stable))
+
+nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+
+a2 = alpha_test[nf_blocks_idx] 
+
+above_chance_nf = len(np.where((np.array(a2)>0.5))[0])/len(a2)
+print('Above chance alpha train (corrected) on NF blocks: ' + str(above_chance_nf))
 
 d['train_offsets_stable_NF'] = offset_pred_lst
 d['train_acc_stable_NF'] = above_chance_train
 d['train_acc_stable_test'] = above_chance_stable # Trained on both stable and NF, only tested on stable
+d['train_acc_nf_test'] = above_chance_stable # Trained on both stable and NF, only tested on NF
 
+#%% Confusion matrices - training on stable+NF blocks, testing on stable+NF, stable or NF blocks
+
+# Uncorrected, all (stable + NF)
+correct = (y == y_pred)
+conf_train_all_uncorr = confusion_matrix(y,y_pred)
+
+# Separate into scenes and faces accuracy  
+scene_acc_uncorr = conf_train_all_uncorr[0,0]/(conf_train_all_uncorr[0,0]+conf_train_all_uncorr[0,1])
+face_acc_uncorr = conf_train_all_uncorr[1,1]/(conf_train_all_uncorr[1,0]+conf_train_all_uncorr[1,1])
+
+# Corrected, all
+alpha_test_c = np.copy(alpha_test)
+alpha_test_c[alpha_test_c > 0.5] = True # 1 is a correctly predicted 
+alpha_test_c[alpha_test_c < 0.5] = False
+
+alpha_predcat = np.argmax(pred_prob_test_corr,axis=1)
+conf_train_all = confusion_matrix(y,alpha_predcat)
+
+# Separate into scenes and faces accuracy  
+scene_acc = conf_train_all[0,0]/(conf_train_all[0,0]+conf_train_all[0,1])
+face_acc = conf_train_all[1,1]/(conf_train_all[1,0]+conf_train_all[1,1])
+
+d['conf_uncorr_all_train'] = conf_train_all_uncorr
+d['scene_acc_uncorr_all_train'] = scene_acc_uncorr
+d['face_acc_uncorr_all_train'] = face_acc_uncorr
+
+d['conf_corr_all_train'] = conf_train_all
+d['scene_acc_corr_all_train'] = scene_acc
+d['face_acc_corr_all_train'] = face_acc
 
 #%% Save pckl file
 pkl_arr = [d]
@@ -519,7 +603,7 @@ pkl_arr = [d]
 print('Finished running test and train analyses for subject: ' + str(subj))
 
 # PICKLE TIME
-fname = '04April_subj_'+str(subj)+'.pkl'
+fname = '04April_V2_subj_'+str(subj)+'.pkl'
 with open(fname, 'wb') as fout:
     pickle.dump(pkl_arr, fout)
 
