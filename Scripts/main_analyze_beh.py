@@ -33,9 +33,6 @@ d['subjID'] = subjID
 #%%
 expDay = '5'
 
-
-d['expDay'] = expDay
-
 dataDir = 'P:\\closed_loop_data\\' + str(subjID) + '\\'
 os.chdir(dataDir)
 
