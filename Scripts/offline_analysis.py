@@ -9,7 +9,7 @@
 #
 # Edits:
 # 04 April 2019, new path scripts, extract 450 samples, confusion matrices for training, 
-
+# Difference between V2 and V3 save pckl file is that in V3 all files are names RT in front, if it has something to do with the RT offline analysis.
 
 #%% Imports
 from sklearn.linear_model import LogisticRegression
@@ -116,26 +116,20 @@ if subj == '19':
     idxFile = 'createIndices_19_day_2.csv'
     alphaFile = 'alpha_subjID_19.csv' 
     n_it = 5
-    
-if subj == '18': 
-    EEGfile = 'subject_18_EEG_03-28-19_14-08.csv'
-    markerfile = 'subject_18_marker_03-28-19_14-08.csv'
-    idxFile = 'createIndices_18_day_2.csv'
-    alphaFile = 'alpha_subjID_18.csv' 
-    n_it = 5
-    
-if subj == '19': 
-    EEGfile = 'subject_19_EEG_03-21-19_14-34.csv'
-    markerfile = 'subject_19_marker_03-21-19_14-34.csv'
-    idxFile = 'createIndices_19_day_2.csv'
-    alphaFile = 'alpha_subjID_19.csv' 
-    n_it = 5
+
     
 if subj == '21': 
     EEGfile = 'subject_21_EEG_04-02-19_08-45.csv'
     markerfile = 'subject_18_marker_04-02-19_08-45.csv'
     idxFile = 'createIndices_21_day_2.csv'
     alphaFile = 'alpha_subjID_21.csv' 
+    n_it = 5
+    
+if subj == '22': 
+    EEGfile = 'subject_22_EEG_04-04-19_09-15.csv'
+    markerfile = 'subject_22_marker_04-04-19_09-15.csv'
+    idxFile = 'createIndices_22_day_2.csv'
+    alphaFile = 'alpha_subjID_22.csv' 
     n_it = 5
     
 if subj == '23': 
@@ -158,10 +152,17 @@ if subj == '27':
     idxFile = 'createIndices_27_day_2.csv'
     alphaFile = 'alpha_subjID_27.csv' 
     n_it = 5
+    
+if subj == '30': 
+    EEGfile = 'subject_30_EEG_04-04-19_15-58.csv'
+    markerfile = 'subject_30_marker_04-04-19_15-58.csv'
+    idxFile = 'createIndices_30_day_2.csv'
+    alphaFile = 'alpha_subjID_30.csv' 
+    n_it = 5
 
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\14\\'
+#data_dir = 'P:\\closed_loop_data\\11\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run
@@ -367,19 +368,19 @@ conf_corr = confusion_matrix(y_test_feedback[:n_it_trials],alpha_predcat[:n_it_t
 scene_acc = conf_corr[0,0]/(conf_corr[0,0]+conf_corr[0,1])
 face_acc = conf_corr[1,1]/(conf_corr[1,0]+conf_corr[1,1])
 
-d['correct_NFtest_pred'] = correct
-d['conf_corr'] = conf_corr
-d['conf_uncorr'] = conf_uncorr
+d['RT_correct_NFtest_pred'] = correct
+d['RT_conf_corr'] = conf_corr
+d['RT_conf_uncorr'] = conf_uncorr
 
-d['scene_acc'] = scene_acc
-d['face_acc'] = face_acc
+d['RT_scene_acc'] = scene_acc
+d['RT_face_acc'] = face_acc
 
 # Training confusion matrices
 conf_train = []
 for b in range(n_it):
     conf_train.append(confusion_matrix(Y_run[b,:], Y_train[b,:]))
     
-d['conf_train'] = conf_train
+d['RT_conf_train'] = conf_train
 
 #%% Training on stable blocks only - leave one block out CV
 offset_pred_lst = []
@@ -603,7 +604,7 @@ pkl_arr = [d]
 print('Finished running test and train analyses for subject: ' + str(subj))
 
 # PICKLE TIME
-fname = '04April_V2_subj_'+str(subj)+'.pkl'
+fname = '04April_V3_subj_'+str(subj)+'.pkl'
 with open(fname, 'wb') as fout:
     pickle.dump(pkl_arr, fout)
 
