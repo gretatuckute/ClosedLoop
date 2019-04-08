@@ -120,7 +120,7 @@ if subj == '19':
     
 if subj == '21': 
     EEGfile = 'subject_21_EEG_04-02-19_08-45.csv'
-    markerfile = 'subject_18_marker_04-02-19_08-45.csv'
+    markerfile = 'subject_21_marker_04-02-19_08-45.csv'
     idxFile = 'createIndices_21_day_2.csv'
     alphaFile = 'alpha_subjID_21.csv' 
     n_it = 5
@@ -141,14 +141,14 @@ if subj == '23':
     
 if subj == '25': 
     EEGfile = 'subject_25_EEG_04-02-19_14-09.csv'
-    markerfile = 'subject_23_marker_04-02-19_14-09.csv'
+    markerfile = 'subject_25_marker_04-02-19_14-09.csv'
     idxFile = 'createIndices_25_day_2.csv'
     alphaFile = 'alpha_subjID_25.csv' 
     n_it = 5
     
 if subj == '27': 
     EEGfile = 'subject_27_EEG_03-28-19_12-45.csv'
-    markerfile = 'subject_23_marker_03-28-19_12-45.csv'
+    markerfile = 'subject_27_marker_03-28-19_12-45.csv'
     idxFile = 'createIndices_27_day_2.csv'
     alphaFile = 'alpha_subjID_27.csv' 
     n_it = 5
