@@ -1,0 +1,15 @@
+
+
+asr_state=asr_calibrate(preprocessed_data,srate);   
+[processedData, asr_state] = asr_process(processedData, srate, asr_state);
+
+SSP: 
+Create projectors:
+	1: decompose cov of data containing artifacts
+	2: projectors: the components of high variance (are usually noise)
+apply projectors:
+	1: combine projectors and perform PCA on these 
+		- seems to take care of the sign of the projectors with 					respect to each other
+	2: keep the projectors that are not linear dependent ones? Get U
+	3: calculate projector: proj = np.eye(nchan, nchan) - np.dot(U, U.T)  
+	4: apply: ssp_data=np.dot(proj, data)
