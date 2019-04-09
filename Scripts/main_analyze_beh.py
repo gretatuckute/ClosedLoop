@@ -4,7 +4,7 @@ Created on Mon Apr  1 13:38:53 2019
 
 @author: Greta
 
-# Variables: subjID, day, min/max second values, 
+# Variables: subjID, day, (min/max second values), 
 
 # Output: Average response time overall and divided into lures/non-lures. 
 Lure: Number of correct inhibitions (CR), and number of not correctly inhibited responses (FR)
@@ -31,7 +31,7 @@ d = {}
 d['subjID'] = subjID
 
 #%%
-expDay = '5'
+expDay = '4'
 
 dataDir = 'P:\\closed_loop_data\\' + str(subjID) + '\\'
 os.chdir(dataDir)

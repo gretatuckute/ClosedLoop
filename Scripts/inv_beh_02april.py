@@ -68,7 +68,7 @@ def computeStats(subjID,expDay):
     return sensitivity,specificity,false_positive_rate,accuracy 
          
 
-#%%
+#%% Analyze 4 days
 dayLst = ['1','3','4','5']
 
 f07=np.zeros((4,4))
@@ -87,40 +87,32 @@ for count,day in enumerate(dayLst):
 
 
 
-#%%
+#%% Initial sensitivity measures
 # Sensitivity
-f07_TP = sub07['no_Inhibitions_nonlure_day_1']
-f07_FN = sub07['inhibitions_nonlure_day_1']
-
-(f07_TP)/(f07_TP+f07_FN)
-
-f07_TP3 = sub07['no_Inhibitions_nonlure_day_3']
-f07_FN3 = sub07['inhibitions_nonlure_day_3']
-
-(f07_TP3)/(f07_TP3+f07_FN3)
-
-# Specificity
-f07_TN = sub07['inhibitions_lure_day_1']
-f07_FP = sub07['no_Inhibitions_lure_day_1']
-
-(f07_TN)/(f07_TN+f07_FP)
-
-f07_TN3 = sub07['inhibitions_lure_day_3']
-f07_FP3 = sub07['no_Inhibitions_lure_day_3']
-
-(f07_TN3)/(f07_TN3+f07_FP3)
+#f07_TP = sub07['no_Inhibitions_nonlure_day_1']
+#f07_FN = sub07['inhibitions_nonlure_day_1']
+#
+#(f07_TP)/(f07_TP+f07_FN)
+#
+#f07_TP3 = sub07['no_Inhibitions_nonlure_day_3']
+#f07_FN3 = sub07['inhibitions_nonlure_day_3']
+#
+#(f07_TP3)/(f07_TP3+f07_FN3)
+#
+## Specificity
+#f07_TN = sub07['inhibitions_lure_day_1']
+#f07_FP = sub07['no_Inhibitions_lure_day_1']
+#
+#(f07_TN)/(f07_TN+f07_FP)
+#
+#f07_TN3 = sub07['inhibitions_lure_day_3']
+#f07_FP3 = sub07['no_Inhibitions_lure_day_3']
+#
+#(f07_TN3)/(f07_TN3+f07_FP3)
 
 # Successrate, inhibitions_lure + no_inhibitions_nonlure/all mouse clicks?
 
 # Accuracy, TP + TN/all
-
-
-
-
-
-
-
-
 
 
 

@@ -162,7 +162,7 @@ if subj == '30':
 
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\11\\'
+#data_dir = 'P:\\closed_loop_data\\13\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run

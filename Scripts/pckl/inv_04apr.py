@@ -71,12 +71,12 @@ with open('04April_V3_subj_19.pkl', "rb") as fin:
 with open('04April_V3_subj_21.pkl', "rb") as fin:
     sub21 = (pickle.load(fin))[0] 
     
-# Not yet running:
+# Not yet running: (Ran Monday 8th night)
     
-with open('04April_V3_subj_22.pkl', "rb") as fin: # Not matching samples
+with open('04April_V3_subj_22.pkl', "rb") as fin: 
     sub22 = (pickle.load(fin))[0] 
     
-with open('04April_V3_subj_23.pkl', "rb") as fin: # Not matching samples
+with open('04April_V3_subj_23.pkl', "rb") as fin: 
     sub23 = (pickle.load(fin))[0] 
 
 with open('04April_V3_subj_25.pkl', "rb") as fin:
@@ -95,27 +95,28 @@ with open('04April_V3_subj_30.pkl', "rb") as fin:
 # For training accuracy: train_acc_stable_corr
     
 # Extract values from dict
-dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
-wanted_keysV2 = ("RT_test_acc_corr","RT_test_acc_corr_run","train_acc_stable_corr")
-
-result = dictfilt(sub07new2, wanted_keysV2)
-
-g = list(result.values())    
+#dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
+#wanted_keysV2 = ("RT_test_acc_corr","RT_test_acc_corr_run","train_acc_stable_corr","train_acc_stable_NF","train_acc_stable_test")
+#
+#result = dictfilt(sub07new2, wanted_keysV2)
+#
+#g = list(result.values())    
 
 #%% 
+wanted_keysV2 = ("RT_test_acc_corr","RT_test_acc_corr_run","train_acc_stable_corr","train_acc_stable_NF","train_acc_stable_test")
 
 # Figure out three first subs!!!!
 
-subLst = [sub13,sub14,sub15,sub16,sub17,sub18,sub19,\
+subLst = [sub07, sub08, sub11, sub13,sub14,sub15,sub16,sub17,sub18,sub19,\
           sub21,sub22,sub23,sub25,sub27,sub30]
     
 # subLstt = [sub13,sub14] #test
 
 allSubs = []
 
-for sub in subLstt:
+for sub in subLst:
     result = dictfilt(sub, wanted_keysV2)
-    print(result)
+    #print(result)
     g = list(result.values())    
     allSubs.append(g)
     
@@ -128,16 +129,22 @@ allSubsRTrun = []
 
 # Offline
 allSubsOFF = []
+allSubsOFF_allblocks = []
+allSubsOFF_stabletest = []
 
 for sub in allSubs:
     RT_acc = sub[0]
     RT_acc_run = sub[1]
     OFF_acc = sub[2]
+    OFF_acc_all = sub[3]
+    OFF_acc_stabletest = sub[4]
     allSubsRT.append(RT_acc)
     allSubsRTrun.append(RT_acc_run)
     allSubsOFF.append(OFF_acc)
+    allSubsOFF_allblocks.append(OFF_acc_all)
+    allSubsOFF_stabletest.append(OFF_acc_stabletest)
     
-allSubsRT_mean = np.mean(allSubsRT)    
+allSubsRT_mean = np.mean(allSubsRT)     #0.59, 0.605, 0.61
 allSubsRT_min = np.min(allSubsRTrun)
 allSubsRT_max = np.max(allSubsRTrun)
 
@@ -145,14 +152,14 @@ allSubsRT_max = np.max(allSubsRTrun)
 np.mean(allSubsRTrun) # same
 
 # Offline train acc
-allSubsOFF_mean = np.mean(allSubsOFF)    
+allSubsOFF_mean = np.mean(allSubsOFF)   #0.578, 0.625, 0.627
 allSubsOFF_min = np.min(allSubsOFF)
-allSubsOFF_max = np.max(allSubsOFF)
+allSubsOFF_max = np.max(allSubsOFF) #0.66
 
 
 
-
-
+np.mean(allSubsOFF_allblocks) # 0.60, 0.64, 0.64
+np.mean(allSubsOFF_stabletest) # 0.597, 0.63, 0.63
 
 #%%
 # Plot showing where the correct predictions are located pr. run.
