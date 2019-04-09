@@ -191,6 +191,49 @@ def trainLogReg_cross2(X,y):
     
     return clf, offset #,score,conf
 
+def trainLogReg_cross_offline(X,y):
+    '''
+    For offline estimation of training accuracy.
+    '''
+    
+    X=scale2DArray(X,axis=1)
+    
+    classifier = LogisticRegression(solver='saga',C=1,random_state=1,penalty='l1',max_iter=100)
+    
+    if X.shape[0] == 1750:
+        val_split = 583
+    else:
+        val_split = int((X.shape[0])/3) #Split in 3 equal sized validation folds
+    
+    offset_lst = []
+        
+    for entry in range(3): 
+
+        indVal = np.asarray(range(val_split*(entry),(entry+1)*val_split))
+
+        X_val = X[indVal,:]
+#        y_val = y[indVal]
+        
+        indTrain = np.asarray(range(X.shape[0]))
+        indTrain = np.delete(indTrain,indVal,axis=0)
+        
+        X_train = X[indTrain,:]
+        y_train = y[indTrain]
+            
+        clf_val = classifier.fit(X_train, y_train)
+        pred_prob_val = clf_val.predict_proba(X_val)
+        
+        pred_sort = np.sort(pred_prob_val[:,0])
+
+        offset = 0.5 - pred_sort[int(val_split/2)]
+        offset_lst.append(offset)
+
+    offset_mean = np.mean(offset_lst)
+    
+    clf = classifier.fit(X,y)
+
+    return clf,offset_mean
+
 
 def testEpoch(clf,epoch,y=None):
     '''

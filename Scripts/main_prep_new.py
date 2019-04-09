@@ -8,12 +8,12 @@ Created on Mon Oct  1 08:12:52 2018
 
 # Imports
 import os
-from paths import project_path_init
+from paths import script_path_init
 
-project_path = project_path_init()
-os.chdir(project_path)
+script_path = script_path_init()
+os.chdir(script_path)
 
-from experiment_closed_loop_vol29 import createIndicesNew, closeWin
+from experiment_closed_loop_vol3 import createIndicesNew, closeWin
 import numpy as np
 import random
 
@@ -24,9 +24,7 @@ global stableSaveCount
 global imgIdx
 
 
-subjID_prep = 'pp'
-# subjID_prep = str(11).zfill(2)
-# exp_day_val = str(1).zfill(2) Not using leading zeros here
+subjID_prep = 'ab'
 
 numRuns = 2 # E.g. 3 creates 3*8*50 = 1200 indices
 
@@ -56,10 +54,10 @@ randLst2 = [0,0,1,1]
 for run in list(range(0,numRuns)):
     randCat  = (random.sample(randLst1, 4)) + (random.sample(randLst2, 4))
     for index in randCat:
-        aDom = catComb1[index][0]
-        aLure = catComb1[index][1]
-        nDom = catComb1[index][2]
-        nLure = catComb1[index][3]
+        aDom = catComb4[index][0]
+        aLure = catComb4[index][1]
+        nDom = catComb4[index][2]
+        nLure = catComb4[index][3]
 
-        createIndicesNew(aDom, aLure, nDom, nLure, subjID_forfile=subjID_prep,exp_day=4)
+        createIndicesNew(aDom, aLure, nDom, nLure, subjID_forfile=subjID_prep,exp_day=5)
         

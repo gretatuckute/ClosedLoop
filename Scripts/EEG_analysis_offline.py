@@ -85,41 +85,47 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
     # Output
     - Epoched EEG data (1100 ms. 100 ms before stimulus onset, and 1000 ms after stimulus onset).
     
+    GT edit, 04april: added marker_start_end and epochidx0 info.
+    
     '''
     n_channels = 32
     le = np.zeros(4500000)
     EEGdata = []
     c = 0
-    tmin=-0.1
+    tmin = -0.1
     
+    # Read raw EEG data csv file 
     with open(EEGfile,'r') as csvfile:
-
         csvReader = csv.reader(csvfile)
         for row in csvfile:
             rownum = np.fromstring(row,dtype=float,sep=',')
             le[c] = (len(rownum))
-            if le[c]==(n_channels+1):
+            if le[c] == (n_channels+1):
                 EEGdata.append(rownum)
             c += 1
     
     EEGdata = EEGdata[2:]
     eegdata = np.array(EEGdata)
-    eegdata_time=eegdata[:,n_channels]
+    eegdata_time = eegdata[:,n_channels]
     eegdata = eegdata[:,0:n_channels] # Remove marker as the last channel
-    if prefilter==1:
+    
+    # Filtering of EEG data before epoch extraction 
+    if prefilter == 1:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
         channel_types = ['eeg']*n_channels
         sfreq = 500  # in Hertz
-        montage = 'standard_1020' # Or 1010
+        montage = 'standard_1020' 
         info = mne.create_info(channel_names, sfreq, channel_types, montage)
-        raw=detrend(eegdata, axis=0, type='linear')
+        raw = detrend(eegdata, axis=0, type='linear')
         custom_raw = mne.io.RawArray(raw.T, info)
         custom_raw.filter(HP, LP, fir_design='firwin',phase=phase)
-        eegdata=custom_raw.get_data().T
+        eegdata = custom_raw.get_data().T
     
-    marker=[]
-    marker_time=[]
-    c=0
+    marker = []
+    marker_time = []
+    c = 0
+    
+    # Read time marker data csv file
     with open(markerfile,'r') as csvfile:
         csvReader = csv.reader(csvfile)
         for row in csvfile:
@@ -130,8 +136,8 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
                 marker_time.append(rownum[1])
             c+=1
         
-
-    # Check whether the EEG arrays have same size, or whether the EEG acquisition was turned off too soon
+    # Check whether the EEG arrays in the raw EEG data have same size
+    # Mismatch can occur if EEG acquisition equipment was turned off unexpectedly
     if len(eegdata.shape) == 1:
         print('Arrays of size 1 in the end of EEG file. Removed 300 samples.')
         # EEGdata2 = np.copy(EEGdata)
@@ -141,13 +147,13 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
     marker_time2 = np.asarray(marker_time)
 
     # Find marker events 1 (start of experimental trial)
-    if marker1==1:
+    if marker1 == 1:
         eventsM = indices(marker, lambda x: x == 1.0)
     else:
-        eventsM=[int(m) for m in marker]
+        eventsM = [int(m) for m in marker]
     eventsM2 = np.asarray(eventsM)
 
-    # match EEG timestamp with marker timestamp (stimuli onset) + tmin 
+    # Match EEG timestamp with marker timestamp (stimuli onset) + tmin 
     nEv = len(eventsM)
     eventsEEG0 = np.zeros(nEv)
     for trial in range(nEv):
@@ -156,12 +162,19 @@ def extractEpochs_tmin(EEGfile,markerfile,prefilter=0,marker1=1,n_samples=550):
   
     # Take the eegdata variable and extract epochs
     epochs = np.zeros([nEv,n_samples,n_channels])
+    
+    epoch0_idx = eventsEEG0.tolist()
+    epoch0_idx = [int(i) for i in epoch0_idx]
 
     for count,number in enumerate(epoch0_idx):
         if number+n_samples<len(eegdata[:,1]):
             epochs[count,:,:] = eegdata[number:number+n_samples,0:n_channels]
+            # Should it be eegdata[number+tmin:number+n_samples+tmin] ?
     
+    marker_start_end = [marker_time2[eventsM2[0]],marker_time2[eventsM2[-1]]]-eegdata_time[0]
+
     print('Number of trials extracted: ' + str(nEv))
+    
     return epochs
 
 def extractEpochs(EEGfile,markerfile,prefilter=0,marker1=1):
@@ -633,3 +646,4 @@ def ERPcomp(eeg_data,sfreq,times,comp='all_ERPs',avg=1): # Not currently used
         ERP=eeg_data[:,:, mask]
         if avg==1:
             ERP=np.reshape(np.mean(ERP,axis=2),(no_trials,32,1))
+            
