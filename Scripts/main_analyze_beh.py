@@ -16,7 +16,7 @@ Non-lure: Number of false inhibitions.
 # Imports
 import glob
 import os
-os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\')
+os.chdir('C:\\Users\\sofha\\Documents\\GitLab\\ClosedLoop\\Scripts\\')
 import numpy as np
 import csv
 from matplotlib import pyplot as plt
@@ -24,16 +24,16 @@ import collections
 import pickle
 from responseTime_func import * 
 
-subjID = '15'
+subjID = '30'
 
 # Initialize dict
 d = {}
 d['subjID'] = subjID
 
 #%%
-expDay = '4'
+expDay = '5'
 
-dataDir = 'P:\\closed_loop_data\\' + str(subjID) + '\\'
+dataDir = 'D:\\closed_loop\\' + str(subjID) + '\\'
 os.chdir(dataDir)
 
 fileLst = glob.glob(dataDir + '/*.csv') 
@@ -207,13 +207,14 @@ d['surrounding_FR_Lst_day_'+str(expDay)] = surrounding_FR_Lst
 
 del catFile, stimuliFile, keypressFile
 
-#%% Save pckl file
-pkl_arr = [d]
 
-saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
-os.chdir(saveDir)
+if expDay=='5':
+    pkl_arr = [d]
+
+    saveDir = 'C:\\Users\\sofha\\Documents\\closed_loop\\beh_analysis\\'
+    os.chdir(saveDir)
 
 # PICKLE TIME
-fname = 'Beh_subjID_'+str(subjID)+'.pkl'
-with open(fname, 'wb') as fout:
-    pickle.dump(pkl_arr, fout)
+    fname = 'Beh_subjID_'+str(subjID)+'.pkl'
+    with open(fname, 'wb') as fout:
+        pickle.dump(pkl_arr, fout)
