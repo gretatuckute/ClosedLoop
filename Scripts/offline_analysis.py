@@ -139,11 +139,25 @@ if subj == '23':
     alphaFile = 'alpha_subjID_23.csv' 
     n_it = 5
     
+if subj == '24': 
+    EEGfile = 'subject_24_EEG_04-09-19_15-45.csv'
+    markerfile = 'subject_24_marker_04-09-19_15-45.csv'
+    idxFile = 'createIndices_24_day_2.csv'
+    alphaFile = 'alpha_subjID_24.csv' 
+    n_it = 5
+
 if subj == '25': 
     EEGfile = 'subject_25_EEG_04-02-19_14-09.csv'
     markerfile = 'subject_25_marker_04-02-19_14-09.csv'
     idxFile = 'createIndices_25_day_2.csv'
     alphaFile = 'alpha_subjID_25.csv' 
+    n_it = 5
+    
+if subj == '26': 
+    EEGfile = 'subject_26_EEG_04-09-19_08-48.csv'
+    markerfile = 'subject_26_marker_04-09-19_08-48.csv'
+    idxFile = 'createIndices_26_day_2.csv'
+    alphaFile = 'alpha_subjID_26.csv' 
     n_it = 5
     
 if subj == '27': 
@@ -158,6 +172,13 @@ if subj == '30':
     markerfile = 'subject_30_marker_04-04-19_15-58.csv'
     idxFile = 'createIndices_30_day_2.csv'
     alphaFile = 'alpha_subjID_30.csv' 
+    n_it = 5
+    
+if subj == '33': 
+    EEGfile = 'subject_33_EEG_04-09-19_17-06.csv'
+    markerfile = 'subject_33_marker_04-09-19_17-06.csv'
+    idxFile = 'createIndices_33_day_2.csv'
+    alphaFile = 'alpha_subjID_33.csv' 
     n_it = 5
 
 print(EEGfile)
@@ -598,6 +619,87 @@ d['conf_corr_all_train'] = conf_train_all
 d['scene_acc_corr_all_train'] = scene_acc
 d['face_acc_corr_all_train'] = face_acc
 
+#%% Training on stable blocks only - leave one run out CV
+offset_pred_lst = []
+c_test = 0
+
+no_sb = 8+4*n_it # Number stable blocks
+block_len = 50
+
+pred_prob_test = np.zeros((no_sb*block_len,2)) # Prediction probability test. Block length of 50 trials
+pred_prob_test_corr = np.zeros((no_sb*block_len,2)) # Prediction probability test, corrected for bias
+alpha_test = np.zeros((no_sb*block_len)) # Alpha values for stable blocks
+
+stable_blocks_fbrun = np.concatenate([e[400+n*400:600+n*400] for n in range(n_it)]) # Stable blocks feedback run
+y_stable_blocks_fbrun = np.concatenate([y[400+n*400:600+n*400] for n in range(n_it)])
+
+stable_blocks = np.concatenate((e[:400,:,:], stable_blocks_fbrun))
+y_stable_blocks = np.concatenate((y[:400], y_stable_blocks_fbrun))
+
+y_pred = np.zeros(no_sb*block_len) 
+
+for r in range(n_it+1): # 6 runs
+    print('Run no: ',r)
+    if r == 0: # First run
+        val_indices = range(0,400) # First run
+        stable_blocks_val = stable_blocks[val_indices]
+        y_val = y_stable_blocks[val_indices]
+        
+    if r > 0: 
+        val_indices = range((r+1)*200,((r+1)*200)+200) # Validation block index
+        stable_blocks_val = stable_blocks[val_indices]
+        y_val = y_stable_blocks[val_indices]
+    
+    stable_blocks_train = np.delete(stable_blocks, val_indices, axis=0)
+    y_train = np.delete(y_stable_blocks, val_indices)
+    stable_blocks_train_prep = np.zeros((len(y_train),23,n_samples_100))
+    
+    for t in range(stable_blocks_train.shape[0]):
+        epoch = stable_blocks_train[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        stable_blocks_train_prep[t,:,:] = epoch
+
+    projs1,stable_blocksSSP_train = applySSP(stable_blocks_train_prep,info_fs100,threshold=threshold)
+    
+    # Average after SSP correction
+    stable_blocksSSP_train = average_stable(stable_blocksSSP_train)
+    clf,offset_pred = trainLogReg_cross_offline(stable_blocksSSP_train,y_train) #cur. in EEG_classification
+    offset_pred = np.min([np.max([offset_pred,-0.25]),0.25])/2
+    offset_pred_lst.append(offset_pred)
+    
+    # Test epochs in validation run. Preprocessing and testing epoch-wise
+    for t in range(len(val_indices)):
+        epoch = stable_blocks_val[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        
+        if t > 0:
+            epoch = (epoch+epoch_prev)/2
+        
+        pred_prob_test[c_test,:],y_pred[c_test] = testEpoch(clf,epoch)
+        
+        # Correct the prediction bias offset
+        pred_prob_test_corr[c_test,0] = np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
+        pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
+        
+        clf_output = pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
+        alpha_test[c_test] = sigmoid(clf_output)
+        
+        epoch_prev = epoch
+        
+        c_test += 1
+        
+    print('No c_test: ' + str(c_test) + ' out of ' + str(no_sb*block_len))
+        
+above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
+print('Above chance alpha train (corrected): ' + str(above_chance_train))    
+
+score = metrics.accuracy_score(y_stable_blocks, y_pred) 
+
+d['train_LORO_offsets_stable'] = offset_pred_lst
+d['train_LORO_acc_stable_corr'] = above_chance_train
+d['train_LORO_acc_stable_uncorr'] = score
+
+
 #%% Save pckl file
 pkl_arr = [d]
 
@@ -607,4 +709,126 @@ print('Finished running test and train analyses for subject: ' + str(subj))
 fname = '04April_V3_subj_'+str(subj)+'.pkl'
 with open(fname, 'wb') as fout:
     pickle.dump(pkl_arr, fout)
+    
+    
+    
+    
+#%% EEG plots
+    
+# Input for EEG prepreprocessing function
+threshold = 0.1 # SSP projection variance threshold
+n_channels = 23
+reject_ch = 1
+reject = None
+flat = None
+mne_reject = 0
+opt_detrend = 1
+bad_channels = None
 
+stable_blocks0 = e[:600,:,:] # First run
+stable_blocks1 = np.zeros((600,n_channels,n_samples_100)) 
+
+y = np.array([int(x) for x in cat])
+y_run = y[:600]
+
+pred_prob_train = np.zeros((n_it*600,2))
+pred_prob_test = np.zeros((n_it*200,2)) # Prediction probability
+pred_prob_test_corr = np.zeros((n_it*200,2)) # Prediction probability, corrected for classifier bias
+alpha_test = np.zeros((n_it*200))
+train_acc = np.zeros(n_it)
+n_test = 600
+c_test = 0
+c = 0
+offset = 0
+y_pred_test1 = np.zeros(5*200)
+y_test_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400]))
+c_train = -1
+Y_train = np.zeros((n_it,600))
+
+epochs_fb = np.zeros((1000,23,n_samples_100)) # Epochs feedback
+epochavg = np.zeros((2,23,n_samples_100)) 
+epochavg_train = np.zeros((2,23,n_samples_100)) 
+
+# Implement averaging of training and test epochs
+average_train = 1
+average_test = 1
+
+epochs_fb_lst = []
+#epochs_stable_lst = []
+
+for b in range(n_it):
+    for t in range(stable_blocks0.shape[0]):
+        epoch = stable_blocks0[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        stable_blocks1[t+offset,:,:] = epoch
+        c += 1
+        
+    projs1,stable_blocksSSP1 = applySSP(stable_blocks1,info_fs100,threshold=threshold) # Apply SSP on stable blocks
+    
+    # epochs_stable_lst.append(stable_blocksSSP1)
+    
+    stable_blocks1 = stable_blocks1[200:,:,:]
+    stable_blocks1 = np.concatenate((stable_blocks1,np.zeros((200,n_channels,n_samples_100))),axis=0)
+    
+    s_begin = 800+b*400
+    offset = 400 # Indexing offset for EEG data and y
+    stable_blocks0 = e[s_begin:s_begin+200,:,:]
+    y_run = np.concatenate((y_run[200:],y[s_begin:s_begin+200]))
+    
+    # Append RT epochs to a list
+    for t in range(200):
+        print('Epoch number: ',c)
+        epoch1 = e[c,:,:]
+        epoch = preproc1epoch(epoch1,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        epoch_forplot = preproc1epoch_forplots(epoch1,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        epochs_fb_lst.append(epoch_forplot)
+        
+        epochs_fb[c_test,:,:] = epoch
+
+        c += 1
+        c_test += 1
+        
+
+
+epochs_fb_c = np.copy(epochs_fb)   
+y_test_feedback_c = np.copy(y_test_feedback)
+
+y_test_feedback_c[y_test_feedback_c==1]=True
+
+new=epochs_fb_c[~np.array(y_test_feedback_c)]
+newX = np.ma.array(epochs_fb_c, mask = np.column_stack((y_test_feedback_c,y_test_feedback_c)))
+
+g=epochs_fb_c[y_test_feedback_c,:,:]
+
+epochs_cat0 = np.zeros((500,23,n_samples_100)) 
+epochs_cat1 = np.zeros((500,23,n_samples_100)) 
+
+cat_count0 = 0 
+cat_count1 = 0 
+
+for idx, cat in enumerate(y_test_feedback_c):
+    if cat == 0:
+        epochs_cat0[cat_count0,:,:] = epochs_fb_c[idx]
+        cat_count0 += 1 
+        
+    if cat == 1:
+        epochs_cat1[cat_count1,:,:] = epochs_fb_c[idx]
+        cat_count1 += 1
+        
+# Plot epochs for channel O2
+plt.plot(np.mean(epochs_cat0[:,7],axis=0))
+plt.plot(np.mean(epochs_cat1[:,7],axis=0))
+
+
+
+#g1=epochs_fb_c[y_test_feedback_c] = 0
+#   
+#conc_epochs_fb1 = mne.concatenate_epochs(epochs_fb_lst[:200])    
+#conc_epochs_fb2 = mne.concatenate_epochs(epochs_fb_lst[100:200])    
+#
+## ValueError: SSP projectors in epochs files must be the same
+#conc_epochs_fb1.average().plot(spatial_colors=True, time_unit='s',picks=[7])    
+#conc_epochs_fb2.average().plot(spatial_colors=True, time_unit='s',picks=[7])    
+#
+#stable_blocksSSP1.average().plot(spatial_colors=True, time_unit='s') 
+    
