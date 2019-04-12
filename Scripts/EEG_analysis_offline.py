@@ -374,7 +374,7 @@ def analyzeVar(p, threshold):
             
     return threshold_idx
 
-def computeSSP(EEGfile,threshold,SSP_start_end,reject_ch=None):
+def computeSSP_offline(EEGfile,threshold,SSP_start_end,reject_ch=None):
     '''
     Computes SSP projections of non-epoched EEG data (bandpass filtered and resampled to 100Hz). 
     (if EEG has been epoched then use computeSSP from EEG_analysis_RT)
@@ -646,4 +646,148 @@ def ERPcomp(eeg_data,sfreq,times,comp='all_ERPs',avg=1): # Not currently used
         ERP=eeg_data[:,:, mask]
         if avg==1:
             ERP=np.reshape(np.mean(ERP,axis=2),(no_trials,32,1))
+            
+            
+    
+def preproc1epoch_forplots(eeg,info,projs=[],SSP=True,reject=None,mne_reject=1,reject_ch=None,flat=None,bad_channels=[],opt_detrend=1):
+    
+    '''
+    Preprocesses epoched EEG data.
+    
+    # Input
+    - eeg: Epoched EEG data in the following format: (trials, time samples, channels).
+    - info: predefined info containing channels etc.
+    - projs: used if SSP=True. SSP projectors
+    
+    # Preprocessing
+    - EpochsArray format in MNE (with initial baseline correction)
+    - Bandpass filter (0-40Hz)
+    - Resample to 100Hz
+    - SSP (if True)
+    - Reject bad channels
+        - interpolate bad channels
+    - Rereference to average
+    - Baseline correction
+    
+    # Output
+    - Epoched preprocessed EEG data in np array.
+    
+    '''
+    
+    n_samples=eeg.shape[0]
+    n_channels=eeg.shape[1]
+    eeg=np.reshape(eeg.T,(1,n_channels,n_samples))
+    tmin = -0.1 # start baseline at
+    
+    # Temporal detrending:
+    if opt_detrend==1:
+        eeg = detrend(eeg, axis=2, type='linear')
+        
+    epoch = mne.EpochsArray(eeg, info, tmin=tmin,baseline=None,verbose=False)
+    
+    # Drop list of channels known to be problematic:
+    if reject_ch == True: 
+        bads =  ['Fp1','Fp2','Fz','AF3','AF4','T7','T8','F7','F8']
+        epoch.drop_channels(bads)
+    
+    # Lowpass
+    epoch.filter(HP, LP, fir_design='firwin',phase=phase,verbose=False)
+    
+    # Downsample
+    epoch.resample(100, npad='auto',verbose=False)
+    
+    # Apply baseline correction
+    epoch.apply_baseline(baseline=(None,0),verbose=False)
+    
+    # Apply SSP prejectors
+    if SSP == True:
+        # Apply projection to the epochs already defined
+        epoch.add_proj(projs)
+        epoch.apply_proj()
+        
+    if reject is not None: # currently not used
+        if mne_reject==1: # use mne method to reject+interpolate bad channels
+            from mne.epochs import _is_good
+            from mne.io.pick import channel_indices_by_type    
+            #reject=dict(eeg=100)
+            idx_by_type = channel_indices_by_type(epoch.info)
+            A,bad_channels=_is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type,reject=reject, flat=flat, full_report=True)
+            print(A)
+            if A==False:
+                epoch.info['bads']=bad_channels    
+                epoch.interpolate_bads(reset_bads=True, verbose=False)
+        else: # bad_channels is predefined
+            epoch.drop_channels(bad_channels)
+            
+            
+    
+    # Rereferencing
+    epoch.set_eeg_reference(verbose=False)
+    # Apply baseline after rereference
+    epoch.apply_baseline(baseline=(None,0),verbose=False)
+        
+    # epoch=epoch.get_data()[0]
+    return epoch
+
+def applySSP_forplot(EEG,info,threshold=0.1,add_events=None):
+    '''
+    Computes and applies SSP projections of epoched EEG data (bandpass filtered and resampled to 100Hz). 
+    
+    # Input
+    - EEG: Epoched and processed EEG
+    - info: mne info struct
+    - threshold: Value between 0 and 1, only uses the SSP projection vector if it explains more than the pre-defined threshold.
+    - add_events: numPy array with binary categories.
+    
+    # Output
+    - EEG in MNE EpochsArray after SSP corection. If add_events is not none, categories are added to the MNE EpochsArray.
+    
+    '''
+    
+    if add_events is not None:
+        events_list = add_events
+        event_id_add = dict(scene=0, face=1)
+        n_epochs = len(events_list)
+        events_list = [int(i) for i in events_list]
+        events_add = np.c_[np.arange(n_epochs), np.zeros(n_epochs, int),events_list]
+    
+    EEG = mne.EpochsArray(EEG, info, baseline=None, events=events_add, event_id=event_id_add)
+    projs,p = computeSSP_forplot(EEG,info,threshold)
+    EEG.add_proj(projs)
+    EEG.apply_proj()
+    
+    return projs,EEG,p
+
+
+def computeSSP_forplot(EEG,info,threshold):
+    '''
+    Computes SSP projections of epoched EEG data (bandpass filtered and resampled to 100Hz). 
+    Returns explained variance (p)
+    
+    # Input
+    - EEG: Epoched and processed EEG
+    - info: mne info struct
+    - threshold: Value between 0 and 1, only uses the SSP projection vector if it explains more than the pre-defined threshold.
+    
+    # Output
+    - Array of SSP projection vectors above a pre-defined threshold (variance explained).
+    - p: Array containing explained variance
+    
+    '''
+
+    print('Computing SSP based on epochs')
+
+    projs = mne.compute_proj_epochs(EEG,n_eeg=10,n_jobs=1, verbose=True)
+
+    p = [projs[i]['explained_var'] for i in range(10)]
+
+    # If variance explained is above a certain threshold, use the SSP vector for projection
+    threshold_idx = analyzeVar(p, threshold)
+
+    threshold_projs = [] # List with projections above a chosen threshold
+    for idx in threshold_idx:
+        threshold_projs.append(projs[idx])
+        
+    return threshold_projs,p
+
             

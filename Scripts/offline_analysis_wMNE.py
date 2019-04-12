@@ -29,7 +29,7 @@ import os
 
 from EEG_classification import sigmoid, testEpoch,trainLogReg_cross_offline,trainLogReg_cross,trainLogReg_cross2,trainLogReg
 from EEG_analysis_RT import preproc1epoch, create_info_mne, applySSP,removeEpochs,average_stable
-from EEG_analysis_offline import extractEpochs_tmin,extractCat,extractAlpha,extractEpochs
+from EEG_analysis_offline import extractEpochs_tmin,extractCat,extractAlpha,extractEpochs,applySSP_forplot
 
 #%% Constructing the parser and parse the arguments
 parser = argparse.ArgumentParser(description='Cool analyses, choose a subject to test and train on')
@@ -419,10 +419,65 @@ y_stable_blocks_fbrun = np.concatenate([y[400+n*400:600+n*400] for n in range(n_
 
 stable_blocks = np.concatenate((e[:400,:,:], stable_blocks_fbrun))
 y_stable_blocks = np.concatenate((y[:400], y_stable_blocks_fbrun))
+y_pred = np.zeros(no_sb*block_len) 
 
+for sb in range(no_sb):
+    val_indices = range(sb*block_len,(sb+1)*block_len) # Validation block index
+    stable_blocks_val = stable_blocks[val_indices]
+    y_val = y_stable_blocks[val_indices]
+    
+    stable_blocks_train = np.delete(stable_blocks, val_indices, axis=0)
+    y_train = np.delete(y_stable_blocks, val_indices)
+    stable_blocks_train_prep = np.zeros((len(y_train),23,n_samples_100))
+    
+    for t in range(stable_blocks_train.shape[0]):
+        epoch = stable_blocks_train[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        stable_blocks_train_prep[t,:,:] = epoch
 
-#%%
-# Do preprocessing and SSP on all the stable blocks. Plot with MNE based on categories.
+    projs1,stable_blocksSSP_train = applySSP(stable_blocks_train_prep,info_fs100,threshold=threshold)
+    
+    # Average after SSP correction
+    stable_blocksSSP_train = average_stable(stable_blocksSSP_train)
+    clf,offset_pred = trainLogReg_cross_offline(stable_blocksSSP_train,y_train) #cur. in EEG_classification
+    offset_pred = np.min([np.max([offset_pred,-0.25]),0.25])/2
+    offset_pred_lst.append(offset_pred)
+    
+    # Test epochs in validation block. Preprocessing and testing epoch-wise
+    for t in range(block_len):
+        epoch = stable_blocks_val[t,:,:]
+        epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
+        
+        if t > 0:
+            epoch = (epoch+epoch_prev)/2
+        
+        pred_prob_test[c_test,:],y_pred[c_test] = testEpoch(clf,epoch)
+        
+        # Correct the prediction bias offset
+        pred_prob_test_corr[c_test,0] = np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
+        pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
+        
+        clf_output = pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
+        alpha_test[c_test] = sigmoid(clf_output)
+        
+        epoch_prev = epoch
+        
+        c_test += 1
+        
+    print('No c_test: ' + str(c_test) + 'out of ' + str(no_sb*block_len))
+        
+above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
+print('Above chance alpha train (corrected): ' + str(above_chance_train))    
+
+score = metrics.accuracy_score(y_stable_blocks, y_pred) 
+
+d['train_offsets_stable'] = offset_pred_lst
+d['train_acc_stable_corr'] = above_chance_train
+d['train_acc_stable_uncorr'] = score
+
+#%% Extract data for MNE plots
+
+# Perform preprocessing and SSP on all the stable blocks.
 stable_blocks_plot = np.zeros((len(y_stable_blocks),23,n_samples_100))
 
 for t in range(stable_blocks.shape[0]):
@@ -430,16 +485,35 @@ for t in range(stable_blocks.shape[0]):
     epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
     stable_blocks_plot[t,:,:] = epoch
 
-projs1,stable_blocksSSP_plot = applySSP_forplot(stable_blocks_plot,info_fs100,threshold=threshold)
+projs1,stable_blocksSSP_plot,p_variance = applySSP_forplot(stable_blocks_plot,info_fs100,threshold=threshold,add_events=y_stable_blocks)
 
+# Overall average plot, all channels 
+stable_blocksSSP_plot.average().plot(spatial_colors=True, time_unit='s')#,picks=[7]) 
+
+#%% Adding events manually to epochs *also implemented in applySSP_forplot*
 stable_blocksSSP_get = stable_blocksSSP_plot.get_data()
+events_list = y_stable_blocks
+event_id = dict(scene=0, face=1)
+n_epochs = len(events_list)
+events_list = [int(i) for i in events_list]
+events = np.c_[np.arange(n_epochs), np.zeros(n_epochs, int),events_list]
 
-s=stable_blocksSSP_plot[y_stable_blocks]
+epochs_events = mne.EpochsArray(stable_blocksSSP_get, info_fs100, events=events, tmin=-0.1, event_id=event_id,baseline=None)
 
-stable_blocksSSP_plot.average().plot(spatial_colors=True, time_unit='s',picks=[7]) 
+epochs_events['face'].average().plot()
+epochs_events['scene'].average().plot()
+
+#%%
+
+# Plot based on categories
+stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')
+stable_blocksSSP_plot['scene'].average().plot(spatial_colors=True, time_unit='s')
 
 # Plot of the SSP projectors
 stable_blocksSSP_plot.average().plot_projs_topomap()
+# Consider adding p_variance values to the plot.
+
+
 
 #Plot the topomap of the power spectral density across epochs.
 stable_blocksSSP_plot.plot_psd_topomap(proj=True)
@@ -533,63 +607,6 @@ plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis',picks=
 # When multiple channels are passed, this function combines them all, to get one time course for each condition. 
 
 
-
-#%%
-y_pred = np.zeros(no_sb*block_len) 
-
-for sb in range(no_sb):
-    val_indices = range(sb*block_len,(sb+1)*block_len) # Validation block index
-    stable_blocks_val = stable_blocks[val_indices]
-    y_val = y_stable_blocks[val_indices]
-    
-    stable_blocks_train = np.delete(stable_blocks, val_indices, axis=0)
-    y_train = np.delete(y_stable_blocks, val_indices)
-    stable_blocks_train_prep = np.zeros((len(y_train),23,n_samples_100))
-    
-    for t in range(stable_blocks_train.shape[0]):
-        epoch = stable_blocks_train[t,:,:]
-        epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
-        stable_blocks_train_prep[t,:,:] = epoch
-
-    projs1,stable_blocksSSP_train = applySSP(stable_blocks_train_prep,info_fs100,threshold=threshold)
-    
-    # Average after SSP correction
-    stable_blocksSSP_train = average_stable(stable_blocksSSP_train)
-    clf,offset_pred = trainLogReg_cross_offline(stable_blocksSSP_train,y_train) #cur. in EEG_classification
-    offset_pred = np.min([np.max([offset_pred,-0.25]),0.25])/2
-    offset_pred_lst.append(offset_pred)
-    
-    # Test epochs in validation block. Preprocessing and testing epoch-wise
-    for t in range(block_len):
-        epoch = stable_blocks_val[t,:,:]
-        epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
-        
-        if t > 0:
-            epoch = (epoch+epoch_prev)/2
-        
-        pred_prob_test[c_test,:],y_pred[c_test] = testEpoch(clf,epoch)
-        
-        # Correct the prediction bias offset
-        pred_prob_test_corr[c_test,0] = np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
-        pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
-        
-        clf_output = pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
-        alpha_test[c_test] = sigmoid(clf_output)
-        
-        epoch_prev = epoch
-        
-        c_test += 1
-        
-    print('No c_test: ' + str(c_test) + 'out of ' + str(no_sb*block_len))
-        
-above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
-print('Above chance alpha train (corrected): ' + str(above_chance_train))    
-
-score = metrics.accuracy_score(y_stable_blocks, y_pred) 
-
-d['train_offsets_stable'] = offset_pred_lst
-d['train_acc_stable_corr'] = above_chance_train
-d['train_acc_stable_uncorr'] = score
 
 
 #%% Confusion matrices - stable blocks accuracy, LOBO
