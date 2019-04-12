@@ -1,3 +1,4 @@
+
 #
 # Author: Greta Tuckute, 18 Mar 2019
 # 
@@ -43,8 +44,6 @@ subj = args['subject']
 # Initialize dict
 d = {}
 d['subjID'] = subj
-
-plot_MNE = 0
 
 #%%
 # Choose subj files
@@ -176,39 +175,16 @@ if subj == '30':
     alphaFile = 'alpha_subjID_30.csv' 
     n_it = 5
     
-if subj == '31': 
-    EEGfile = 'subject_31_EEG_04-11-19_08-40.csv'
-    markerfile = 'subject_31_marker_04-11-19_08-40.csv'
-    idxFile = 'createIndices_31_day_2.csv'
-    alphaFile = 'alpha_subjID_31.csv' 
-    n_it = 5 
-    
-if subj == '32': 
-    EEGfile = 'subject_32_EEG_04-11-19_15-50.csv'
-    markerfile = 'subject_32_marker_04-11-19_15-50.csv'
-    idxFile = 'createIndices_32_day_2.csv'
-    alphaFile = 'alpha_subjID_32.csv' 
-    n_it = 5
-    
 if subj == '33': 
     EEGfile = 'subject_33_EEG_04-09-19_17-06.csv'
     markerfile = 'subject_33_marker_04-09-19_17-06.csv'
     idxFile = 'createIndices_33_day_2.csv'
     alphaFile = 'alpha_subjID_33.csv' 
     n_it = 5
-    
-if subj == '34': 
-    EEGfile = 'subject_34_EEG_04-11-19_14-29.csv'
-    markerfile = 'subject_34_marker_04-11-19_14-29.csv'
-    idxFile = 'createIndices_34_day_2.csv'
-    alphaFile = 'alpha_subjID_34.csv' 
-    n_it = 5    
-    
-    
 
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\32\\'
+#data_dir = 'P:\\closed_loop_data\\13\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run
@@ -249,7 +225,7 @@ mne_reject = 0
 opt_detrend = 1
 bad_channels = None
 
-stable_blocks0 = e[:600,:,:] # Fi+st run
+stable_blocks0 = e[:600,:,:] # First run
 stable_blocks1 = np.zeros((600,n_channels,n_samples_100)) 
 
 y = np.array([int(x) for x in cat])
@@ -512,8 +488,8 @@ for t in range(stable_blocks.shape[0]):
 
 projs1,stable_blocksSSP_plot,p_variance = applySSP_forplot(stable_blocks_plot,info_fs100,threshold=threshold,add_events=y_stable_blocks)
 
-d['MNE_stable_blocks_SSP'] = stable_blocksSSP_plot
-d['MNE_stable_blocks_SSP_projvariance'] = p_variance
+# Overall average plot, all channels 
+stable_blocksSSP_plot.average().plot(spatial_colors=True, time_unit='s')#,picks=[7]) 
 
 #%% Adding events manually to epochs *also implemented in applySSP_forplot*
 stable_blocksSSP_get = stable_blocksSSP_plot.get_data()
@@ -529,11 +505,9 @@ epochs_events['face'].average().plot()
 epochs_events['scene'].average().plot()
 
 #%%
-# Overall average plot, all channels 
-stable_blocksSSP_plot.average().plot(spatial_colors=True, time_unit='s')#,picks=[7]) 
 
 # Plot based on categories
-stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')#,picks=[7])
+stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')
 stable_blocksSSP_plot['scene'].average().plot(spatial_colors=True, time_unit='s')
 
 # Plot of the SSP projectors
@@ -541,118 +515,100 @@ stable_blocksSSP_plot.average().plot_projs_topomap()
 # Consider adding p_variance values to the plot.
 
 
-# Plot the topomap of the power spectral density across epochs.
+
+#Plot the topomap of the power spectral density across epochs.
 stable_blocksSSP_plot.plot_psd_topomap(proj=True)
 
-stable_blocksSSP_plot['face'].plot_psd_topomap(proj=True)
-stable_blocksSSP_plot['scene'].plot_psd_topomap(proj=True)
 
-# Plot topomap (possibiity of adding specific times)
-stable_blocksSSP_plot.average().plot_topomap(proj=True)
-stable_blocksSSP_plot.average().plot_topomap(proj=True,times=np.linspace(0.05, 0.15, 5))
+# Make into get data and into epochs array afterwards
+g1=stable_blocksSSP_plot.get_data()
 
-# Plot joint topomap and evoked ERP
-stable_blocksSSP_plot.average().plot_joint()
+g3=g1[y_stable_blocks==True]
+g4=g1[y_stable_blocks==False]
 
-# If manually adding a sensor plot
-stable_blocksSSP_plot.plot_sensors(show_names=True)
+g3a=np.mean(g3,axis=0)
+g4a=np.mean(g4,axis=0)
 
-# Noise covariance plot - not really sure what to make of this (yet)
-noise_cov = mne.compute_covariance(stable_blocksSSP_plot)
-fig = mne.viz.plot_cov(noise_cov, stable_blocksSSP_plot.info) 
+plt.plot(g3a.T)
 
-# Generate list of evoked objects from condition names
-evokeds = [stable_blocksSSP_plot[name].average() for name in ('scene','face')]
-
-colors = 'blue', 'red'
-title = 'Subject \nscene vs face'
-
-# Plot evoked across all channels, comparing two categories
-mne.viz.plot_evoked_topo(evokeds, color=colors, title=title, background_color='w')
-
-# Compare two categories
-mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis',ci=True)
-# When multiple channels are passed, this function combines them all, to get one time course for each condition. 
-
-mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis',ci=True,picks=[7])
-
-# Make animation
-evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 100),butterfly=True)
-
-# Sort epochs based on categories
-sorted_epochsarray = [stable_blocksSSP_plot[name] for name in ('scene','face')]
-
-# Plot image
-stable_blocksSSP_plot.plot_image()
-
-# Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) 
-g2 = stable_blocksSSP_plot.get_data()
-evoked_array = [mne.EvokedArray(entry, info_fs100,tmin=-0.1) for entry in g2]
-
-# Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) - category info added as comments
-evoked_array2 = []
-for idx,cat in enumerate(events_list):
-    evoked_array2.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat))
-    
-mne.viz.plot_compare_evokeds(evoked_array2[:10]) # Plotting all the individual evoked arrays (up to 10)
-
-# Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
-evoked_array_c0 = []
-evoked_array_c1 = []
-
-for idx,cat in enumerate(events_list):
-    if cat == 0:
-        evoked_array_c0.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
-        print
-    if cat == 1:
-        evoked_array_c1.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
-
-e_dict={}
-e_dict['0'] = evoked_array_c0
-e_dict['1'] = evoked_array_c1
-# Could create these e_dicts for several people, and plot the means. Or create an e_dict with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
-
-
-mne.viz.plot_compare_evokeds(e_dict,ci=0.4,picks=[7])#,title=title,show_sensors=True,cmap='viridis',ci=True)
-mne.viz.plot_compare_evokeds(e_dict,ci=0.8,picks=[7])#,title=title,show_sensors=True,cmap='viridis',ci=True)
-
-# Comparing
-mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,picks=[7],ci=False)
-mne.viz.plot_compare_evokeds(e_dict,title=title,show_sensors=True,picks=[7],ci=True)#,,ci=True)
-
-# Based on categories, the correct epochs are added to the evoked_array_c0 and c1
-
-#%% Manually check whether the MNE events correspond to the actual categories
-
-g1 = stable_blocksSSP_plot.get_data()
-
-g3 = g1[y_stable_blocks==True] # Faces = 1
-g4 = g1[y_stable_blocks==False] # Scenes = 0
-
-g3a = np.mean(g3,axis=0)
-g4a = np.mean(g4,axis=0)
-
-plt.figure(4)
-plt.plot(g3a.T[:,7]) # Corresponds to: stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')
+plt.figure(3)
+plt.plot(g3a.T[:,7])
 plt.plot(g4a.T[:,7])
+a3.plot_sensors(show_names=True)
+
+plt.figure(1)
+
+
+plt.plot(times, data.T)
+plt.xlabel('time (s)')
+plt.ylabel('MEG data (T)')
+plt.plot(g3)
+
 
 epochsg3 = mne.EpochsArray(g3, info=info_fs100)
 epochsg4 = mne.EpochsArray(g4, info=info_fs100)
 
-plt.figure(6)
-epochsg3.average().plot(spatial_colors=True, time_unit='s',picks=[7]) # Corresponds to: stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
+
+plt.figure(5)
+epochsg3.average().plot(spatial_colors=True, time_unit='s',picks=[7]) 
 epochsg4.average().plot(spatial_colors=True, time_unit='s',picks=[7]) 
 
-# Plot topomap
-a3 = epochsg3.average()
+# Only extract the data, and not the plot, to make it into the same plot
+a3=epochsg3.average()
 a3.plot_topomap(times=np.linspace(0.05, 0.15, 5))
 
 # Plot of evoked ERP and topomaps, in one plot!
 a3.plot_joint()
 
+
 # Control the y axis
-a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
-a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
+f3=a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
+f3=a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
+
+
+
+epochsg3.plot_psd_topomap(proj=True)
+epochsg4.plot_psd_topomap(proj=True)
+
+
+
+
+noise_cov = mne.compute_covariance(epochsg3, tmax=0.)
+fig = mne.viz.plot_cov(noise_cov, epochsg3.info) # Noise covariance plot.
+
+
+
+### Compare evoked plots
+
+
+# Add events
+events_list = y_stable_blocks
+
+event_id=dict(scene=0, face=1)
+n_epochs=len(events_list)
+events_list=[int(i) for i in events_list]
+events = np.c_[np.arange(n_epochs), np.zeros(n_epochs, int),events_list]
+
+epochsSSP = mne.EpochsArray(g1, info_fs100, events=events, tmin=-0.1, event_id=event_id,baseline=None)
+
+epochsSSP['face'].average().plot()
+epochsSSP['scene'].average().plot()
+
+
+# Generate list of evoked objects from conditions names
+evokeds = [epochsSSP[name].average() for name in ('scene','face')]
+colors = 'blue', 'red'
+title = 'Subject \nscene vs face'
+
+from mne.viz import plot_evoked_topo, plot_compare_evokeds
+plot_evoked_topo(evokeds, color=colors, title=title, background_color='w')
+
+colors = dict(scene="Crimson", face="CornFlowerBlue")
+plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis',picks=[7])
+# When multiple channels are passed, this function combines them all, to get one time course for each condition. 
+
+
+
 
 #%% Confusion matrices - stable blocks accuracy, LOBO
 
@@ -1008,4 +964,3 @@ plt.plot(np.mean(epochs_cat1[:,7],axis=0))
 #conc_epochs_fb2.average().plot(spatial_colors=True, time_unit='s',picks=[7])    
 #
 #stable_blocksSSP1.average().plot(spatial_colors=True, time_unit='s') 
-    
