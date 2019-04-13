@@ -273,10 +273,8 @@ Y_run = np.zeros((n_it,600))
 val = 1 # Offset validation
 offset_pred = 0 # Offset prediction
 offset_Pred = []
-Score = np.zeros((n_it,3))
+# Score = np.zeros((n_it,3))
 epochs_fb = np.zeros((200,23,n_samples_100)) # Epochs feedback
-epochavg = np.zeros((2,23,n_samples_100)) 
-epochavg_train = np.zeros((2,23,n_samples_100)) 
 
 # Implement averaging of training and test epochs
 average_train = 1
@@ -929,29 +927,24 @@ y_test_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:20
 c_train = -1
 Y_train = np.zeros((n_it,600))
 
-epochs_fb = np.zeros((1000,23,n_samples_100)) # Epochs feedback
-epochavg = np.zeros((2,23,n_samples_100)) 
-epochavg_train = np.zeros((2,23,n_samples_100)) 
+epochs_fb_nonavg = np.zeros((1000,23,n_samples_100)) # Epochs feedback
+epochs_fb_avg = np.zeros((1000,23,n_samples_100)) # Epochs feedback
 
 # Implement averaging of training and test epochs
 average_train = 1
 average_test = 1
 
 epochs_fb_lst = []
-#epochs_stable_lst = []
 
 for b in range(n_it):
     for t in range(stable_blocks0.shape[0]):
-        print('stble blocks 0 shape: ',stable_blocks0.shape[0])
         epoch = stable_blocks0[t,:,:]
         epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
         stable_blocks1[t+offset,:,:] = epoch
         c += 1
         
     projs1,stable_blocksSSP1 = applySSP(stable_blocks1,info_fs100,threshold=threshold) # Apply SSP on stable blocks
-    
-    # epochs_stable_lst.append(stable_blocksSSP1)
-    
+        
     stable_blocks1 = stable_blocks1[200:,:,:]
     stable_blocks1 = np.concatenate((stable_blocks1,np.zeros((200,n_channels,n_samples_100))),axis=0)
     
@@ -960,20 +953,26 @@ for b in range(n_it):
     stable_blocks0 = e[s_begin:s_begin+200,:,:]
     y_run = np.concatenate((y_run[200:],y[s_begin:s_begin+200]))
     
-    # Append RT epochs to a list
+    # Append RT epochs 
     for t in range(200):
         print('Epoch number: ',c)
         epoch1 = e[c,:,:]
-        epoch = preproc1epoch(epoch1,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
-        epoch_forplot = preproc1epoch_forplots(epoch1,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
-        epochs_fb_lst.append(epoch_forplot)
+        epoch1 = preproc1epoch(epoch1,info_fs500,projs=projs1,SSP=True,reject=None,mne_reject=mne_reject,reject_ch=reject_ch,flat=None,bad_channels=bad_channels,opt_detrend=opt_detrend)
         
-        epochs_fb[c_test,:,:] = epoch
+        if t == 0:
+            epoch_avg = epoch1
+        
+        if t > 0:
+            epoch_avg = (epoch1+epoch_prev)/2
+        
+        epoch_prev = epoch1
+
+        epochs_fb_avg[c_test,:,:] = epoch_avg
+        epochs_fb_nonavg[c_test,:,:] = epoch1
 
         c += 1
         c_test += 1
     
-    print('n it', n_it)
         
 
 # Create MNE objects
@@ -987,68 +986,50 @@ eRT = mne.EpochsArray(epochs_fb, info=info_fs100, events=events,event_id=event_i
 
 eRT.average().plot()
 
-
-
-
-
-
-epochs_fb_c = np.copy(epochs_fb)   
-y_test_feedback_c = np.copy(y_test_feedback)
-
-y_test_feedback_c[y_test_feedback_c==1]=True
-
-new=epochs_fb_c[~np.array(y_test_feedback_c)]
-newX = np.ma.array(epochs_fb_c, mask = np.column_stack((y_test_feedback_c,y_test_feedback_c)))
-
-g=epochs_fb_c[y_test_feedback_c,:,:]
-
-epochs_cat0 = np.zeros((500,23,n_samples_100)) 
-epochs_cat1 = np.zeros((500,23,n_samples_100)) 
-
-cat_count0 = 0 
-cat_count1 = 0 
-
-for idx, cat in enumerate(y_test_feedback_c):
-    if cat == 0:
-        epochs_cat0[cat_count0,:,:] = epochs_fb_c[idx]
-        cat_count0 += 1 
-        
-    if cat == 1:
-        epochs_cat1[cat_count1,:,:] = epochs_fb_c[idx]
-        cat_count1 += 1
-        
-# Plot epochs for channel O2
-plt.plot(np.mean(epochs_cat0[:,7],axis=0))
-plt.plot(np.mean(epochs_cat1[:,7],axis=0))
-
-
-
-#g1=epochs_fb_c[y_test_feedback_c] = 0
-#   
-#conc_epochs_fb1 = mne.concatenate_epochs(epochs_fb_lst[:200])    
-#conc_epochs_fb2 = mne.concatenate_epochs(epochs_fb_lst[100:200])    
-#
-## ValueError: SSP projectors in epochs files must be the same
-#conc_epochs_fb1.average().plot(spatial_colors=True, time_unit='s',picks=[7])    
-#conc_epochs_fb2.average().plot(spatial_colors=True, time_unit='s',picks=[7])    
-#
-#stable_blocksSSP1.average().plot(spatial_colors=True, time_unit='s') 
-    
 # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
 evoked_array_c0 = []
 evoked_array_c1 = []
 
+eRT_get = eRT.get_data()
+
 for idx,cat in enumerate(events_list):
     if cat == 0:
-        evoked_array_c0.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
+        evoked_array_c0.append(mne.EvokedArray(eRT_get[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
         print
     if cat == 1:
-        evoked_array_c1.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
+        evoked_array_c1.append(mne.EvokedArray(eRT_get[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
 
 e_dict={}
 e_dict['0'] = evoked_array_c0
 e_dict['1'] = evoked_array_c1
-# Could create these e_dicts for several people, and plot the means. Or create an e_dict with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
+
+colors = 'red', 'blue'
+mne.viz.plot_compare_evokeds(e_dict,ci=0.95,picks=[7],colors=colors)
+
+#%% Manual validation
+#epochs_fb_c = np.copy(epochs_fb)   
+#y_test_feedback_c = np.copy(y_test_feedback)
+#
+#y_test_feedback_c[y_test_feedback_c==1]=True
+#
+#epochs_cat0 = np.zeros((500,23,n_samples_100)) 
+#epochs_cat1 = np.zeros((500,23,n_samples_100)) 
+#
+#cat_count0 = 0 
+#cat_count1 = 0 
+#
+#for idx, cat in enumerate(y_test_feedback_c):
+#    if cat == 0:
+#        epochs_cat0[cat_count0,:,:] = epochs_fb_c[idx]
+#        cat_count0 += 1 
+#        
+#    if cat == 1:
+#        epochs_cat1[cat_count1,:,:] = epochs_fb_c[idx]
+#        cat_count1 += 1
+#        
+## Plot epochs for channel O2
+#plt.plot(np.mean(epochs_cat0[:,7],axis=0),color='r')
+#plt.plot(np.mean(epochs_cat1[:,7],axis=0),color='b')
 
 
-mne.viz.plot_compare_evokeds(e_dict,ci=0.4,picks=[7])
+    

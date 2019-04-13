@@ -751,7 +751,7 @@ def applySSP_forplot(EEG,info,threshold=0.1,add_events=None):
         events_list = [int(i) for i in events_list]
         events_add = np.c_[np.arange(n_epochs), np.zeros(n_epochs, int),events_list]
     
-    EEG = mne.EpochsArray(EEG, info, baseline=None, events=events_add, event_id=event_id_add)
+    EEG = mne.EpochsArray(EEG, info, baseline=None, tmin=-0.1,events=events_add, event_id=event_id_add)
     projs,p = computeSSP_forplot(EEG,info,threshold)
     EEG.add_proj(projs)
     EEG.apply_proj()
