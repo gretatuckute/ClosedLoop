@@ -10,6 +10,7 @@
 # Edits:
 # 04 April 2019, new path scripts, extract 450 samples, confusion matrices for training, 
 # Difference between V2 and V3 save pckl file is that in V3 all files are names RT in front, if it has something to do with the RT offline analysis.
+#wMNE_v2.2. has new dict save names
 
 #%% Imports
 from sklearn.linear_model import LogisticRegression
@@ -28,8 +29,8 @@ import os
 #os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts')
 
 from EEG_classification import sigmoid, testEpoch,trainLogReg_cross_offline,trainLogReg_cross,trainLogReg_cross2,trainLogReg
-from EEG_analysis_RT import preproc1epoch, create_info_mne, applySSP,removeEpochs,average_stable
-from EEG_analysis_offline import extractEpochs_tmin,extractCat,extractAlpha,extractEpochs,applySSP_forplot,preproc1epoch_forplots
+from EEG_analysis_RT import preproc1epoch, create_info_mne, applySSP,average_stable
+from EEG_analysis_offline import extractEpochs_tmin,extractCat,extractAlpha,applySSP_forplot
 
 #%% Constructing the parser and parse the arguments
 parser = argparse.ArgumentParser(description='Cool analyses, choose a subject to test and train on')
@@ -222,8 +223,8 @@ for ii in range(n_it):
     alpha_per_run[ii] = len(np.where((np.array(alpha[j:j+200])>0.5))[0])/200 
     j += 200
 
-d['alpha_fromfile_overall'] = above_chance
-d['alpha_fromfile_run'] = alpha_per_run
+d['ALPHA_fromfile_overall'] = above_chance
+d['ALPHA_fromfile_run'] = alpha_per_run
 
 #%% Extract epochs from EEG data
 prefilter = 0
@@ -494,9 +495,9 @@ print('Above chance alpha train (corrected): ' + str(above_chance_train))
 
 score = metrics.accuracy_score(y_stable_blocks, y_pred) 
 
-d['train_offsets_stable'] = offset_pred_lst
-d['train_acc_stable_corr'] = above_chance_train
-d['train_acc_stable_uncorr'] = score
+d['LOBO_stable_train_offsets'] = offset_pred_lst
+d['LOBO_stable_train_acc_corr'] = above_chance_train
+d['LOBO_stable_train_acc_uncorr'] = score
 
 #%% Extract data for MNE plots
 
@@ -683,13 +684,13 @@ conf_train_stable = confusion_matrix(y_stable_blocks,alpha_predcat)
 scene_acc = conf_train_stable[0,0]/(conf_train_stable[0,0]+conf_train_stable[0,1])
 face_acc = conf_train_stable[1,1]/(conf_train_stable[1,0]+conf_train_stable[1,1])
 
-d['conf_uncorr_stable_train'] = conf_train_stable_uncorr
-d['scene_acc_uncorr_stable_train'] = scene_acc_uncorr
-d['face_acc_uncorr_stable_train'] = face_acc_uncorr
+d['LOBO_stable_conf_uncorr'] = conf_train_stable_uncorr
+d['LOBO_stable_scene_acc_uncorr'] = scene_acc_uncorr
+d['LOBO_stable_face_acc_uncorr'] = face_acc_uncorr
 
-d['conf_corr_stable_train'] = conf_train_stable
-d['scene_acc_corr_stable_train'] = scene_acc
-d['face_acc_corr_stable_train'] = face_acc
+d['LOBO_stable_conf_corr'] = conf_train_stable
+d['LOBO_stable_scene_acc_corr'] = scene_acc
+d['LOBO_stable_face_acc_corr'] = face_acc
 
 #%% Training accuracy, training on stable and NF - leave one block out CV. Accuracy can be based on either stable+NF, only stable or only NF blocks
 offset_pred_lst = []
@@ -759,17 +760,15 @@ a = alpha_test[stable_blocks_idx]
 above_chance_stable = len(np.where((np.array(a)>0.5))[0])/len(a)
 print('Above chance alpha train (corrected) on stable blocks: ' + str(above_chance_stable))
 
-nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+#nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+#a2 = alpha_test[nf_blocks_idx] 
+#above_chance_nf = len(np.where((np.array(a2)>0.5))[0])/len(a2)
+#print('Above chance alpha train (corrected) on NF blocks: ' + str(above_chance_nf))
 
-a2 = alpha_test[nf_blocks_idx] 
-
-above_chance_nf = len(np.where((np.array(a2)>0.5))[0])/len(a2)
-print('Above chance alpha train (corrected) on NF blocks: ' + str(above_chance_nf))
-
-d['train_offsets_stable_NF'] = offset_pred_lst
-d['train_acc_stable_NF'] = above_chance_train
-d['train_acc_stable_test'] = above_chance_stable # Trained on both stable and NF, only tested on stable
-d['train_acc_nf_test'] = above_chance_stable # Trained on both stable and NF, only tested on NF
+d['LOBO_all_train_offsets'] = offset_pred_lst
+d['LOBO_all_train_acc'] = above_chance_train # All blocks included
+d['LOBO_all_train_acc_stable_test'] = above_chance_stable # Trained on both stable and NF, only tested on stable
+#d['train_acc_nf_test'] = above_chance_nf # Trained on both stable and NF, only tested on NF
 
 #%% Confusion matrices - training on stable+NF blocks, testing on stable+NF, stable or NF blocks
 
@@ -793,13 +792,13 @@ conf_train_all = confusion_matrix(y,alpha_predcat)
 scene_acc = conf_train_all[0,0]/(conf_train_all[0,0]+conf_train_all[0,1])
 face_acc = conf_train_all[1,1]/(conf_train_all[1,0]+conf_train_all[1,1])
 
-d['conf_uncorr_all_train'] = conf_train_all_uncorr
-d['scene_acc_uncorr_all_train'] = scene_acc_uncorr
-d['face_acc_uncorr_all_train'] = face_acc_uncorr
+d['LOBO_all_conf_uncorr'] = conf_train_all_uncorr
+d['LOBO_all_scene_acc_uncorr'] = scene_acc_uncorr
+d['LOBO_all_face_acc_uncorr'] = face_acc_uncorr
 
-d['conf_corr_all_train'] = conf_train_all
-d['scene_acc_corr_all_train'] = scene_acc
-d['face_acc_corr_all_train'] = face_acc
+d['LOBO_all_conf_corr'] = conf_train_all
+d['LOBO_all_scene_acc_corr'] = scene_acc
+d['LOBO_all_face_acc_corr'] = face_acc
 
 #%% Training on stable blocks only - leave one run out CV
 offset_pred_lst = []
@@ -877,9 +876,9 @@ print('Above chance alpha train (corrected): ' + str(above_chance_train))
 
 score = metrics.accuracy_score(y_stable_blocks, y_pred) 
 
-d['train_LORO_offsets_stable'] = offset_pred_lst
-d['train_LORO_acc_stable_corr'] = above_chance_train
-d['train_LORO_acc_stable_uncorr'] = score    
+d['LORO_stable_train_offsets_stable'] = offset_pred_lst
+d['LORO_stable_acc_corr'] = above_chance_train
+d['LORO_stable_acc_uncorr'] = score    
     
 #%% Extract RT epochs (both averaged and non-averaged) for plots and analysis
     
