@@ -10,7 +10,7 @@
 # Edits:
 # 04 April 2019, new path scripts, extract 450 samples, confusion matrices for training, 
 # Difference between V2 and V3 save pckl file is that in V3 all files are names RT in front, if it has something to do with the RT offline analysis.
-#wMNE_v2.2. has new dict save names
+#wMNE_v2.2. has new dict save names. Add correlation with alpha file. 
 
 #%% Imports
 from sklearn.linear_model import LogisticRegression
@@ -209,7 +209,7 @@ if subj == '34':
 
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\34\\'
+#data_dir = 'P:\\closed_loop_data\\24\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run
@@ -260,6 +260,7 @@ pred_prob_train = np.zeros((n_it*600,2))
 pred_prob_test = np.zeros((n_it*200,2)) # Prediction probability
 pred_prob_test_corr = np.zeros((n_it*200,2)) # Prediction probability, corrected for classifier bias
 alpha_test = np.zeros((n_it*200))
+clf_output_test13 = np.zeros((n_it*200))
 train_acc = np.zeros(n_it)
 n_test = 600
 c_test = 0
@@ -346,6 +347,7 @@ for b in range(n_it):
         pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
 
         clf_output = pred_prob_test_corr[c_test,int(y[c])]-pred_prob_test_corr[c_test,int(y[c]-1)]
+        clf_output_test13[c_test] = clf_output # Save classifier output for correlation checks
         alpha_test[c_test] = sigmoid(clf_output) # Convert corrected classifier output to an alpha value using a sigmoid transfer function
         
         epoch_prev = epoch
@@ -381,8 +383,17 @@ d['RT_test_acc_uncorr'] = score
 d['RT_test_acc_uncorr_run'] = score_per_run
 
 #%% Compare RT alpha with RT offline alpha
-#alphan=np.asarray(alpha)
-#
+alphan = np.asarray(alpha)
+alpha_corr = np.corrcoef(alphan[1:], alpha_test[:999]) # Shifted with one
+d['ALPHA_correlation'] = alpha_corr
+if alpha_corr => 0.98:
+    d['GROUP'] = 1 # 1 for NF group
+if alpha_corr < 0.98:
+    d['GROUP'] = 0 # 0 for control group
+    
+# Classifier output correlation has to be checked offline, because clf_output values are computed offline (RT pipeline)
+#np.corrcoef(clf_output_test, clf_output_test13)
+
 #plt.plot(alphan)
 #plt.plot(alpha_test)
 #
@@ -513,6 +524,8 @@ projs1,stable_blocksSSP_plot,p_variance = applySSP_forplot(stable_blocks_plot,in
 
 d['MNE_stable_blocks_SSP'] = stable_blocksSSP_plot
 d['MNE_stable_blocks_SSP_projvariance'] = p_variance
+d['MNE_y_stable_blocks'] = y_stable_blocks
+
 
 if plot_MNE == True:
     print('Making a lot of MNE plots!')
@@ -969,6 +982,8 @@ eRT_avg = mne.EpochsArray(epochs_fb_avg, info=info_fs100, events=events,event_id
 
 d['MNE_RT_epochs_fb_nonavg'] = eRT_nonavg
 d['MNE_RT_epochs_fb_avg'] = eRT_avg
+d['MNE_y_test_feedback'] = y_test_feedback
+
 
 if plot_MNE == 1:
     # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
