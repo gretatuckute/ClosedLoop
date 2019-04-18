@@ -209,7 +209,7 @@ if subj == '34':
 
 print(EEGfile)
 
-#data_dir = 'P:\\closed_loop_data\\24\\'
+#data_dir = 'P:\\closed_loop_data\\13\\'
 #os.chdir(data_dir)
 
 #%% Test RT alpha per run
@@ -386,7 +386,7 @@ d['RT_test_acc_uncorr_run'] = score_per_run
 alphan = np.asarray(alpha)
 alpha_corr = np.corrcoef(alphan[1:], alpha_test[:999]) # Shifted with one
 d['ALPHA_correlation'] = alpha_corr
-if alpha_corr => 0.98:
+if alpha_corr >= 0.98:
     d['GROUP'] = 1 # 1 for NF group
 if alpha_corr < 0.98:
     d['GROUP'] = 0 # 0 for control group
@@ -959,7 +959,7 @@ for b in range(n_it):
             epoch_avg = epoch1
         
         if t > 0:
-            epoch_avg = (epoch1+epoch_prev)/2
+            epoch_avg = (epoch1+epoch_prev)/2 # Checked again 17 April that this is legit
         
         epoch_prev = epoch_avg
 
@@ -1012,7 +1012,7 @@ pkl_arr = [d]
 print('Finished running test and train analyses for subject: ' + str(subj))
 
 # PICKLE TIME
-fname = '13April_test_'+str(subj)+'.pkl'
+fname = '18April_subj_'+str(subj)+'.pkl'
 with open(fname, 'wb') as fout:
     pickle.dump(pkl_arr, fout)
     

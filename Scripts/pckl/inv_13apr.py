@@ -10,6 +10,8 @@ import itertools
 from sklearn.metrics import confusion_matrix
 import os
 import numpy as np
+import mne
+
 #%% Old files
 
 os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\pckl\\')
@@ -45,11 +47,63 @@ subLst = [sub13n,sub14n,sub15n]
 allSubs_MNE = []
 for sub in subLst:
     result = dictfilt(sub, wanted_keys)
+    print(result)
     g = list(result.values())    
     allSubs_MNE.append(g)
 
+# CHECK THIS. Order: stable, nonavg and avg
+
+
+#%% Write a function that outputs evokeds
+    
+def extractEvokeds(epochsArray):
+    evokeds = [epochsArray[name].average() for name in ('scene','face')]
+    return evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
+
+
+# Append to list
+allSubs_scene = []
+allSubs_face = []
+
+
+for sub in allSubs_MNE:
+    stable = sub[0]
+    
+    scene_avg, face_avg = extractEvokeds(stable)
+    allSubs_scene.append(scene_avg)
+    allSubs_face.append(face_avg)
+    
+mne.viz.plot_compare_evokeds(allSubs_scene,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+mne.viz.plot_compare_evokeds(allSubs_face,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+
+# If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
+
+
+from mne.decoding import (SlidingEstimator, GeneralizingEstimator, Scaler,
+                          cross_val_multiscore, LinearModel, get_coef,
+                          Vectorizer, CSP, PSDEstimator)
+
+
+scale_test=Scaler(scalings='mean').fit_transform(allSubs_MNE[0][2].get_data())
+
+
+
+# What is going on w. sub 15    
+# allSubs_MNE[2][2]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
+
 #%%
-# Plot based on categories
+# Plot showing where the correct predictions are located pr. run.
+
+n_it=5
+
+pred_run = np.reshape(sub13n['RT_correct_NFtest_pred'],[n_it,200])
+
+for run in range(n_it):
+    plt.figure(run)
+    plt.bar(np.arange(200),pred_run[run,:])
+    
+    
+#%% Plot based on categories
 allSubs_MNE[0][0]['face'].average().plot(spatial_colors=True, time_unit='s')#,picks=[7])
 allSubs_MNE[0][0]['scene'].average().plot(spatial_colors=True, time_unit='s')
 
@@ -120,6 +174,13 @@ for idx,cat in enumerate(events_list):
     evoked_array2.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat))
     
 mne.viz.plot_compare_evokeds(evoked_array2[:10],picks=[7]) # Plotting all the individual evoked arrays (up to 10)
+
+# Testing the best way to plot individual evoked arrays
+evoked_array2[0].plot(picks=[7])
+
+
+
+
 
 # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
 evoked_array_c0 = []
