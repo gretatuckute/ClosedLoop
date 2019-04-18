@@ -184,58 +184,70 @@ def removeEpochs(EEG,info,interpolate=0):
 
 def create_info_mne(reject_ch=0,sfreq=100):
     '''
-    Creates an mne info struct
-    Inputs:
-        reject_ch: whether to reject predefined channels
-        sfreq: sampling frequency
+    Creates an MNE info data structure.
+    
+    # Input:
+        reject_ch: bool. Whether to reject predefined channels.
+        sfreq: int. Sampling frequency.
+        
+    # Output:
+        info: MNE info data structure.
     '''
+    
     if reject_ch == True:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
         channel_types = ['eeg']*23
     else:
         channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
         channel_types = ['eeg']*32
+        
     montage = 'standard_1020' 
     info = mne.create_info(channel_names, sfreq, channel_types, montage)
+    
     return info
     
 def preproc1epoch(eeg,info,projs=[],SSP=True,reject=None,mne_reject=1,reject_ch=None,flat=None,bad_channels=[],opt_detrend=1):
 
-
-    
     '''
     Preprocesses epoched EEG data.
     
     # Input
-    - eeg: Epoched EEG data in the following format: (trials, time samples, channels).
-    - info: predefined info containing channels etc.
-    - projs: used if SSP=True. SSP projectors
+    - eeg: numPy array. EEG epoch in the following format: (time samples, channels).
+    - info: MNE info data structure. Predefined info containing channels etc. Can be generated using create_info_mne function.
+    - projs: MNE SSP projector objects. Used if SSP = True. 
+    - reject: bool. Whether to reject channels, either manually defined or based on MNE analysis.
+    - reject_ch: bool. Whether to reject nine predefined channels.
+    - mne_reject: bool. Whether to use MNE rejection based on epochs._is_good. 
+    - flat: bool??. Input for MNE rejection
+    - bad_channels: list. Manual rejection of channels.
+    - opt_detrend: bool. Whether to apply temporal EEG detrending (linear).
     
-    # Preprocessing
-    - EpochsArray format in MNE (with initial baseline correction)
+    # Preprocessing steps - based on inputs 
+    - Linear temporal detrending
+    - Rejection of initial, predefined channels 
     - Bandpass filter (0-40Hz)
     - Resample to 100Hz
-    - SSP (if True)
-    - Reject bad channels
-        - interpolate bad channels
+    - SSP correction 
+    - Rejection of bad channels
+        - Interpolation of bad channels
     - Rereference to average
     - Baseline correction
     
     # Output
-    - Epoched preprocessed EEG data in np array.
+    - Epoched preprocessed EEG data in numPy array.
     
     '''
     
-    n_samples=eeg.shape[0]
-    n_channels=eeg.shape[1]
-    eeg=np.reshape(eeg.T,(1,n_channels,n_samples))
-    tmin = -0.1 # start baseline at
+    n_samples = eeg.shape[0]
+    n_channels = eeg.shape[1]
+    eeg = np.reshape(eeg.T,(1,n_channels,n_samples))
+    tmin = -0.1 # Baseline start 
     
     # Temporal detrending:
-    if opt_detrend==1:
+    if opt_detrend == 1:
         eeg = detrend(eeg, axis=2, type='linear')
         
-    epoch = mne.EpochsArray(eeg, info, tmin=tmin,baseline=None,verbose=False)
+    epoch = mne.EpochsArray(eeg, info, tmin=tmin, baseline=None, verbose=False)
     
     # Drop list of channels known to be problematic:
     if reject_ch == True: 
@@ -243,7 +255,7 @@ def preproc1epoch(eeg,info,projs=[],SSP=True,reject=None,mne_reject=1,reject_ch=
         epoch.drop_channels(bads)
     
     # Lowpass
-    epoch.filter(HP, LP, fir_design='firwin',phase=phase,verbose=False)
+    epoch.filter(HP, LP, fir_design='firwin', phase=phase, verbose=False)
     
     # Downsample
     epoch.resample(100, npad='auto',verbose=False)
@@ -251,34 +263,34 @@ def preproc1epoch(eeg,info,projs=[],SSP=True,reject=None,mne_reject=1,reject_ch=
     # Apply baseline correction
     epoch.apply_baseline(baseline=(None,0),verbose=False)
     
-    # Apply SSP prejectors
+    # Apply SSP projectors
     if SSP == True:
         # Apply projection to the epochs already defined
         epoch.add_proj(projs)
         epoch.apply_proj()
         
-    if reject is not None: # currently not used
-        if mne_reject==1: # use mne method to reject+interpolate bad channels
+    if reject is not None: # Rejection of channels, either manually defined or based on MNE analysis. Currently not used.
+        if mne_reject == 1: # Use MNE method to reject+interpolate bad channels
             from mne.epochs import _is_good
             from mne.io.pick import channel_indices_by_type    
             #reject=dict(eeg=100)
             idx_by_type = channel_indices_by_type(epoch.info)
-            A,bad_channels=_is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type,reject=reject, flat=flat, full_report=True)
+            A,bad_channels = _is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type,reject=reject, flat=flat, full_report=True)
             print(A)
-            if A==False:
+            if A == False:
                 epoch.info['bads']=bad_channels    
                 epoch.interpolate_bads(reset_bads=True, verbose=False)
-        else: # bad_channels is predefined
+        else: # Predfined bad_channels 
             epoch.drop_channels(bad_channels)
-            
-            
     
     # Rereferencing
     epoch.set_eeg_reference(verbose=False)
+    
     # Apply baseline after rereference
     epoch.apply_baseline(baseline=(None,0),verbose=False)
         
-    epoch=epoch.get_data()[0]
+    epoch = epoch.get_data()[0]
+    
     return epoch
 
 
