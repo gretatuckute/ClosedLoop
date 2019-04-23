@@ -139,8 +139,8 @@ f30=np.zeros((4,4))
 for count,day in enumerate(dayLst):
     f30[count,:]=computeStats('30',day)
 
-sub_fb=[f07,f08,f27,f30,f11,f13,f14,f16,f19,f22]
-sub_c=[f17,f18,f23,f15,f21,f25]
+sub_fb=[f07,f08,f26,f27,f30,f11,f13,f14,f16,f19,f22]
+sub_c=[f17,f18,f23,f15,f21,f25,f31,f34,f32,f33,f24]
 #%%
 
 

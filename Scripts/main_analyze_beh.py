@@ -24,7 +24,7 @@ import collections
 import pickle
 from responseTime_func import * 
 
-subjID = '30'
+subjID = '34'
 
 # Initialize dict
 d = {}
