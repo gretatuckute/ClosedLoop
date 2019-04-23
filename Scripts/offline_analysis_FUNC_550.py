@@ -197,8 +197,8 @@ def analyzeOffline(subjID):
 
     #%% Extract epochs from EEG data
     prefilter = 0
-    n_samples_fs500 = 450 # Number of samples to extract for each epoch, sampling frequency 500
-    n_samples_fs100 = int(450/5) # Number of samples, sampling frequency 100 (resampled)
+    n_samples_fs500 = 550 # Number of samples to extract for each epoch, sampling frequency 500
+    n_samples_fs100 = int(550/5) # Number of samples, sampling frequency 100 (resampled)
     
     e = extractEpochs_tmin(EEGfile,markerFile,prefilter=prefilter,marker1=0,n_samples=n_samples_fs500)
     cat = extractCat(idxFile,exp_type='fused')
@@ -944,7 +944,7 @@ def analyzeOffline(subjID):
     print('Finished running test and train analyses for subject: ' + str(subjID))
     
     # PICKLE TIME
-    fname = '18April_subj_'+str(subjID)+'.pkl'
+    fname = '18April_550_subj_'+str(subjID)+'.pkl'
     with open(fname, 'wb') as fout:
         pickle.dump(pkl_arr, fout)
     
