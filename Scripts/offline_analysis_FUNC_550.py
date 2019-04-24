@@ -147,7 +147,7 @@ def findSubjectFiles(subjID,manual_n_it=False):
         
     return EEGfile, markerFile, idxFile, alphaFile, n_it
 
-#data_dir = 'P:\\closed_loop_data\\pilots\\'+subjID+'\\'
+#data_dir = 'P:\\closed_loop_data\\'+subjID+'\\'
 #os.chdir(data_dir)
 
 def analyzeOffline(subjID):
@@ -209,7 +209,7 @@ def analyzeOffline(subjID):
 
     #%% Run NF RT offline analysis
     
-    stable_blocks0 = e[:600,:,:] # Fi+st run
+    stable_blocks0 = e[:600,:,:] # First run
     stable_blocks1 = np.zeros((600,n_channels,n_samples_fs100)) 
     
     y = np.array([int(x) for x in cat])

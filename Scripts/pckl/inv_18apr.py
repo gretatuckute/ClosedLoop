@@ -216,12 +216,34 @@ plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean_uncor, linestyle='--',color=
 plt.legend()
 
 #%% Plot all face vs scene accuracies for RT (corrected)
+sub_axis_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+
 subsAll_s, subsNF_s, subsC_s, meanAll_s, meanNF_s, meanC_s = extractVal('RT_scene_acc')
 subsAll_f, subsNF_f, subsC_f, meanAll_f, meanNF_f, meanC_f = extractVal('RT_face_acc')
 
-plt.figure(4)
+# Continuous subject ID x-axis
+plt.figure(5)
 plt.scatter(np.arange(0,len(subsAll_s),1),subsAll_s,color='seagreen')#,label='Bias corrected')
 plt.scatter(np.arange(0,len(subsAll_f),1),subsAll_f,color='hotpink')#,label='Bias uncorrected')
+plt.xticks(np.arange(0,len(subsAll),1),sub_axis_all) # SUBAXIS ALL CONTINUOUS
+plt.xlabel('Subject ID')
+plt.ylabel('RT decoding accuracy (NF blocks)')
+
+s_mean = [meanAll_s]*len(subsAll)
+f_mean = [meanAll_f]*len(subsAll)
+
+plt.plot(np.arange(0,len(subsAll_s)),s_mean, linestyle='--',color='seagreen',label='Scene decoding accuracy')
+plt.plot(np.arange(0,len(subsAll_f)),f_mean, linestyle='--',color='hotpink',label='Face decoding accuracy')
+plt.legend()
+
+# subject ID x-axis based on NF and C
+plt.figure(6)
+plt.scatter(np.arange(0,len(subsNF_s),1),subsNF_s,color='seagreen') # NF subjects
+plt.scatter(np.arange(len(subsNF_s),len(subsAll_s),1),subsC_s,color='seagreen') # C subjects
+
+plt.scatter(np.arange(0,len(subsNF_f),1),subsNF_f,color='hotpink') # NF subjects
+plt.scatter(np.arange(len(subsNF_f),len(subsAll_f),1),subsC_f,color='hotpink') # C subjects
+
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis) # SUBAXIS
 plt.xlabel('Subject ID')
 plt.ylabel('RT decoding accuracy (NF blocks)')
@@ -231,14 +253,32 @@ f_mean = [meanAll_f]*len(subsAll)
 
 plt.plot(np.arange(0,len(subsAll_s)),s_mean, linestyle='--',color='seagreen',label='Scene decoding accuracy')
 plt.plot(np.arange(0,len(subsAll_f)),f_mean, linestyle='--',color='hotpink',label='Face decoding accuracy')
-
-plt.plot(np.arange(0,len(subsNF)),NF_mean_uncor, linestyle='--',color='brown',label='Bias uncorrected')
-plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean_uncor, linestyle='--',color='navy',label='Bias uncorrected')
 plt.legend()
 
+#%% Overall per RT run accuracy, corrected
+subsAll_run, subsNF_run, subsC_run, meanAll_run, meanNF_run, meanC_run = extractVal('RT_test_acc_corr_run')
 
+cmap = plt.get_cmap('hsv')
+colors = [cmap(i) for i in np.linspace(0, 1, 22)]
 
+# Individual runs, mean
+run1=np.mean(np.asarray([subsAll_run[f][0] for f in range(len(subsAll_run))]))
+run2=np.mean(np.asarray([subsAll_run[f][1] for f in range(len(subsAll_run))]))
+run3=np.mean(np.asarray([subsAll_run[f][2] for f in range(len(subsAll_run))]))
+run4=np.mean(np.asarray([subsAll_run[f][3] for f in range(len(subsAll_run))]))
+run5=np.mean(np.asarray([subsAll_run[f][4] for f in range(len(subsAll_run))]))
 
+run_means = [run1]+[run2]+[run3]+[run4]+[run5]
+
+plt.figure(7)
+for c,entry in enumerate(subsAll_run):
+#    plt.plot(np.arange(1,6),subsAll_run[c],color=colors[c],linestyle='-')
+    plt.scatter(np.arange(1,6),subsAll_run[c],color=colors[c])
+plt.plot(np.arange(1,6),run_means,linestyle='-',color='black',label='Mean accuracy per run')
+plt.xticks(np.arange(1,6),['1','2','3','4','5']) 
+plt.xlabel('NF run number')
+plt.ylabel('RT decoding accuracy (NF blocks)')
+plt.legend()
 
 
 #%% Extract MNE dict objects
