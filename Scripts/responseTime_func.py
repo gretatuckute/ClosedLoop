@@ -16,9 +16,19 @@ import collections
 
 #%% FUNCTIONS
 
-def extractInfo(timeFile):
+def extractInfo(csvFile):
+    '''
+    Extracts information from a CSV file.
+    
+    # Arguments
+        csvFile: CSV file
+        
+    # Returns
+        data: list
+    
+    '''
     data = []
-    with open(timeFile) as csv_file:
+    with open(csvFile) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         
         for row in csv_reader:           
@@ -27,6 +37,15 @@ def extractInfo(timeFile):
     return data
     
 def splitString(data):
+    '''
+    Splits strings in a list by space.
+    
+    # Arguments
+        data: list
+        
+    # Returns
+        splitLst: list
+    '''
     splitLst = []
     for entry in data:
         for c in entry:
@@ -36,6 +55,17 @@ def splitString(data):
     return splitLst
 
 def passWarning(splitLst):
+    '''
+    Extracts information from the first string in a list of lists.
+    If the string is not as expected (a number), the function returns a list with the unexpected entries (warningLst).
+    
+    # Arguments
+        splitLst: list of lists (containing strings)
+        
+    # Returns
+        times: list containing the first string as a float
+        warningLst: list of unexpected list entries (strings)
+    '''
     times = []
     warningLst = []
     
@@ -44,13 +74,24 @@ def passWarning(splitLst):
             try:
                 times.append(float(entry[0]))
             except ValueError:
-                print('VALUE ERROR, check split1 list')
+                print('Unexpected entry: ',entry,'\nEntry appended to warningLst')
+                warningLst.append(entry)
         else:
             warningLst.append(entry)
             
     return times, warningLst
 
 def extractStimuliTimes(data):
+    '''
+    Extracts the second entry in a list of lists and converts the entry to a float.
+    
+    # Arguments
+        data: list of lists (containing strings)
+        
+    # Returns
+        times: list of floats
+    '''
+    
     times = []
     
     for entry in data:
@@ -62,6 +103,19 @@ def extractStimuliTimes(data):
     return times
 
 def extractCat(indicesFile):
+    ''' 
+    Extracts experimental categories from a CSV file. 0 denoting scenes, and 1 denoting faces.
+    
+    # Arguments
+        indicesFile: CSV file
+            File containing strings of file directories of shown experimental trials (two images for each trial).
+    
+    # Returns
+        dominant_cat: list
+        shown_cat: list
+    
+    '''
+    
     colnames = ['1', 'att_cat', 'bin_cat', 'img1', 'img2']
     data = pd.read_csv(indicesFile, names=colnames)
     dominant_cat = data.att_cat.tolist()
@@ -285,6 +339,67 @@ def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, 
     
     return lure_RT_add, surrounding_CR, surrounding_CR_mean, surrounding_FR, surrounding_FR_mean
     
-
+def findFiles(fileLst,expDay):
+    '''
+    
+    
+    '''
+    
+    splitLst = []
+    for entry in fileLst:
+        split = entry.split('\\')
+        splitLst.append(split)
+    
+    charLst = []
+    for entry in splitLst:
+        last = entry[-1]
+        split = last.split('_')
+        charLst.append(split)
+    
+    imageTimeLst = []
+    keypressTimeLst = []
+    expTimeLst = []
+    keyTimeLst = []
+    
+    for entry in charLst:
+        # Find createIndices file
+        if len(entry) == 4:
+            if entry[-1] == (expDay + '.csv'):
+                catFile = '_'.join(entry)    
+        
+        # Find imageTime and keypress files
+        if len(entry) >= 5:
+            
+            if entry[4] == expDay:
+                if entry[0] == 'imageTime':
+                    expTime = entry[-1]
+                    expTimeLst.append(expTime)
+                    fileNameImage = '_'.join(entry)
+                    imageTimeLst.append(fileNameImage)
+                    
+                if entry[0] == 'keypress':
+                    keyTime = entry[-1]
+                    keyTimeLst.append(keyTime)
+                    fileNameKey = '_'.join(entry)
+                    keypressTimeLst.append(fileNameKey)
+                
+                    
+    # Check if several imageTime files exist               
+    if len(imageTimeLst) == 1:
+        for idx, keyTime in enumerate(keyTimeLst):
+            if keyTime == expTimeLst[0]: # Check whether the time stamp for the two files is identical
+                keypressFile = keypressTimeLst[idx]
+                stimuliFile = imageTimeLst[0]
+                
+    if len(imageTimeLst) > 1:
+        print('WARNING, multiple imageTime files for specified day and subject ID')
+                
+    
+    print('\n ####### Using following files for behavioral analysis ######## \n')
+    print('createIndices file: ', catFile)
+    print('imageTime file: ', stimuliFile)
+    print('keypress file: ', keypressFile)
+    
+    return catFile, stimuliFile, keypressFile
     
 
