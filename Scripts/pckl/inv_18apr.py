@@ -5,12 +5,27 @@ Created on Mon Apr 15 16:28:03 2019
 @author: Greta
 """
 import pickle
+import matplotlib
 from matplotlib import pyplot as plt
 import itertools
 from sklearn.metrics import confusion_matrix
 import os
 import numpy as np
 import mne
+
+#%% Plot styles
+plt.style.use('seaborn-pastel')
+
+font = {'family' : 'sans-serif',
+       'weight' : 1,
+       'size'   : 12}
+
+matplotlib.rc('font', **font)
+
+matplotlib.rcParams['mathtext.fontset'] = 'custom'
+matplotlib.rcParams['mathtext.rm'] = 'Bitstream Vera Sans'
+matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
+matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
 
 #%% Old files
 os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\pckl\\')
@@ -37,12 +52,17 @@ os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
 d_all = {}
 
 # Append all subject dictionaries to an overall dict, d_all
-subs450 = ['07','08','11']
-subs550 = ['13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+subs550 = ['07','08','11']
+subs450 = ['13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
 
 for subj in subs550:
+    with open('18April_550_subj_'+subj+'.pkl', "rb") as fin:
+         d_all[subj] = (pickle.load(fin))[0]
+
+for subj in subs450:
     with open('18April_subj_'+subj+'.pkl', "rb") as fin:
          d_all[subj] = (pickle.load(fin))[0] 
+         
     
 #%% Check GROUP assignments (checked 23 April - OK)
 dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
@@ -58,19 +78,167 @@ for key, value in d_all.items():
 #%% RT pipeline 
 RT_keys = ('RT_train_acc','RT_correct_NFtest_pred','RT_test_acc_corr','RT_test_acc_corr_run','RT_scene_acc','RT_face_acc','RT_test_acc_uncorr','RT_test_acc_uncorr_run')
 
+#subsNF = ['7','8','26','27','30','11','13','14','16','19','22']
+#subsC = ['17','18','23','31','34','15','21','24','25','32','33']
+
+subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
+subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
+   
+# Extract chosen keys in key, value pairs (not in random, unordered order)  
 subsNF_RT = []
 subsC_RT = []
+
 for key, value in d_all.items():
-    print(key)
-    result = dictfilt(value, RT_keys)
-    print(key,result)
-    g = list(result.values())    
-    allSubs_GROUP.append(g)
+    subsNF_result = []
+    subsC_result = []
+    
+    for k, v in value.items():        
+        if k in RT_keys:
+            if key in subsNF:
+                subsNF_result.append([k,v])
+            if key in subsC:
+                subsC_result.append([k,v])
+    
+    if len(subsNF_result) > 1:
+        subsNF_RT.append(subsNF_result)
+        
+    if len(subsC_result) > 1:
+        subsC_RT.append(subsC_result)
+
+RT_test_acc = [] # First NF and then C
+for sub in subsNF_RT:
+    for lst in sub:
+        if lst[0] == 'RT_test_acc_corr':
+            RT_test_acc.append(lst[1])
+
+for sub in subsC_RT:
+    for lst in sub:
+        if lst[0] == 'RT_test_acc_corr':
+            RT_test_acc.append(lst[1])
+            
+# Random order
+#subsNF_RT = []
+#subsC_RT = []
+#for key, value in d_all.items():
+#    result = dictfilt(value, RT_keys)
+#    g = list(result.values()) 
+#    
+#    if key in subsNF:
+#        subsNF_RT.append(g)
+#    
+#    if key in subsC:
+#        subsC_RT.append(g)
+
+#%%
+def extractVal(wanted_key):
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in d_all.items():
+        subsNF_result = []
+        subsC_result = []
+        
+        for k, v in value.items():        
+            if k == wanted_key:                
+                subsAll.append(v)
+                
+                if key in subjIDs_NF:
+                    subsNF_result.append(v)
+                if key in subjIDs_C:
+                    subsC_result.append(v)
+        
+        if len(subsNF_result) == 1:
+            subsNF.append(subsNF_result)
+            
+        if len(subsC_result) == 1:
+            subsC.append(subsC_result)
+    
+    meanAll = np.mean(subsAll)
+    meanNF = np.mean(subsNF)
+    meanC = np.mean(subsC)
+
+    return subsAll, subsNF, subsC, meanAll, meanNF, meanC
+
+
+subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')
+subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_uncor = extractVal('RT_test_acc_uncorr')
+
+#%% Plot only RT accuracies
+color = ['tomato']*11 + ['dodgerblue']*11
+sub_axis = subjIDs_NF + subjIDs_C
+
+plt.figure(1)
+plt.scatter(np.arange(0,len(subsAll),1),subsAll,color=color)
+plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
+plt.xlabel('Subject ID')
+plt.ylabel('RT decoding accuracy (NF blocks)')
+#NF_mean = [np.mean(RT_test_acc[0:len(subsNF_RT)])]*len(subsNF_RT)
+#C_mean = [np.mean(RT_test_acc[len(subsNF_RT):])]*len(subsC_RT)
+NF_mean = [meanNF]*len(subsNF)
+C_mean = [meanC]*len(subsC)
+
+plt.plot(np.arange(0,len(subsNF)),NF_mean, label='MeanNF', linestyle='--',color='tomato')
+plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='MeanC', linestyle='--',color='dodgerblue')
+
+plt.figure(2)
+plt.bar(0, meanNF,color=(0,0,0,0),edgecolor='tomato',width=0.1)
+plt.bar(0.2, meanC,color=(0,0,0,0),edgecolor='dodgerblue',width=0.1)
+plt.ylabel('RT decoding accuracy (NF blocks)')
+plt.xticks([0,0.2],['NF group','Control group'])
+
+plt.scatter(np.zeros((len(subsNF))),subsNF,color='tomato')
+plt.scatter(np.full(len(subsC),0.2),subsC,color='dodgerblue')
+
+#%% Plot RT accuracies cor vs uncor
+color = ['tomato']*11 + ['dodgerblue']*11
+color_uncor = ['brown']*11 + ['navy']*11
+sub_axis = subjIDs_NF + subjIDs_C
+
+plt.figure(1)
+plt.scatter(np.arange(0,len(subsAll),1),subsAll,color=color)#,label='Bias corrected')
+plt.scatter(np.arange(0,len(subsAll_uncor),1),subsAll_uncor,color=color_uncor)#,label='Bias uncorrected')
+plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
+plt.xlabel('Subject ID')
+plt.ylabel('RT decoding accuracy (NF blocks)')
+
+NF_mean = [meanNF]*len(subsNF)
+C_mean = [meanC]*len(subsC)
+
+NF_mean_uncor = [meanNF_uncor]*len(subsNF)
+C_mean_uncor = [meanC_uncor]*len(subsC)
+
+plt.plot(np.arange(0,len(subsNF)),NF_mean, linestyle='--',color='tomato',label='Bias corrected')
+plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, linestyle='--',color='dodgerblue',label='Bias corrected')
+
+plt.plot(np.arange(0,len(subsNF)),NF_mean_uncor, linestyle='--',color='brown',label='Bias uncorrected')
+plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean_uncor, linestyle='--',color='navy',label='Bias uncorrected')
+plt.legend()
+
+#%% Plot all face vs scene accuracies for RT (corrected)
+subsAll_s, subsNF_s, subsC_s, meanAll_s, meanNF_s, meanC_s = extractVal('RT_scene_acc')
+subsAll_f, subsNF_f, subsC_f, meanAll_f, meanNF_f, meanC_f = extractVal('RT_face_acc')
+
+plt.figure(4)
+plt.scatter(np.arange(0,len(subsAll_s),1),subsAll_s,color='seagreen')#,label='Bias corrected')
+plt.scatter(np.arange(0,len(subsAll_f),1),subsAll_f,color='hotpink')#,label='Bias uncorrected')
+plt.xticks(np.arange(0,len(subsAll),1),sub_axis) # SUBAXIS
+plt.xlabel('Subject ID')
+plt.ylabel('RT decoding accuracy (NF blocks)')
+
+s_mean = [meanAll_s]*len(subsAll)
+f_mean = [meanAll_f]*len(subsAll)
+
+plt.plot(np.arange(0,len(subsAll_s)),s_mean, linestyle='--',color='seagreen',label='Scene decoding accuracy')
+plt.plot(np.arange(0,len(subsAll_f)),f_mean, linestyle='--',color='hotpink',label='Face decoding accuracy')
+
+plt.plot(np.arange(0,len(subsNF)),NF_mean_uncor, linestyle='--',color='brown',label='Bias uncorrected')
+plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean_uncor, linestyle='--',color='navy',label='Bias uncorrected')
+plt.legend()
 
 
 
-sub_fb = [7,8,26,27,30,11,13,14,16,19,22]
-sub_c = [17,18,23,31,34,15,21,24,25,32,33]
+
 
 
 #%% Extract MNE dict objects

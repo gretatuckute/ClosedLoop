@@ -27,7 +27,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import zscore
 
-from offline_analysis_FUNC import *
+from offline_analysis_FUNC_550 import *
 
 multiprocessing.cpu_count()
 
