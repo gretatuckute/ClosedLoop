@@ -65,6 +65,47 @@ with open('Beh_subjID_34.pkl', "rb") as fin:
     sub34 = (pickle.load(fin))[0]
     
 #%% Measures
+    
+################## Extract lure indices and RTs #####################
+    
+lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx = findRTs(catFile,responseTimes)
+
+# Block-wise
+lureIdx1, non_lureIdx1, lure_RT1, nonlure_RT1, CR_idx1, FR_idx1 = findRTs(catFile,responseTimes,block=1)
+
+
+#d['lure_RT'] = lure_RT
+#d['nonlure_RT'] = nonlure_RT
+
+# Count how many lures are inhibited correctly
+lure_RT_copy = np.copy(lure_RT)
+lure_RT_count = (~np.isnan(lure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
+
+unique_lure, counts_lure = np.unique(lure_RT_count, return_counts=True)
+no_CI_lure = (counts_lure[0]) # No. correct inhibitions
+no_NI_lure = (counts_lure[1]) # No. not inhibited
+
+d['inhibitions_lure_day_'+str(expDay)] = no_CI_lure
+d['no_Inhibitions_lure_day_'+str(expDay)] = no_NI_lure
+
+# Count how many non-lures are inhibited 
+nonlure_RT_copy = np.copy(nonlure_RT)
+nonlure_RT_count = (~np.isnan(nonlure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
+
+unique_nonlure, counts_nonlure = np.unique(nonlure_RT_count, return_counts=True)
+no_CI_nlure = (counts_nonlure[0]) # No. inhibitions, thus a keypress was withheld during a non-lure stimuli
+no_NI_nlure = (counts_nonlure[1]) # No. not inhibited, correct keypress
+
+d['inhibitions_nonlure_day_'+str(expDay)] = no_CI_nlure
+d['no_Inhibitions_nonlure_day_'+str(expDay)] = no_NI_nlure
+
+# Mean of lure RTs, and mean of non-lure RTs (not including inhibited responses)
+lure_RT_mean = np.nanmean(lure_RT)
+nonlure_RT_mean = np.nanmean(nonlure_RT)
+
+d['lure_RT_mean_day_'+str(expDay)] = lure_RT_mean
+d['nonlure_RT_mean_day_'+str(expDay)] = nonlure_RT_mean
+
 
 def computeStats(subjID,expDay):
         

@@ -204,7 +204,7 @@ def matchTimes(stimLst, keyLst, minVal, maxVal):
     return responseTimes,pairs
 
 
-def findRTs(catFile, responseTimeLst):
+def findRTs(catFile, responseTimeLst, block = False):
     '''
     Extracts when lures where shown in the experiment, and matches response times to lures and non-lures.
     
@@ -223,7 +223,14 @@ def findRTs(catFile, responseTimeLst):
     
     '''
     # Extract categories from category file
-    domCats, shownCats = extractCat(catFile)
+    if block == False:
+        domCats, shownCats = extractCat(catFile)
+    
+    # Block-wise
+    if block != False:
+        domCats, shownCats = extractCat(catFile)
+        domCats = domCats[((block-1)*50):(block*50)]
+        shownCats = shownCats[((block-1)*50):(block*50)]
     
     lureLst = [] 
     lureIdx = [] # Lure indices 
