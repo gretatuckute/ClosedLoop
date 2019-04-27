@@ -97,8 +97,8 @@ def applySSP(EEG,info,threshold=0.1,):
     - EEG after SSP
     
     '''    
-    EEG = mne.EpochsArray(EEG, info,baseline=None)
-    projs = computeSSP(EEG,info,threshold)
+    EEG = mne.EpochsArray(EEG, info, baseline=None)
+    projs = computeSSP(EEG, info, threshold)
     EEG.add_proj(projs)
     EEG.apply_proj()
     EEG = EEG.get_data()

@@ -1,7 +1,6 @@
 # Imports
 import numpy as np
-import mne
-from pylsl import StreamOutlet,StreamInfo,resolve_byprop,local_clock
+from pylsl import StreamOutlet, StreamInfo, resolve_byprop, local_clock
 import time
 import os 
 
@@ -12,9 +11,9 @@ script_path = script_path_init()
 subject_path = subject_path_init()
 os.chdir(script_path)
 
-from EEG_analysis_RT import preproc1epoch,create_info_mne,computeSSP,applySSP,removeEpochs,average_stable
+from EEG_analysis_RT import preproc1epoch, create_info_mne, applySSP, average_stable
 from EEG_analysis_offline import extractCat
-from EEG_classification import sigmoid,testEpoch,trainLogReg_cross,trainLogReg_cross2
+from EEG_classification import sigmoid, testEpoch, trainLogReg_cross, trainLogReg_cross2
 from stream_functions import *
 
 # Manual input of subject ID for streaming and logging
@@ -23,6 +22,9 @@ subject_id = '90'
 # Extract experimental categories 
 y = extractCat(subject_path+'\\'+subject_id+'\\createIndices_'+subject_id+'_day_2.csv',exp_type='fused')
 y = np.array([int(x) for x in y])
+
+# TESTING
+#y = extractCat('P:\\closed_loop_data\\'+'11'+'\\createIndices_'+'11'+'_day_2.csv',exp_type='fused')
 
 #%% Tracking of print outputs. Saved as a log file to the subject ID folder
 Transcript.start(subject_path+'\\'+subject_id+'\\stream_logfile_subject'+subject_id+time.strftime('%m-%d-%y_%H-%M')+'.log')
@@ -54,12 +56,14 @@ outlet_alpha = StreamOutlet(info_outlet)
 
 # Variables for sampling of EEG and classifier training/feedback
 t_latency = 0.0 # Seconds (currently not used)
-baseline_tmin = -0.1 # Seconds
-tmax = 0.800 # Seconds
+baseline_tmin = -0.1 # Seconds (before stimuli onset)
+tmax = 0.800 # Seconds (after stimuli onset)
 fs_new = 100 # Sampling rate after resampling
 n_time = int((tmax-baseline_tmin)*fs_new)
 n_channels = 23
-info_fs500 = create_info_mne(reject_ch=0,sfreq=fs)
+
+# MNE info structures for EEG data
+info_fs500 = create_info_mne(reject_ch=0,sfreq=fs) 
 info_fs100 = create_info_mne(reject_ch=1,sfreq=fs_new)
 
 # Clear EEG and experiment streams to ensure a clean start
@@ -78,22 +82,21 @@ excess_EEG_time = []
 excess_marker = []
 excess_marker_time = []
 stable_blocks = np.zeros((n_stable,n_channels,n_time))
-stable_blocks0 = np.zeros((n_stable_epochs,n_channels,n_time)) # 
+stable_blocks0 = np.zeros((n_stable_epochs,n_channels,n_time)) 
 marker_all = []
 look_for_trigger = 1
 state = 'stable' # Initialization state
 n_run = 0
 reject = None
 flat = None 
-threshold = 0.1 # SSP variance threshold for rejection of SSP projections
+threshold = 0.1 # SSP variance threshold for rejection of SSP projectors
 y_run = y[0:n_stable]
 n_trials = n_stable*n_runs # Or total length of the experimental stimuli (y)
 marker = [0]
 alphaAll = []
 epochs_fb = np.zeros((n_feedback_epochs,n_channels,n_time))
 fb_starts = [t*200 for t in range(n_runs)]
-#y_feedback = np.concatenate((y[600:800],y[1000:1200],y[1400:1600],y[1800:2000],y[2200:2400])) # Neurofeedback blocks
-y_feedback=np.concatenate(([y[(r+1)*n_epochs+n_stable_epochs:(r+2)*n_epochs] for r in range(n_runs)])) # Neurofeedback blocks
+y_feedback = np.concatenate(([y[(r+1)*n_epochs+n_stable_epochs:(r+2)*n_epochs] for r in range(n_runs)])) # Experimental categories (y) for neurofeedback blocks
 
 
 # Start sampling (continues as long as the marker from the experimental script is below the number of total trials)
@@ -174,11 +177,11 @@ while marker[0]+1 < n_trials:
         epochs_fb = np.zeros((n_feedback_epochs,n_channels,n_time))
 
 
-    elif state=='feedback':
+    elif state == 'feedback':
         epoch,state,marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger=get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,subject_id,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,state=state,look_for_trigger=look_for_trigger,tmax=tmax,fs=fs)
         
-        # Test which number epoch i run is currently sampled and about to be preprocessed
-        t_test = marker-n_stable_epochs-n_epochs*n_run#marker-600-400*(n_run-1)
+        # Test which number epoch is currently sampled and about to be preprocessed
+        t_test = marker-n_stable_epochs-n_epochs*n_run # marker-600-400*(n_run-1)
         if len(epoch):
             epoch = preproc1epoch(epoch,info_fs500,projs=projs,SSP=True,reject=reject,mne_reject=1,reject_ch=True,flat=flat)
             if t_test > 0:    

@@ -64,29 +64,6 @@ with open('Beh_subjID_33.pkl', "rb") as fin:
 with open('Beh_subjID_34.pkl', "rb") as fin:
     sub34 = (pickle.load(fin))[0]
     
-#%% Measures
-
-def computeStats(subjID,expDay):
-        
-    with open('Beh_subjID_' + subjID + '.pkl', "rb") as fin:
-        sub = (pickle.load(fin))[0]
-    
-    
-    TP = sub['no_Inhibitions_nonlure_day_'+expDay]
-    FN = sub['inhibitions_nonlure_day_'+expDay]
-    
-    TN = sub['inhibitions_lure_day_'+expDay]
-    FP = sub['no_Inhibitions_lure_day_'+expDay]
-        
-    sensitivity = TP/(TP+FN)
-    specificity = TN/(TN+FP)
-    
-    false_positive_rate = FP/(FP+TN)
-    
-    accuracy = (TP+TN)/(TP+TN+FP+FN)
-        
-    return sensitivity,specificity,false_positive_rate,accuracy 
-         
 
 #%% Analyze 4 days
 dayLst = ['1','3','4','5']
@@ -157,6 +134,30 @@ for count,day in enumerate(dayLst):
 f34=np.zeros((4,4))
 for count,day in enumerate(dayLst):
     f34[count,:]=computeStats('34',day)
+
+#%% Measures
+
+def computeStats(subjID,expDay):
+        
+    with open('Beh_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
+    
+    
+    TP = sub['no_Inhibitions_nonlure_day_'+expDay]
+    FN = sub['inhibitions_nonlure_day_'+expDay]
+    
+    TN = sub['inhibitions_lure_day_'+expDay]
+    FP = sub['no_Inhibitions_lure_day_'+expDay]
+        
+    sensitivity = TP/(TP+FN)
+    specificity = TN/(TN+FP)
+    
+    false_positive_rate = FP/(FP+TN)
+    
+    accuracy = (TP+TN)/(TP+TN+FP+FN)
+        
+    return sensitivity,specificity,false_positive_rate,accuracy 
+         
 
 #%%
 sub_fb=[f07,f08,f11,f13,f14,f16,f19,f22,f26,f27,f30]
@@ -248,7 +249,7 @@ plt.scatter(np.full(11,3),acc_control[:,0],color='dodgerblue')
 plt.scatter(np.full(11,4),acc_control[:,1],color='navy')
 
 plt.ylabel('Accuracy')
-#plt.ylim([0,0.6])
+plt.ylim([0.9,1])
 plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
 plt.title('Accuracy')
 
@@ -257,11 +258,22 @@ stats.ttest_rel(acc_control[:,0],acc_control[:,1])
 
 
 #%% T tests
+
+# Sensitivity
 diff_fb=np.mean(sen_feedback[:,1]-sen_feedback[:,0])
 diff_c=np.mean(sen_control[:,1]-sen_control[:,0])
 
 diff_fb_p=stats.ttest_rel(sen_feedback[:,0],sen_feedback[:,1])
 diff_c_p=stats.ttest_rel(sen_control[:,0],sen_control[:,1])
+
+
+# Acc
+diff_fb_acc=np.mean(acc_feedback[:,1]-acc_feedback[:,0])
+diff_c_acc=np.mean(acc_control[:,1]-acc_control[:,0])
+
+p_acc_fb=stats.ttest_rel(acc_feedback[:,0],acc_feedback[:,1])
+p_acc_c=stats.ttest_rel(acc_control[:,0],acc_control[:,1])
+
 
 
 #%% Plots for RT surrounding lures

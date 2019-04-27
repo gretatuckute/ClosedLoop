@@ -13,7 +13,7 @@ def base_dir_init(): # Base directory for ClosedLoop GitHub
     this_base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     return this_base_dir
 
-def gitlab_dir_init(): # Base directory for GitLab (storage of files)
+def gitlab_dir_init(): # Base directory for GitLab (storage of files). Different from the Scripts directory (GitHub)
     gitlab_dir = 'C:\\Users\\nicped\\Documents\\GitLab\\project'
     return gitlab_dir
 

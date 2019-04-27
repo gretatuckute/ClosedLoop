@@ -24,7 +24,7 @@ import collections
 import pickle
 from responseTime_func import * 
 
-subjID = '34'
+subjID = '26'
 
 # Initialize dict
 d = {}
@@ -167,3 +167,5 @@ for day in ['1','3','4','5']:
         fname = 'Beh_subjID_'+str(subjID)+'.pkl'
         with open(fname, 'wb') as fout:
             pickle.dump(pkl_arr, fout)
+
+

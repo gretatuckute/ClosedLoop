@@ -80,9 +80,6 @@ RT_keys = ('RT_train_acc','RT_correct_NFtest_pred','RT_test_acc_corr','RT_test_a
 
 #subsNF = ['7','8','26','27','30','11','13','14','16','19','22']
 #subsC = ['17','18','23','31','34','15','21','24','25','32','33']
-
-subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
-subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
    
 # Extract chosen keys in key, value pairs (not in random, unordered order)  
 subsNF_RT = []
@@ -130,6 +127,9 @@ for sub in subsC_RT:
 #        subsC_RT.append(g)
 
 #%%
+subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
+subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
+            
 def extractVal(wanted_key):
     subsAll = []
     subsNF = []
@@ -168,7 +168,7 @@ subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_unc
 color = ['tomato']*11 + ['dodgerblue']*11
 sub_axis = subjIDs_NF + subjIDs_C
 
-plt.figure(1)
+plt.figure(5)
 plt.scatter(np.arange(0,len(subsAll),1),subsAll,color=color)
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
 plt.xlabel('Subject ID')
@@ -181,11 +181,12 @@ C_mean = [meanC]*len(subsC)
 plt.plot(np.arange(0,len(subsNF)),NF_mean, label='MeanNF', linestyle='--',color='tomato')
 plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='MeanC', linestyle='--',color='dodgerblue')
 
-plt.figure(2)
+plt.figure(6)
 plt.bar(0, meanNF,color=(0,0,0,0),edgecolor='tomato',width=0.1)
 plt.bar(0.2, meanC,color=(0,0,0,0),edgecolor='dodgerblue',width=0.1)
 plt.ylabel('RT decoding accuracy (NF blocks)')
 plt.xticks([0,0.2],['NF group','Control group'])
+plt.ylim([0.5,0.73])
 
 plt.scatter(np.zeros((len(subsNF))),subsNF,color='tomato')
 plt.scatter(np.full(len(subsC),0.2),subsC,color='dodgerblue')
@@ -195,7 +196,7 @@ color = ['tomato']*11 + ['dodgerblue']*11
 color_uncor = ['brown']*11 + ['navy']*11
 sub_axis = subjIDs_NF + subjIDs_C
 
-plt.figure(1)
+plt.figure(7)
 plt.scatter(np.arange(0,len(subsAll),1),subsAll,color=color)#,label='Bias corrected')
 plt.scatter(np.arange(0,len(subsAll_uncor),1),subsAll_uncor,color=color_uncor)#,label='Bias uncorrected')
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
@@ -222,7 +223,7 @@ subsAll_s, subsNF_s, subsC_s, meanAll_s, meanNF_s, meanC_s = extractVal('RT_scen
 subsAll_f, subsNF_f, subsC_f, meanAll_f, meanNF_f, meanC_f = extractVal('RT_face_acc')
 
 # Continuous subject ID x-axis
-plt.figure(5)
+plt.figure(8)
 plt.scatter(np.arange(0,len(subsAll_s),1),subsAll_s,color='seagreen')#,label='Bias corrected')
 plt.scatter(np.arange(0,len(subsAll_f),1),subsAll_f,color='hotpink')#,label='Bias uncorrected')
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis_all) # SUBAXIS ALL CONTINUOUS
@@ -237,7 +238,7 @@ plt.plot(np.arange(0,len(subsAll_f)),f_mean, linestyle='--',color='hotpink',labe
 plt.legend()
 
 # subject ID x-axis based on NF and C
-plt.figure(6)
+plt.figure(9)
 plt.scatter(np.arange(0,len(subsNF_s),1),subsNF_s,color='seagreen') # NF subjects
 plt.scatter(np.arange(len(subsNF_s),len(subsAll_s),1),subsC_s,color='seagreen') # C subjects
 
@@ -270,7 +271,7 @@ run5=np.mean(np.asarray([subsAll_run[f][4] for f in range(len(subsAll_run))]))
 
 run_means = [run1]+[run2]+[run3]+[run4]+[run5]
 
-plt.figure(7)
+plt.figure(10)
 for c,entry in enumerate(subsAll_run):
 #    plt.plot(np.arange(1,6),subsAll_run[c],color=colors[c],linestyle='-')
     plt.scatter(np.arange(1,6),subsAll_run[c],color=colors[c])
@@ -279,6 +280,53 @@ plt.xticks(np.arange(1,6),['1','2','3','4','5'])
 plt.xlabel('NF run number')
 plt.ylabel('RT decoding accuracy (NF blocks)')
 plt.legend()
+
+
+
+#%% Plot offline train LORO accuracies, corrected, stable
+subsAll_t, subsNF_t, subsC_t, meanAll_t, meanNF_t, meanC_t = extractVal('LORO_stable_acc_corr')
+
+color = ['tomato']*11 + ['dodgerblue']*11
+sub_axis = subjIDs_NF + subjIDs_C
+
+plt.figure(11)
+plt.scatter(np.arange(0,len(subsAll_t),1),subsAll_t,color=color)
+plt.xticks(np.arange(0,len(subsAll_t),1),sub_axis)
+plt.xlabel('Subject ID')
+plt.ylabel('Offline decoding accuracy (stable blocks), bias corrected')
+#NF_mean = [np.mean(RT_test_acc[0:len(subsNF_RT)])]*len(subsNF_RT)
+#C_mean = [np.mean(RT_test_acc[len(subsNF_RT):])]*len(subsC_RT)
+NF_mean_t = [meanNF_t]*len(subsNF)
+C_mean_t = [meanC_t]*len(subsC)
+plt.title('Leave one run out')
+
+plt.plot(np.arange(0,len(subsNF_t)),NF_mean_t, label='MeanNF', linestyle='--',color='tomato')
+plt.plot(np.arange(len(subsNF_t),len(subsAll_t)),C_mean_t, label='MeanC', linestyle='--',color='dodgerblue')
+
+
+#%% Plot offline train LORO accuracies, corrected, stable
+subsAll_t, subsNF_t, subsC_t, meanAll_t, meanNF_t, meanC_t = extractVal('LOBO_stable_train_acc_corr')
+
+color = ['tomato']*11 + ['dodgerblue']*11
+sub_axis = subjIDs_NF + subjIDs_C
+
+plt.figure(12)
+plt.scatter(np.arange(0,len(subsAll_t),1),subsAll_t,color=color)
+plt.xticks(np.arange(0,len(subsAll_t),1),sub_axis)
+plt.xlabel('Subject ID')
+plt.ylabel('Offline decoding accuracy (stable blocks), bias corrected')
+#NF_mean = [np.mean(RT_test_acc[0:len(subsNF_RT)])]*len(subsNF_RT)
+#C_mean = [np.mean(RT_test_acc[len(subsNF_RT):])]*len(subsC_RT)
+NF_mean_t = [meanNF_t]*len(subsNF)
+C_mean_t = [meanC_t]*len(subsC)
+plt.title('Leave one block out')
+
+plt.plot(np.arange(0,len(subsNF_t)),NF_mean_t, label='MeanNF', linestyle='--',color='tomato')
+plt.plot(np.arange(len(subsNF_t),len(subsAll_t)),C_mean_t, label='MeanC', linestyle='--',color='dodgerblue')
+
+
+
+
 
 
 #%% Extract MNE dict objects

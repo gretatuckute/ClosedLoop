@@ -175,20 +175,20 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
                 look_for_epoch = 0 # done looking for epoch
                 
                 # Save EEG samples for next epoch
-                if t_diff < (-2/fs): # Make sure that mismatches between EEG and marker do not accumlate over time. 
-                    s_diff = int(np.abs(t_diff*fs)) # no. samples
-                    print('Increasing excess_EEG by: ' + str(s_diff)) # mostly relevant if epochs are overlapping
+                if t_diff < (-2/fs): # Make sure that mismatches between EEG and marker do not accumlate over time
+                    s_diff = int(np.abs(t_diff*fs)) # No. samples
+                    print('Increasing excess_EEG by: ' + str(s_diff)) # Relevant if epochs are overlapping
                     excess_EEG = sample_EEG[i_start+fs-s-s_diff:,:]
                     excess_EEG_time = timestamp_EEG[i_start+fs-s-s_diff:]
                 else:
                     excess_EEG = sample_EEG[i_start+fs-s:,:]
-                    print('saving' + str(excess_EEG.shape))
+                    print('Saving' + str(excess_EEG.shape))
                     excess_EEG_time = timestamp_EEG[i_start+fs-s:]
                 print("Ready to preprocess, marker: ",sample_marker)
 
             else:
                 print("Warning. Not enough EEG samples available")
-                print("Wait time",np.max([0,(s_epoch-avail_samples)/fs])) #in sec
+                print("Wait time ",np.max([0,(s_epoch-avail_samples)/fs])) # In seconds
                 time.sleep(np.max([0,(s_epoch-avail_samples)/fs])+0.03)
                 look_for_trigger = 0
                 excess_EEG = sample_EEG
@@ -202,26 +202,7 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
             excess_EEG_time = timestamp_EEG
     
     # Get ready for next epoch, update state
-#    if sample_marker > 598: 
-#        if not (sample_marker+1)%400: # if 400, 800, 1200...
-#            print('Feedback done, ready to collect stable blocks')
-#            state = 'stable'
-#            excess_EEG = []
-#            excess_EEG_time = []
-#            excess_marker = []
-#            excess_marker_time = []
-#            look_for_trigger = 1
-#        elif (sample_marker+1)%400 == 200: # if 600, 1000, 1400.. starting a sampling of stable blocks
-#            state = 'train'
-#            print('Training')
-#            excess_EEG = []
-#            excess_EEG_time = []
-#            excess_marker = []
-#            excess_marker_time = []
-#            look_for_trigger = 1
-    #else:    
-     #   
-    state,reset=get_state(state,sample_marker)
+    state,reset = get_state(state,sample_marker)
     if reset == 0: # If state has been changed
         excess_EEG = []
         excess_EEG_time = []
@@ -232,7 +213,8 @@ def get_epoch(inlet_EEG,inlet_marker,store_EEG,store_marker,user_id,excess_EEG=[
     return epoch,state,sample_marker,excess_EEG,excess_EEG_time,excess_marker,excess_marker_time,look_for_trigger
 
 def get_state(state,sample_marker,offset=400,n_marker_train=200,n_marker_feedback=200):
-    # Determines whether to change state, i.e. stable/train/feedback
+    # Determines whether to change state between stable/train/feedback.
+    
     # Arguments:
         # state: current state (stable/train/feedback)
         # sample_marker: marker number from psychopy
@@ -243,7 +225,7 @@ def get_state(state,sample_marker,offset=400,n_marker_train=200,n_marker_feedbac
         # state: current state (stable/train/feedback)
         # reset: whether to reset excess data arrays (done if state has been altered)
     
-    interval = n_marker_train+n_marker_feedback # no. epochs in run
+    interval = n_marker_train+n_marker_feedback # No. epochs in a run (default 400)
     
     if sample_marker >= offset+n_marker_train-1: 
         if not (sample_marker+1)%interval: # if 800, 1200...
