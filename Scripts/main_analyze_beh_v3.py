@@ -44,8 +44,8 @@ for day in ['1','2','3','4','5']:
     
     catFile, stimuliFile, keypressFile = findFiles(fileLst,expDay)
     
-    d['FILE_imageTime_day_'+str(expDay)] = stimuliFile
-    d['FILE_keypress_day_'+str(expDay)] = keypressFile
+    d['FILE_imageTime_day'+str(expDay)] = stimuliFile
+    d['FILE_keypress_day'+str(expDay)] = keypressFile
     
     #################### Extract keypress and stimuli time data ###################
     data1 = extractInfo(keypressFile)
@@ -60,65 +60,22 @@ for day in ['1','2','3','4','5']:
     nStimuli = len(stimuliTimes)
     nKeypress = len(keypressTimes)
     
-    d['TOTAL_keypress_'+str(expDay)] = nKeypress
-    
-#    if nStimuli != 800:
-#        print('WARNING, number of createIndices not 800')
-#        raise ValueError
-#    
-#    if 500 > nKeypress > 1100:
-#        print('WARNING, number of keypresses too low/high')
-#        raise ValueError
+    d['TOTAL_keypress_day'+str(expDay)] = nKeypress
     
     responseTimes,pairs = matchTimes(stimuliTimes, keypressTimes, 0.15, 1.15)
     
-    #d['responseTimes'] = responseTimes
+    d['responseTimes_day'+str(expDay)] = responseTimes
     
-    ################## Extract lure indices and RTs #####################
+    lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx = findRTs(catFile,responseTimes)
     
     # Append responseTimes to dict. Run findRTs afterwards, inside a function, that computes the below, and output sensitivity etc without intermediates
     # Add responsetimes trend
     
-    lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx = findRTs(catFile,responseTimes)
+    mask = ~np.isnan(responseTimes)
+    maskLen = np.sum(mask)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(np.arange(maskLen),responseTimes[mask])
     
-    # Block-wise
-    lureIdx1, non_lureIdx1, lure_RT1, nonlure_RT1, CR_idx1, FR_idx1 = findRTs(catFile,responseTimes,block=1)
-    
-    
-    #d['lure_RT'] = lure_RT
-    #d['nonlure_RT'] = nonlure_RT
-    
-    # Count how many lures are inhibited correctly
-    lure_RT_copy = np.copy(lure_RT)
-    lure_RT_count = (~np.isnan(lure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
-    
-    unique_lure, counts_lure = np.unique(lure_RT_count, return_counts=True)
-    no_CI_lure = (counts_lure[0]) # No. correct inhibitions
-    no_NI_lure = (counts_lure[1]) # No. not inhibited
-    
-    d['inhibitions_lure_day_'+str(expDay)] = no_CI_lure
-    d['no_Inhibitions_lure_day_'+str(expDay)] = no_NI_lure
-    
-    # Count how many non-lures are inhibited 
-    nonlure_RT_copy = np.copy(nonlure_RT)
-    nonlure_RT_count = (~np.isnan(nonlure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
-    
-    unique_nonlure, counts_nonlure = np.unique(nonlure_RT_count, return_counts=True)
-    no_CI_nlure = (counts_nonlure[0]) # No. inhibitions, thus a keypress was withheld during a non-lure stimuli
-    no_NI_nlure = (counts_nonlure[1]) # No. not inhibited, correct keypress
-    
-    d['inhibitions_nonlure_day_'+str(expDay)] = no_CI_nlure
-    d['no_Inhibitions_nonlure_day_'+str(expDay)] = no_NI_nlure
-    
-    # Mean of lure RTs, and mean of non-lure RTs (not including inhibited responses)
-    lure_RT_mean = np.nanmean(lure_RT)
-    nonlure_RT_mean = np.nanmean(nonlure_RT)
-    
-    d['lure_RT_mean_day_'+str(expDay)] = lure_RT_mean
-    d['nonlure_RT_mean_day_'+str(expDay)] = nonlure_RT_mean
-    
-    
-    print(d)
+    d['LINREG_day'+str(expDay)] = [slope, intercept, r_value, p_value]
     
     ################# Check RTs based on either correct or false response (surrounding that lure) ###############
     
@@ -157,17 +114,15 @@ for day in ['1','2','3','4','5']:
     
     ticks = ['-3','-2','-1','lure','1','2','3']
     
-    plt.figure()
-    plt.plot(surrounding_CR_Lst,color='green')
-    plt.plot(surrounding_FR_Lst,color='red')
-    plt.xticks(np.arange(0,7,1),ticks)
+#    plt.figure()
+#    plt.plot(surrounding_CR_Lst,color='green')
+#    plt.plot(surrounding_FR_Lst,color='red')
+#    plt.xticks(np.arange(0,7,1),ticks)
     
     d['surrounding_CR_Lst_day_'+str(expDay)] = surrounding_CR_Lst
     d['surrounding_FR_Lst_day_'+str(expDay)] = surrounding_FR_Lst
     
-    
     del catFile, stimuliFile, keypressFile
-    
     
     if expDay == '5':
         pkl_arr = [d]
@@ -176,7 +131,7 @@ for day in ['1','2','3','4','5']:
         os.chdir(saveDir)
     
     # PICKLE TIME
-        fname = 'Beh_subjID_'+str(subjID)+'.pkl'
+        fname = 'BehV3_subjID_'+str(subjID)+'.pkl'
         with open(fname, 'wb') as fout:
             pickle.dump(pkl_arr, fout)
 

@@ -204,7 +204,7 @@ def matchTimes(stimLst, keyLst, minVal, maxVal):
     return responseTimes,pairs
 
 
-def findRTs(catFile, responseTimeLst, block = False):
+def findRTs(catFile, responseTimeLst):
     '''
     Extracts when lures where shown in the experiment, and matches response times to lures and non-lures.
     
@@ -223,14 +223,7 @@ def findRTs(catFile, responseTimeLst, block = False):
     
     '''
     # Extract categories from category file
-    if block == False:
-        domCats, shownCats = extractCat(catFile)
-    
-    # Block-wise
-    if block != False:
-        domCats, shownCats = extractCat(catFile)
-        domCats = domCats[((block-1)*50):(block*50)]
-        shownCats = shownCats[((block-1)*50):(block*50)]
+    domCats, shownCats = extractCat(catFile)
     
     lureLst = [] 
     lureIdx = [] # Lure indices 
@@ -281,6 +274,129 @@ def findRTs(catFile, responseTimeLst, block = False):
     nonlure_RT[nonlure_RT == 0] = np.nan
     
     return lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx
+
+def findRTsBlocks(catFile, responseTimeLst, block = False):
+    '''
+    Extracts when lures where shown in the experiment, and matches response times to lures and non-lures.
+    
+    
+    # Input
+    catFile: category file for extraction of shown categories.
+    responseTimeLst: list of response times for the shown, experimental stimuli
+    
+    # Output
+    lureIdx: list of indices of lures shown in the experiment
+    non_lureIdx: list of indicies of non-lures shown in the experiment
+    lure_RT: list of response times for the lure stimuli
+    nonlure_RT: list of response times for the non lure stimuli
+    CR_idx: List, indices of correctly rejected lures (inhibited response)
+    FR_idx: List, indices of falsely rejected lures (non-inhibited response)
+    
+    '''
+    # Extract categories from category file
+    if block == False:
+        domCats, shownCats = extractCat(catFile)
+    
+    # Block-wise
+    if block != False:
+        domCats, shownCats = extractCat(catFile)
+        domCats = domCats[((block-1)*50):(block*50)]
+        shownCats = shownCats[((block-1)*50):(block*50)]
+        responseTimeLst = responseTimeLst[((block-1)*50):(block*50)]
+    
+    lureLst = [] 
+    lureIdx = [] # Lure indices 
+    
+    CRlst = []
+    CR_idx = [] # Indices of correctly rejected lures
+
+    # Figure out whether a shown stimuli is a lure 
+    for count, entry in enumerate(domCats):
+        if entry == shownCats[count]:
+            lureLst.append('true')
+        else:
+            lureLst.append('lure')
+            lureIdx.append(count)
+        
+    allIdx = range(len(domCats)) 
+    non_lureIdx = [x for x in allIdx if x not in lureIdx]
+
+    # Response times of lures and non lures       
+    lure_RT = np.zeros(len(lureIdx))
+    nonlure_RT = np.zeros(len(non_lureIdx))
+
+    for count, idx in enumerate(lureIdx):
+        lure_RT[count] = responseTimeLst[idx]      
+    
+    for count, idx in enumerate(non_lureIdx):
+        nonlure_RT[count] = responseTimeLst[idx]
+        
+    # Indices of correctly and falsely rejected lures
+    # Correct reject, i.e. response to lure inhibited
+    for val in lure_RT:
+        if np.isnan(val):
+            CRlst.append(True)
+        else:
+            CRlst.append(False)
+
+    for counter,value in enumerate(CRlst):
+        if value == True:
+            CR_idx.append(counter)
+    
+    all_lures = range(len(lureIdx))
+    
+    FR_idx = [x for x in all_lures if x not in CR_idx] # false rejects, i.e. not inhibited
+    
+    # Add NaN values instead of zero 
+    lure_RT[lure_RT == 0] = np.nan
+    nonlure_RT[nonlure_RT == 0] = np.nan
+    
+    # Count how many lures are inhibited correctly
+    lure_RT_copy = np.copy(lure_RT)
+    lure_RT_count = (~np.isnan(lure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
+    
+    unique_lure, counts_lure = np.unique(lure_RT_count, return_counts=True)
+    
+    if len(counts_lure) == 2:
+        no_CI_lure = (counts_lure[0]) # correct inhibitions. Inhibitions_lure.
+        no_NI_lure = (counts_lure[1]) # not inhibited. no_Inhibitions_lure.
+    if len(counts_lure) == 1:
+        if unique_lure == False:
+            no_CI_lure = int(counts_lure) # correct inhibitions. Inhibitions_lure.
+            no_NI_lure = 0 # not inhibited. no_Inhibitions_lure.
+        if unique_lure == True:
+            no_CI_lure = 0 # correct inhibitions. Inhibitions_lure.
+            no_NI_lure = int(counts_lure) # not inhibited. no_Inhibitions_lure.
+            
+    # Count how many non-lures are inhibited 
+    nonlure_RT_copy = np.copy(nonlure_RT)
+    nonlure_RT_count = (~np.isnan(nonlure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
+    
+    unique_nonlure, counts_nonlure = np.unique(nonlure_RT_count, return_counts=True)
+    if len(counts_nonlure) == 2:
+        no_I_nlure = (counts_nonlure[0]) # Inhibitions, thus a keypress was withheld during a non-lure stimuli. Inhibitions_nonlure.
+        no_NI_nlure = (counts_nonlure[1]) # Not inhibited, correct keypress. no_Inhibitions_nonlure.
+    if len(counts_nonlure) == 1:
+        if unique_nonlure == False:
+            print('Subject inhibited all non-lure stimuli')
+            no_I_nlure = int(counts_nonlure)
+            no_NI_nlure = 0
+        if unique_nonlure == True: # Not inhibited, thus if the person responded on all nontrials (correct)
+            print('Subject did not inhibit any non-lure stimuli',catFile)
+            no_I_nlure = 0 # None inhibited
+            no_NI_nlure = int(counts_nonlure) # Should be 45 presses
+               
+    # Mean of lure RTs, and mean of non-lure RTs (not including inhibited responses)
+    lure_RT_mean = np.nanmean(lure_RT)
+    nonlure_RT_mean = np.nanmean(nonlure_RT)
+    
+    # Mean of overall responseTimes
+    RT_mean = np.nanmean(responseTimeLst)
+    
+    # Check for number of NaN, i.e. no response
+    nNaN = np.isnan(responseTimeLst).sum()
+
+    return no_CI_lure, no_NI_lure, no_I_nlure, no_NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN
 
 
 def RTaroundLure(lureIdx, lureRT, responseTimeLst, surrounding, number, CR_idx, FR_idx):

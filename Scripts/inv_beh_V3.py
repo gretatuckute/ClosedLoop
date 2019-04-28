@@ -67,44 +67,65 @@ with open('Beh_subjID_34.pkl', "rb") as fin:
 #%% Measures
     
 ################## Extract lure indices and RTs #####################
+
+def computeStatsBlocks(subjID):
     
-lureIdx, non_lureIdx, lure_RT, nonlure_RT, CR_idx, FR_idx = findRTs(catFile,responseTimes)
+    with open('BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
+    
+    statsDay = np.zeros((5,8))
+    
+    statsBlock = np.zeros((4,16,5))
+    statsBlock_day2 = np.zeros((48,5))
+    
+    idx_c = 0
+    
+    for idx, expDay in enumerate(['1','2','3','4','5']):
+        
+        # Load catFile
+        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+        
+        responseTimes = sub['responseTimes_day'+expDay]
+        nKeypress = sub['TOTAL_keypress_day'+expDay]
+        
+        CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
+    
+        # Compute stats (for visibility)
+        TP = NI_nlure
+        FP = NI_lure
+        TN = CI_lure
+        FN = I_nlure
+        
+        sensitivity = TP/(TP+FN)
+        specificity = TN/(TN+FP)
+        
+        accuracy = (TP+TN)/(TP+TN+FP+FN)
+#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
+        
+        statsDay[idx,:] = sensitivity, specificity, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
 
-# Block-wise
-lureIdx1, non_lureIdx1, lure_RT1, nonlure_RT1, CR_idx1, FR_idx1 = findRTs(catFile,responseTimes,block=1)
+        # Block-wise
+        for block in range(1,int(len(responseTimes)/50)+1):
+            print(block)
+        
+            TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
+            
+            sensitivity = TP/(TP+FN)
+            specificity = TN/(TN+FP)
+            
+            accuracy = (TP+TN)/(TP+TN+FP+FN)
+            
+            if expDay == '2':
+                statsBlock_day2[block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+        
+            if expDay != '2':
+                statsBlock[idx_c,block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+                
+        if expDay != '2':            
+            idx_c += 1
 
-
-#d['lure_RT'] = lure_RT
-#d['nonlure_RT'] = nonlure_RT
-
-# Count how many lures are inhibited correctly
-lure_RT_copy = np.copy(lure_RT)
-lure_RT_count = (~np.isnan(lure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
-
-unique_lure, counts_lure = np.unique(lure_RT_count, return_counts=True)
-no_CI_lure = (counts_lure[0]) # No. correct inhibitions
-no_NI_lure = (counts_lure[1]) # No. not inhibited
-
-d['inhibitions_lure_day_'+str(expDay)] = no_CI_lure
-d['no_Inhibitions_lure_day_'+str(expDay)] = no_NI_lure
-
-# Count how many non-lures are inhibited 
-nonlure_RT_copy = np.copy(nonlure_RT)
-nonlure_RT_count = (~np.isnan(nonlure_RT_copy)) # Assigns False to nan, i.e. correctly inhibited, and True to falsely inhibited (a respone time recorded)
-
-unique_nonlure, counts_nonlure = np.unique(nonlure_RT_count, return_counts=True)
-no_CI_nlure = (counts_nonlure[0]) # No. inhibitions, thus a keypress was withheld during a non-lure stimuli
-no_NI_nlure = (counts_nonlure[1]) # No. not inhibited, correct keypress
-
-d['inhibitions_nonlure_day_'+str(expDay)] = no_CI_nlure
-d['no_Inhibitions_nonlure_day_'+str(expDay)] = no_NI_nlure
-
-# Mean of lure RTs, and mean of non-lure RTs (not including inhibited responses)
-lure_RT_mean = np.nanmean(lure_RT)
-nonlure_RT_mean = np.nanmean(nonlure_RT)
-
-d['lure_RT_mean_day_'+str(expDay)] = lure_RT_mean
-d['nonlure_RT_mean_day_'+str(expDay)] = nonlure_RT_mean
+    return statsDay, statsBlock, statsBlock_day2
+   
 
 
 def computeStats(subjID,expDay):
@@ -127,6 +148,14 @@ def computeStats(subjID,expDay):
     accuracy = (TP+TN)/(TP+TN+FP+FN)
         
     return sensitivity,specificity,false_positive_rate,accuracy 
+
+statsDay, statsBlock, statsBlock_day2 = computeStatsBlocks(subjID)
+
+# Mean response time per block, day 2
+plt.plot(statsBlock_day2[:,3])
+
+plt.plot(statsBlock[1,:,3])
+
          
 #%% Analyze 4 days
 dayLst = ['1','3','4','5']
