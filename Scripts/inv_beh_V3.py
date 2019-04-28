@@ -2,6 +2,8 @@
 """
 Created on Tue Apr  2 22:12:38 2019
 
+First part is the V2 analysis (not block-wise)
+
 @author: Greta
 """
 
@@ -11,6 +13,9 @@ import os
 import statistics
 import numpy as np
 from scipy import stats
+import seaborn as sns
+os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\')
+from responseTime_func import findRTsBlocks
 
 
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
@@ -65,75 +70,12 @@ with open('Beh_subjID_34.pkl', "rb") as fin:
     sub34 = (pickle.load(fin))[0]
     
 #%% Measures
-    
-################## Extract lure indices and RTs #####################
-
-def computeStatsBlocks(subjID):
-    
-    with open('BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-        sub = (pickle.load(fin))[0]
-    
-    statsDay = np.zeros((5,8))
-    
-    statsBlock = np.zeros((4,16,5))
-    statsBlock_day2 = np.zeros((48,5))
-    
-    idx_c = 0
-    
-    for idx, expDay in enumerate(['1','2','3','4','5']):
-        
-        # Load catFile
-        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
-        
-        responseTimes = sub['responseTimes_day'+expDay]
-        nKeypress = sub['TOTAL_keypress_day'+expDay]
-        
-        CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
-    
-        # Compute stats (for visibility)
-        TP = NI_nlure
-        FP = NI_lure
-        TN = CI_lure
-        FN = I_nlure
-        
-        sensitivity = TP/(TP+FN)
-        specificity = TN/(TN+FP)
-        
-        accuracy = (TP+TN)/(TP+TN+FP+FN)
-#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
-        
-        statsDay[idx,:] = sensitivity, specificity, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
-
-        # Block-wise
-        for block in range(1,int(len(responseTimes)/50)+1):
-            print(block)
-        
-            TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
-            
-            sensitivity = TP/(TP+FN)
-            specificity = TN/(TN+FP)
-            
-            accuracy = (TP+TN)/(TP+TN+FP+FN)
-            
-            if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
-        
-            if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
-                
-        if expDay != '2':            
-            idx_c += 1
-
-    return statsDay, statsBlock, statsBlock_day2
-   
-
 
 def computeStats(subjID,expDay):
         
     with open('Beh_subjID_' + subjID + '.pkl', "rb") as fin:
         sub = (pickle.load(fin))[0]
-    
-    
+
     TP = sub['no_Inhibitions_nonlure_day_'+expDay]
     FN = sub['inhibitions_nonlure_day_'+expDay]
     
@@ -148,14 +90,6 @@ def computeStats(subjID,expDay):
     accuracy = (TP+TN)/(TP+TN+FP+FN)
         
     return sensitivity,specificity,false_positive_rate,accuracy 
-
-statsDay, statsBlock, statsBlock_day2 = computeStatsBlocks(subjID)
-
-# Mean response time per block, day 2
-plt.plot(statsBlock_day2[:,3])
-
-plt.plot(statsBlock[1,:,3])
-
          
 #%% Analyze 4 days
 dayLst = ['1','3','4','5']
@@ -233,7 +167,6 @@ for count,day in enumerate(dayLst):
 sub_fb=[f07,f08,f11,f13,f14,f16,f19,f22,f26,f27,f30]
 sub_c=[f15,f17,f18,f21,f23,f24,f25,f31,f32,f33,f34]
 
-
 #%%
 sen_feedback=np.asarray([f[:,0] for f in sub_fb])
 sen_control=np.asarray([f[:,0] for f in sub_c])
@@ -264,6 +197,26 @@ plt.ylim([0.9,1])
 plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
 plt.title('Sensitivity')
 
+# Connect lines
+plt.figure(10)
+plt.ylabel('Response sensitivity')
+plt.ylim([0.9,1])
+plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
+plt.title('Sensitivity')
+
+plt.bar(1,np.mean(sen_feedback[:,0]),color=(0,0,0,0),edgecolor='tomato')
+plt.bar(2,np.mean(sen_feedback[:,1]),color=(0,0,0,0),edgecolor='brown')
+plt.bar(3,np.mean(sen_control[:,0]),color=(0,0,0,0),edgecolor='dodgerblue')
+plt.bar(4,np.mean(sen_control[:,1]),color=(0,0,0,0),edgecolor='navy')
+
+plt.scatter(np.full(11,1),sen_feedback[:,0],color='tomato')
+plt.scatter(np.full(11,2),sen_feedback[:,1],color='brown')
+plt.scatter(np.full(11,3),sen_control[:,0],color='dodgerblue')
+plt.scatter(np.full(11,4),sen_control[:,1],color='navy')
+
+for i in range(11):
+    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(sen_feedback[:,0])[i],(sen_feedback[:,1])[i]],color='gray')
+    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(sen_control[:,0])[i],(sen_control[:,1])[i]],color='gray')
 
 # Day 4 and 5
 #plt.figure(3)
@@ -289,6 +242,27 @@ plt.ylim([0.4,1])
 plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
 plt.title('Specificity')
 
+# Connect lines
+plt.figure(12)
+plt.bar(1,np.mean(spec_feedback[:,0]),color=(0,0,0,0),edgecolor='tomato')
+plt.bar(2,np.mean(spec_feedback[:,1]),color=(0,0,0,0),edgecolor='brown')
+plt.bar(3,np.mean(spec_control[:,0]),color=(0,0,0,0),edgecolor='dodgerblue')
+plt.bar(4,np.mean(spec_control[:,1]),color=(0,0,0,0),edgecolor='navy')
+
+plt.scatter(np.full(11,1),spec_feedback[:,0],color='tomato')
+plt.scatter(np.full(11,2),spec_feedback[:,1],color='brown')
+plt.scatter(np.full(11,3),spec_control[:,0],color='dodgerblue')
+plt.scatter(np.full(11,4),spec_control[:,1],color='navy')
+
+plt.ylabel('Response specificity')
+plt.ylim([0.4,1])
+plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
+plt.title('Specificity')
+
+for i in range(11):
+    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(spec_feedback[:,0])[i],(spec_feedback[:,1])[i]],color='gray')
+    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(spec_control[:,0])[i],(spec_control[:,1])[i]],color='gray')
+
 
 #%% FPR
 plt.figure(3)
@@ -307,6 +281,27 @@ plt.ylim([0,0.6])
 plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
 plt.title('FPR')
 
+# Connect
+plt.figure(13)
+plt.bar(1,np.mean(fpr_feedback[:,0]),color=(0,0,0,0),edgecolor='tomato')
+plt.bar(2,np.mean(fpr_feedback[:,1]),color=(0,0,0,0),edgecolor='brown')
+plt.bar(3,np.mean(fpr_control[:,0]),color=(0,0,0,0),edgecolor='dodgerblue')
+plt.bar(4,np.mean(fpr_control[:,1]),color=(0,0,0,0),edgecolor='navy')
+
+plt.scatter(np.full(11,1),fpr_feedback[:,0],color='tomato')
+plt.scatter(np.full(11,2),fpr_feedback[:,1],color='brown')
+plt.scatter(np.full(11,3),fpr_control[:,0],color='dodgerblue')
+plt.scatter(np.full(11,4),fpr_control[:,1],color='navy')
+
+plt.ylabel('False positive rate')
+plt.ylim([0,0.6])
+plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
+plt.title('FPR')
+
+for i in range(11):
+    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(fpr_feedback[:,0])[i],(fpr_feedback[:,1])[i]],color='gray')
+    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(fpr_control[:,0])[i],(fpr_control[:,1])[i]],color='gray')
+
 #%% Accuracy
 plt.figure(4)
 plt.bar(1,np.mean(acc_feedback[:,0]),color=(0,0,0,0),edgecolor='tomato',yerr=np.std(acc_feedback[:,0]))
@@ -324,8 +319,26 @@ plt.ylim([0.9,1])
 plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
 plt.title('Accuracy')
 
-stats.ttest_rel(acc_feedback[:,0],acc_feedback[:,1])
-stats.ttest_rel(acc_control[:,0],acc_control[:,1])
+# Connect
+plt.figure(14)
+plt.bar(1,np.mean(acc_feedback[:,0]),color=(0,0,0,0),edgecolor='tomato')
+plt.bar(2,np.mean(acc_feedback[:,1]),color=(0,0,0,0),edgecolor='brown')
+plt.bar(3,np.mean(acc_control[:,0]),color=(0,0,0,0),edgecolor='dodgerblue')
+plt.bar(4,np.mean(acc_control[:,1]),color=(0,0,0,0),edgecolor='navy')
+
+plt.scatter(np.full(11,1),acc_feedback[:,0],color='tomato')
+plt.scatter(np.full(11,2),acc_feedback[:,1],color='brown')
+plt.scatter(np.full(11,3),acc_control[:,0],color='dodgerblue')
+plt.scatter(np.full(11,4),acc_control[:,1],color='navy')
+
+plt.ylabel('Accuracy')
+plt.ylim([0.9,1])
+plt.xticks([1,2,3,4],['NF day1','NF day3', 'Control day1', 'Control day3'])
+plt.title('Accuracy')
+
+for i in range(11):
+    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(acc_feedback[:,0])[i],(acc_feedback[:,1])[i]],color='gray')
+    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(acc_control[:,0])[i],(acc_control[:,1])[i]],color='gray')
 
 
 #%% T tests
@@ -337,14 +350,12 @@ diff_c=np.mean(sen_control[:,1]-sen_control[:,0])
 diff_fb_p=stats.ttest_rel(sen_feedback[:,0],sen_feedback[:,1])
 diff_c_p=stats.ttest_rel(sen_control[:,0],sen_control[:,1])
 
-
 # Acc
-diff_fb_acc=np.mean(acc_feedback[:,1]-acc_feedback[:,0])
-diff_c_acc=np.mean(acc_control[:,1]-acc_control[:,0])
+#diff_fb_acc=np.mean(acc_feedback[:,1]-acc_feedback[:,0])
+#diff_c_acc=np.mean(acc_control[:,1]-acc_control[:,0])
 
 p_acc_fb=stats.ttest_rel(acc_feedback[:,0],acc_feedback[:,1])
 p_acc_c=stats.ttest_rel(acc_control[:,0],acc_control[:,1])
-
 
 
 #%% Plots for RT surrounding lures
@@ -436,4 +447,226 @@ plt.title('Day 3, all participants')
 plt.xticks(np.arange(0,7,1),ticks)
 plt.xlabel('Trials from lure')
 plt.ylabel('RT (ms)')
+
+
+#%% ################## V3 analysis ####################
+def computeStatsBlocks(subjID):
+    
+    with open('BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
+    
+    statsDay = np.zeros((5,8))
+    
+    statsBlock = np.zeros((4,16,5))
+    statsBlock_day2 = np.zeros((48,5))
+    
+    idx_c = 0
+    
+    for idx, expDay in enumerate(['1','2','3','4','5']):
+        
+        # Load catFile
+        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+        
+        if subjID == '11' and expDay == '2':
+            responseTimes = [np.nan]
+            nKeypress = np.nan
+        else:
+            responseTimes = sub['responseTimes_day'+expDay]
+            nKeypress = sub['TOTAL_keypress_day'+expDay]
+        
+        if subjID == '11' and expDay == '2':
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
+        else:
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
+    
+        # Compute stats (for visibility)
+        TP = NI_nlure
+        FP = NI_lure
+        TN = CI_lure
+        FN = I_nlure
+        
+        sensitivity = TP/(TP+FN)
+        specificity = TN/(TN+FP)
+        
+        accuracy = (TP+TN)/(TP+TN+FP+FN)
+#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
+        
+        statsDay[idx,:] = sensitivity, specificity, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
+
+        # Block-wise
+        for block in range(1,int(len(responseTimes)/50)+1):
+            print(block)
+            
+            if subjID == '11' and expDay == '2': 
+                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
+            else:
+                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
+            
+            sensitivity = TP/(TP+FN)
+            specificity = TN/(TN+FP)
+            
+            accuracy = (TP+TN)/(TP+TN+FP+FN)
+            
+            if expDay == '2':
+                statsBlock_day2[block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+        
+            if expDay != '2':
+                statsBlock[idx_c,block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+                
+        if expDay != '2':            
+            idx_c += 1
+
+    return statsDay, statsBlock, statsBlock_day2
+
+#%%
+# Test for subj 11
+#statsDay11, statsBlock11, statsBlock_day211 = computeStatsBlocks('11')
+#statsDay, statsBlock, statsBlock_day2 = computeStatsBlocks('07')
+
+sub_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+
+statsAll = {}
+
+for idx,subjID in enumerate(sub_all):
+    statsDay, statsBlock, statsBlock_day2 = computeStatsBlocks(subjID)
+    
+    statsAll[subjID] = statsBlock
+
+# Mean response time per block, day 2
+plt.plot(statsBlock_day2[:,3])
+
+# Mean response time per block, day 1 and 3
+plt.plot(statsBlock[0,:,3])
+plt.plot(statsBlock[1,:,3])
+
+# Sensitivity across blocks
+plt.plot(statsBlock[0,:,0])
+plt.plot(statsBlock[1,:,0])
+
+# Accuracy across blocks
+plt.plot(statsBlock[0,:,2])
+plt.plot(statsBlock[1,:,2])
+
+
+#%% 
+subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
+subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
+            
+def extractBehVal(day,wanted_measure):
+    '''
+    Day is 
+    1=0
+    3=1
+    
+    for statsBlock
+    
+    and wanted_measure is 
+    0 = sens
+    1 = spec
+    2 = acc
+    3 = RT mean
+    4 = nNaN
+    
+    '''
+    
+    if day == 1:
+        day_idx = 0
+    if day == 3:
+        day_idx = 1
+        
+    if wanted_measure == 'sen':
+        w_idx = 0
+    if wanted_measure == 'spec':
+        w_idx = 1
+    if wanted_measure == 'acc':
+        w_idx = 2
+    if wanted_measure == 'rt':
+        w_idx = 3
+    if wanted_measure == 'nan':
+        w_idx = 4
+    
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in statsAll.items():
+        result = value[day_idx,:,w_idx]
+        print(result.shape)
+        subsAll.append(result)
+        
+        if key in subjIDs_NF:
+            subsNF.append(result)
+        if key in subjIDs_C:
+            subsC.append(result) 
+    
+    return subsAll, subsNF, subsC
+
+
+#%% Plot sensitivity block-wise, with individual lines for subjects, day1
+subsAll, subsNF, subsC = extractBehVal(1,'sen')
+
+colorC = sns.color_palette("Blues",11)
+colorNF = sns.color_palette("Reds",11)
+
+# Plot NF subjects
+plt.figure(20)
+for j in range(len(subsNF)):
+    plt.plot(subsNF[j],color=colorNF[j])
+# Plot C subjects
+for i in range(len(subsC)):
+    plt.plot(subsC[i],color=colorC[i])
+    
+plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black')
+plt.title('Sensitivity across blocks, all participants, day 1')
+plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
+plt.xlabel('Block number, day 1')
+plt.ylabel('Sensitivity')
+plt.legend()
+
+#%% sensitivity block-wise, with individual lines for subjects, day3
+subsAll, subsNF, subsC = extractBehVal(3,'sen')
+
+colorC = sns.color_palette("Blues",11)
+colorNF = sns.color_palette("Reds",11)
+
+# Plot NF subjects
+plt.figure(21)
+for j in range(len(subsNF)):
+    plt.plot(subsNF[j],color=colorNF[j])
+# Plot C subjects
+for i in range(len(subsC)):
+    plt.plot(subsC[i],color=colorC[i])
+    
+plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black')
+plt.title('Sensitivity across blocks, all participants, day 3')
+plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
+plt.xlabel('Block number, day 3')
+plt.ylabel('Sensitivity')
+plt.legend()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -25,8 +25,9 @@ from matplotlib import pyplot as plt
 import collections
 import pickle
 from responseTime_func import * 
+from scipy import stats
 
-subjID = '07'
+subjID = '34'
 
 # Initialize dict
 d = {}
