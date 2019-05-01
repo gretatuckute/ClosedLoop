@@ -75,13 +75,18 @@ for key, value in d_all.items():
     g = list(result.values())    
     allSubs_GROUP.append(g)
     
-#%% RT pipeline 
+#%% RT pipeline # Function in next section.
+
 RT_keys = ('RT_train_acc','RT_correct_NFtest_pred','RT_test_acc_corr','RT_test_acc_corr_run','RT_scene_acc','RT_face_acc','RT_test_acc_uncorr','RT_test_acc_uncorr_run')
+
+subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
+subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
 
 #subsNF = ['7','8','26','27','30','11','13','14','16','19','22']
 #subsC = ['17','18','23','31','34','15','21','24','25','32','33']
    
-# Extract chosen keys in key, value pairs (not in random, unordered order)  
+# Extract chosen keys in key, value pairs (not in random, unordered order)
+
 subsNF_RT = []
 subsC_RT = []
 
@@ -127,9 +132,7 @@ for sub in subsC_RT:
 #        subsC_RT.append(g)
 
 #%%
-subjIDs_NF = ['07','08','11','13','14','16','19','22','26','27','30']
-subjIDs_C = ['15','17','18','21','23','24','25','31','32','33','34']
-            
+
 def extractVal(wanted_key):
     subsAll = []
     subsNF = []
@@ -160,7 +163,7 @@ def extractVal(wanted_key):
 
     return subsAll, subsNF, subsC, meanAll, meanNF, meanC
 
-
+#%%
 subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')
 subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_uncor = extractVal('RT_test_acc_uncorr')
 

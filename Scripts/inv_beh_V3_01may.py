@@ -2,7 +2,7 @@
 """
 Created on Tue Apr  2 22:12:38 2019
 
-First part is the V2 analysis (not block-wise)
+First part is the V2 analysis (not block-wise), and responses extracted at 200-1000 ms post-stimulus onset.
 
 @author: Greta
 """
@@ -18,7 +18,6 @@ os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\')
 from responseTime_func import findRTsBlocks
 import random
 
-
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
 os.chdir(saveDir)
 
@@ -27,51 +26,8 @@ plt.style.use('seaborn-pastel')
 font = {'family' : 'sans-serif',
        'weight' : 1,
        'size'   : 12}
-
-#%%
-with open('Beh_subjID_07.pkl', "rb") as fin:
-    sub07 = (pickle.load(fin))[0]   
-with open('Beh_subjID_08.pkl', "rb") as fin:
-    sub08 = (pickle.load(fin))[0]   
-with open('Beh_subjID_11.pkl', "rb") as fin:
-    sub11 = (pickle.load(fin))[0]
-with open('Beh_subjID_13.pkl', "rb") as fin:
-    sub13 = (pickle.load(fin))[0]
-with open('Beh_subjID_14.pkl', "rb") as fin:
-    sub14 = (pickle.load(fin))[0]
-with open('Beh_subjID_15.pkl', "rb") as fin:
-    sub15 = (pickle.load(fin))[0]
-with open('Beh_subjID_16.pkl', "rb") as fin:
-    sub16 = (pickle.load(fin))[0]    
-with open('Beh_subjID_17.pkl', "rb") as fin:
-    sub17 = (pickle.load(fin))[0]
-with open('Beh_subjID_18.pkl', "rb") as fin:
-    sub18 = (pickle.load(fin))[0]
-with open('Beh_subjID_19.pkl', "rb") as fin:
-    sub19 = (pickle.load(fin))[0]
-with open('Beh_subjID_21.pkl', "rb") as fin:
-    sub21 = (pickle.load(fin))[0]
-with open('Beh_subjID_22.pkl', "rb") as fin:
-    sub22 = (pickle.load(fin))[0]
-with open('Beh_subjID_23.pkl', "rb") as fin:
-    sub23 = (pickle.load(fin))[0]
-with open('Beh_subjID_25.pkl', "rb") as fin:
-    sub25 = (pickle.load(fin))[0]
-with open('Beh_subjID_27.pkl', "rb") as fin:
-    sub27 = (pickle.load(fin))[0]
-with open('Beh_subjID_30.pkl', "rb") as fin:
-    sub30 = (pickle.load(fin))[0]
-with open('Beh_subjID_31.pkl', "rb") as fin:
-    sub31 = (pickle.load(fin))[0]
-with open('Beh_subjID_32.pkl', "rb") as fin:
-    sub32 = (pickle.load(fin))[0]
-with open('Beh_subjID_33.pkl', "rb") as fin:
-    sub33 = (pickle.load(fin))[0]
-with open('Beh_subjID_34.pkl', "rb") as fin:
-    sub34 = (pickle.load(fin))[0]
     
-#%% Measures
-
+#%% Measures for V2 analysis
 def computeStats(subjID,expDay):
         
     with open('Beh_subjID_' + subjID + '.pkl', "rb") as fin:
@@ -92,7 +48,7 @@ def computeStats(subjID,expDay):
         
     return sensitivity,specificity,false_positive_rate,accuracy 
          
-#%% Analyze 4 days
+#%% Analyze 4 days, V2
 dayLst = ['1','3','4','5']
 
 f07=np.zeros((4,4))
@@ -161,8 +117,6 @@ for count,day in enumerate(dayLst):
 f34=np.zeros((4,4))
 for count,day in enumerate(dayLst):
     f34[count,:]=computeStats('34',day)
-
-
 
 #%%
 sub_fb=[f07,f08,f11,f13,f14,f16,f19,f22,f26,f27,f30]
