@@ -28,13 +28,7 @@ matplotlib.rcParams['mathtext.rm'] = 'Bitstream Vera Sans'
 matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
 matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
 matplotlib.rcParams['legend.frameon'] = True
-matplotlib.rcParams['grid.alpha'] = 0.5
-matplotlib.rcParams['figure.titlesize'] = 20 # Does not work? Change in the specific title
-matplotlib.rcParams['axes.labelsize'] = 'xx-small'
-matplotlib.rcParams['figure.autolayout'] = True
-# matplotlib.rcParams['xtick.labelsize'] = 'xx-small'
-# matplotlib.rcParams['ytick.labelsize'] = 'xx-small'
-# matplotlib.rcParams['font.size'] = 22
+matplotlib.rcParams['grid.alpha'] = 0.3
 
 #%% Variables
 
@@ -46,12 +40,6 @@ color = ['tomato']*11 + ['dodgerblue']*11
 color_uncor = ['brown']*11 + ['navy']*11
 sub_axis = subjID_NF + subjID_C
 sub_axis_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
-
-#%% Write a function that outputs evokeds
-    
-def extractEvokeds(epochsArray):
-    evokeds = [epochsArray[name].average() for name in ('scene','face')]
-    return evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
 
 #%% New pipeline: offline_analysis_FUNC, 18 April
 os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
@@ -216,8 +204,10 @@ plt.legend()
 #%% Overall per RT run accuracy, corrected
 subsAll_run, subsNF_run, subsC_run, meanAll_run, meanNF_run, meanC_run = extractVal('RT_test_acc_corr_run')
 
-cmap = plt.get_cmap('hsv')
-colors = [cmap(i) for i in np.linspace(0, 1, 22)]
+# cmap = plt.get_cmap('hsv')
+# colors = [cmap(i) for i in np.linspace(0, 1, 22)]
+
+colorAll = sns.color_palette("Set2",22)
 
 # Individual runs, mean
 run1=np.mean(np.asarray([subsAll_run[f][0] for f in range(len(subsAll_run))]))
@@ -230,8 +220,8 @@ run_means = [run1]+[run2]+[run3]+[run4]+[run5] # Reality check: Same as np.mean(
 
 plt.figure(10)
 for c,entry in enumerate(subsAll_run):
-    plt.plot(np.arange(1,6),subsAll_run[c],color=colors[c],linewidth=0.3)
-    plt.scatter(np.arange(1,6),subsAll_run[c],color=colors[c])
+    #plt.plot(np.arange(1,6),subsAll_run[c],color=colorAll[c],linewidth=0.3)
+    plt.scatter(np.arange(1,6),subsAll_run[c],color=colorAll[c])
 plt.plot(np.arange(1,6),run_means,linestyle='-',color='black',label='Mean accuracy per run',linewidth=2)
 plt.xticks(np.arange(1,6),['1','2','3','4','5']) 
 plt.xlabel('NF run number')
@@ -241,6 +231,8 @@ plt.legend()
 
 #%% Plot offline train LORO accuracies, bias corrected, stable
 subsAll_LORO, subsNF_LORO, subsC_LORO, meanAll_LORO, meanNF_LORO, meanC_LORO = extractVal('LORO_stable_acc_corr')
+
+# np.save('subsAll_LORO.npy',subsAll_LORO)
 
 plt.figure(11)
 plt.scatter(np.arange(0,len(subsNF_LORO),1),subsNF_LORO,color='tomato') # NF subjects
@@ -262,6 +254,8 @@ plt.legend()
 #%% Plot offline train LOBO accuracies, corrected, stable
 subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = extractVal('LOBO_stable_train_acc_corr')
 
+# np.save('subsAll_LOBO.npy',subsAll_LOBO)
+
 plt.figure(12)
 plt.scatter(np.arange(0,len(subsNF_LOBO),1),subsNF_LOBO,color='tomato') # NF subjects
 plt.scatter(np.arange(len(subsC_LOBO),len(subsAll_LOBO),1),subsC_LOBO,color='dodgerblue') # C subjects
@@ -273,31 +267,88 @@ NF_mean_LOBO = [meanNF_LOBO]*len(subsNF_LOBO)
 C_mean_LOBO = [meanC_LOBO]*len(subsC_LOBO)
 plt.title('Leave one block out')
 
-plt.title('Offline decoding accuracy (stable blocks)\n Leave one block out cross-validation',fontsize=13)
+plt.title('Offline decoding accuracy (stable blocks)\n Leave one block out cross-validation')
 
 plt.plot(np.arange(0,len(subsNF_LOBO)),NF_mean_LOBO, label='NF group', color='tomato')
 plt.plot(np.arange(len(subsNF_LOBO),len(subsAll_LOBO)),C_mean_LOBO, label='Control group', color='dodgerblue')
 plt.legend()
 
-#%% Extract MNE dict objects
-wanted_keys = ('MNE_RT_epochs_fb_avg','MNE_RT_epochs_fb_nonavg','MNE_stable_blocks_SSP')
+#%% ######### MNE ############
 
-# Append to list
-allSubs_scene = []
-allSubs_face = []
-
-
-for sub in allSubs_MNE:
-    stable = sub[0]
+#%% Function that outputs evokeds
+def extractMNE(wanted_key):
+    subsAll = []
+    # subsNF = []
+    # subsC = []
     
-    scene_avg, face_avg = extractEvokeds(stable)
-    allSubs_scene.append(scene_avg)
-    allSubs_face.append(face_avg)
+    for key, value in d_all.items():
+        # subsNF_result = []
+        # subsC_result = []
+        
+        for k, v in value.items():        
+            if k == wanted_key:                
+                subsAll.append(v)
+                
+                # if key in subjID_NF:
+                #     subsNF_result.append(v)
+                # if key in subjID_C:
+                #     subsC_result.append(v)
+        
+        # if len(subsNF_result) == 1:
+        #     subsNF.append(subsNF_result)
+            
+        # if len(subsC_result) == 1:
+        #     subsC.append(subsC_result)
     
-mne.viz.plot_compare_evokeds(allSubs_scene,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
-mne.viz.plot_compare_evokeds(allSubs_face,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+    # meanAll = np.mean(subsAll)
+    # meanNF = np.mean(subsNF)
+    # meanC = np.mean(subsC)
+
+    return subsAll
+
+
+def extractEvokeds(epochsArray):
+    evokeds = [epochsArray[name].average() for name in ('scene','face')]
+    return evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
+
+
+#%% Extract evoked responses (averaged)
+    
+MNEstable_all = extractMNE('MNE_stable_blocks_SSP')
+
+#%% Append scene and face evoked to lists
+
+MNEscene_all = []
+MNEface_all = []
+
+c = 0
+for sub in MNEstable_all:
+    # Crop the first 3 subjects from 110 samples to 90 samples
+    if c <= 2:
+        print(c)
+        scene_avg, face_avg = extractEvokeds(sub)
+        scene_avg.crop(tmin=-0.1,tmax=0.79)
+        face_avg.crop(tmin=-0.1,tmax=0.79)
+        MNEscene_all.append(scene_avg)
+        MNEface_all.append(face_avg)
+        c += 1
+    else:
+        print(c)
+        scene_avg, face_avg = extractEvokeds(sub)
+        MNEscene_all.append(scene_avg)
+        MNEface_all.append(face_avg)
+        c += 1
+    
+
+    
+mne.viz.plot_compare_evokeds(MNEscene_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+mne.viz.plot_compare_evokeds(MNEface_all,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
 
 # If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
+
+# Only one sub
+MNEstable_all[0]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
+MNEstable_all[0]['scene'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 
 
 from mne.decoding import (SlidingEstimator, GeneralizingEstimator, Scaler,

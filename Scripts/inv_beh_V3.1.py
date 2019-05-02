@@ -410,212 +410,165 @@ subsAll_RT_acc = np.load('subsAll_RT_acc.npy')
 subsAll_c = np.copy(subsAll_RT_acc) # From EEG inv 18April
 subsAll_c = np.delete(subsAll_c, 2)
 
+# Sensitivity
 plt.scatter(subsAll_c,sen_all_d2_c)
 plt.ylabel('Sensitivity day 2')
-plt.xlabel('Real time decoding accuracy, bias corrected')
-plt.title('Sensitivity day 2 vs. RT decoding accuracy, N=21')
+plt.xlabel('Real-time decoding accuracy (NF blocks)')
+plt.title('Sensitivity day 2 vs. real-time decoding accuracy, N=21')
 
+np.corrcoef(sen_all_d2_c,subsAll_c)
+stats.linregress(sen_all_d2_c,subsAll_c)
+
+# Accuracy
 plt.scatter(subsAll_c,acc_all_d2_c)
 plt.ylabel('Accuracy day 2')
-plt.xlabel('Real time decoding accuracy, bias corrected')
-plt.title('Accuracy day 2 vs. RT decoding accuracy, N=21')
+plt.xlabel('Real-time decoding accuracy (NF blocks)')
+plt.title('Accuracy day 2 vs. real-time decoding accuracy, N=21')
+
+stats.linregress(acc_all_d2_c,subsAll_c)
 
 # Plot RT vs decoding acc
 plt.scatter(subsAll_c,rt_all_d2_c)
 plt.ylabel('Response time day 2')
-plt.xlabel('Real time decoding accuracy, bias corrected')
-plt.title('Response time day 2 vs. RT decoding accuracy, N=21')
+plt.xlabel('Real-time decoding accuracy, bias corrected')
+plt.title('Response time day 2 vs. real-time decoding accuracy, N=21')
 
-stats.linregress(acc_all_d2_c,subsAll_c)
+stats.linregress(rt_all_d2_c,subsAll_c)
+np.corrcoef(rt_all_d2_c,subsAll_c)
 
+#%% Is good decoding accuracy STABLE blocks correlated with a good day 1 behavioral response?
 
+sen_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'sen')
+acc_all_d1, acc_NF_d1, acc_C_d1 = extractStatsDay(1,'acc')
 
+# Sensitivity day 1 vs. day2 accuracy
+plt.scatter(subsAll_RT_acc,sen_all_d1)
+plt.ylabel('Sensitivity day 2')
+plt.xlabel('Real-time decoding accuracy (NF blocks)')
+plt.title('Sensitivity day 1 vs. real-time decoding accuracy, N=22')
 
-np.corrcoef(sen_all_d2_c,subsAll_c)
+np.corrcoef(sen_all_d1,subsAll_RT_acc)
 
-stats.linregress(sen_all_d2_c,subsAll_c)
+# LOBO
+subsAll_LOBO = np.load('subsAll_LOBO.npy')
 
-np.corrcoef(acc_all_d2_c,subsAll_c)
+# Sensitivity day 1 vs LOBO accuracy day 2
+plt.scatter(subsAll_LOBO,sen_all_d1)
+np.corrcoef(subsAll_LOBO,sen_all_d1)
 
-#%% Plot sensitivity block-wise, with individual lines for subjects, day1
-subsAll, subsNF, subsC = extractStatsBlock(1,'sen')
+# Accuracy
+np.corrcoef(subsAll_LOBO,acc_all_d1)
 
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
+# Only NF
+np.corrcoef(np.asarray(subsNF_LOBO).flatten(),np.asarray(sen_NF_d1))
+stats.linregress(np.asarray(subsNF_LOBO).flatten(),sen_NF_d1)
 
-# Plot NF subjects
-plt.figure(20)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
+# LORO
+np.corrcoef(subsAll_LORO,acc_all_d1)
+
+# Somewhere here: check whether good decoding acc corresponds with good day 1 to 3 improvement
+
+#%% ########## BLOCK-WISE ANALYSIS #############
+
+def behBlock(day,wanted_measure,title,ylabel):
+    all_d, NF_d, C_d = extractStatsBlock(day,wanted_measure)
+
+    colorC = sns.color_palette("Blues",11)
+    colorNF = sns.color_palette("Reds",11)
     
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
+    # Plot NF subjects
+    plt.figure(random.randint(0,100))
+    for j in range(len(NF_d)):
+        plt.plot(NF_d[j],color=colorNF[j],linewidth=0.8)
+        
+    plt.plot(np.mean(NF_d,axis=0),label='Mean NF group',color='red',linewidth=2.0)
     
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
-
+    # Plot C subjects
+    for i in range(len(C_d)):
+        plt.plot(C_d[i],color=colorC[i],linewidth=0.8)
+        
+    plt.plot(np.mean(C_d,axis=0),label='Mean control group',color='blue',linewidth=2.0)
     
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Sensitivity across blocks, all participants, day 1')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 1')
-plt.ylabel('Sensitivity')
-plt.legend()
+    plt.plot(np.mean(all_d,axis=0),label='Mean all participants',color='black',linewidth=2.0)
+    plt.title(title)
+    plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
+    plt.xlabel('Block number, day '+str(day))
+    plt.ylabel(ylabel)
+    plt.legend()
 
-#%% sensitivity block-wise, with individual lines for subjects, day3
-subsAll, subsNF, subsC = extractStatsBlock(3,'sen')
+#%% 
+behBlock(1,'sen','Sensitivity across blocks, all participants, day 1','Sensitivity')
+behBlock(3,'sen','Sensitivity across blocks, all participants, day 3','Sensitivity')
 
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
+behBlock(1,'spec','Specificity across blocks, all participants, day 1','Specificity')
+behBlock(3,'spec','Specificity across blocks, all participants, day 3','Specificity')
 
-# Plot NF subjects
-plt.figure(21)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
+behBlock(1,'acc','Accuracy across blocks, all participants, day 1','Accuracy')
+behBlock(3,'acc','Accuracy across blocks, all participants, day 3','Accuracy')
+
+behBlock(1,'rt','Response time across blocks, all participants, day 1','Response time (ms)')
+behBlock(3,'rt','Response time across blocks, all participants, day 3','Response time (ms)')
+
+#%% Output responseTimes
+def outputResponseTimes(subjID,expDay):
+    '''Outputs responseTimes for a chosen day
+    '''
+    with open('BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
     
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
+    responseTimes = sub['responseTimes_day'+expDay]
     
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
+    return responseTimes
 
+
+#%%
+responseTimes_all = []
+
+# Extract responseTimes for all subjects
+for idx,subjID in enumerate(subjID_all):
+    responseTimes = outputResponseTimes(subjID,'1')
+    responseTimes_all.append(responseTimes)
+        
+responseTimes_m = np.nanmean(responseTimes_all,axis=0)
+
+plt.plot(responseTimes_m)
+
+#%% ResponseTimes plot
+
+def plotResponseTimes(expDay):
+    responseTimes_all = []
+
+    # Extract responseTimes for all subjects
+    for idx,subjID in enumerate(subjID_all):
+        if subjID == '11' and expDay == '2':
+            pass
+        else:
+            responseTimes = outputResponseTimes(subjID,expDay)
+            responseTimes_all.append(responseTimes)
     
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Sensitivity across blocks, all participants, day 3')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 3')
-plt.ylabel('Sensitivity')
-plt.legend()
-
-#%% spec block-wise, with individual lines for subjects, day1
-subsAll, subsNF, subsC = extractStatsBlock(1,'spec')
-
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
-
-# Plot NF subjects
-plt.figure(23)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
+    plt.figure(random.randint(0,100))
+    colorAll = sns.color_palette("Set2",22)
+    plt.title('Response times for all participants N=22, day '+str(expDay))
     
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
+    if expDay != '2':
+        plt.xticks(np.arange(0,850,50),[str(item) for item in np.arange(0,850,50)])
+    else:
+        plt.xticks(np.arange(0,2450,50),[str(item) for item in np.arange(0,2450,50)],rotation=40)
+        
+    plt.xlabel('Trial number')
+    plt.ylabel('Response time (ms)')
     
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
-
-    
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Specificity across blocks, all participants, day 1')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 1')
-plt.ylabel('Specificity')
-plt.legend()
+    for j in range(len(responseTimes_all)):
+        plt.plot(responseTimes_all[j],color=colorAll[j],linewidth=0.3)
+        
+    plt.plot(np.nanmean(responseTimes_all,axis=0),label='Mean response time, all participants, N=22',color='black',linewidth=2.0)
+    plt.legend()
 
 
-#%% spec block-wise, with individual lines for subjects, day3
-subsAll, subsNF, subsC = extractStatsBlock(3,'spec')
+#%% 
+plotResponseTimes('1')
+plotResponseTimes('3')
 
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
+plotResponseTimes('2')
 
-# Plot NF subjects
-plt.figure(24)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
-    
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
-    
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
-
-    
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Specificity across blocks, all participants, day 3')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 3')
-plt.ylabel('Specificity')
-plt.legend()
-
-
-#%% acc block-wise, with individual lines for subjects, day1
-subsAll, subsNF, subsC = extractStatsBlock(1,'acc')
-
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
-
-# Plot NF subjects
-plt.figure(23)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
-    
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
-    
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
-
-    
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Accuracy across blocks, all participants, day 1')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 1')
-plt.ylabel('Accuracy')
-plt.legend()
-
-#%% acc block-wise, with individual lines for subjects, day1
-subsAll, subsNF, subsC = extractStatsBlock(3,'acc')
-
-colorC = sns.color_palette("Blues",11)
-colorNF = sns.color_palette("Reds",11)
-
-# Plot NF subjects
-plt.figure(23)
-for j in range(len(subsNF)):
-    plt.plot(subsNF[j],color=colorNF[j],linewidth=0.8)
-    
-plt.plot(np.mean(subsNF,axis=0),label='Mean NF group',color='red',linewidth=2.0)
-
-# Plot C subjects
-for i in range(len(subsC)):
-    plt.plot(subsC[i],color=colorC[i],linewidth=0.8)
-    
-plt.plot(np.mean(subsC,axis=0),label='Mean control group',color='blue',linewidth=2.0)
-
-    
-plt.plot(np.mean(subsAll,axis=0),label='Mean all participants',color='black',linewidth=2.0)
-plt.title('Accuracy across blocks, all participants, day 3')
-plt.xticks(np.arange(0,16),[str(item) for item in np.arange(1,17)])
-plt.xlabel('Block number, day 3')
-plt.ylabel('Accuracy')
-plt.legend()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#%%
