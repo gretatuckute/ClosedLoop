@@ -571,4 +571,88 @@ plotResponseTimes('3')
 
 plotResponseTimes('2')
 
+#%% Make matched pairs
+# NF mentioned first
+
+# [7,17], [8,18], [27,23], [26,34], [30,31]
+# [11,15], [13,24], [14,21], [16,33], [22,32], [19,25]
+
+# Extract values for day 1 and 3
+sen_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'sen')
+sen_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'sen')
+
+diff_sen = np.asarray(sen_all_d3) - np.asarray(sen_all_d1)
+
+
+
+subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+
+# Rearrange to I can make paired test
+
+NF_group = ['07','08','11','13','14','16','19','22','26','27','30']
+
+C_group = ['17','18','15','24','21','33','25','32','34','23','31']
+
+NF_group_match = []
+C_group_match = []
+
+for idx,subjID in enumerate(subjID_all):
+    if subjID in NF_group:
+        NF_group_match.append(diff_sen[idx])
+    else:
+        C_group_match.append(diff_sen[idx])
+        
+
+stats.ttest_rel(NF_group_match,C_group_match)   
+
+plt.figure(100)
+plt.bar(1,np.mean(NF_group_match),color=(0,0,0,0),edgecolor='tomato')
+plt.bar(2,np.mean(C_group_match),color=(0,0,0,0),edgecolor='dodgerblue')
+
+plt.scatter(np.full(11,1),NF_group_match,color='tomato')
+plt.scatter(np.full(11,2),C_group_match,color='dodgerblue')
+
+for i in range(11):
+    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF_group_match)[i],(C_group_match)[i]],color='gray')
+
+
+
 #%%
+# Extract values for day 1 and 3
+rt_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'rt')
+rt_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'rt')
+
+diff_rt = np.asarray(rt_all_d3) - np.asarray(rt_all_d1)
+
+
+
+# Rearrange to I can make paired test
+
+NF_group_match2 = []
+C_group_match2 = []
+
+for idx,subjID in enumerate(subjID_all):
+    if subjID in NF_group:
+        NF_group_match2.append(diff_rt[idx])
+    else:
+        C_group_match2.append(diff_rt[idx])
+        
+
+stats.ttest_rel(NF_group_match2,C_group_match2)  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

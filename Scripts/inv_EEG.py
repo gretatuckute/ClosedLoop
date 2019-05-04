@@ -309,7 +309,7 @@ def extractMNE(wanted_key):
 
 def extractEvokeds(epochsArray):
     evokeds = [epochsArray[name].average() for name in ('scene','face')]
-    return evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
+    return evokeds, evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
 
 
 #%% Extract evoked responses (averaged)
@@ -317,122 +317,111 @@ def extractEvokeds(epochsArray):
 MNEstable_all = extractMNE('MNE_stable_blocks_SSP')
 
 #%% Append scene and face evoked to lists
-
 MNEscene_all = []
 MNEface_all = []
+MNEevoked_all = []
 
 c = 0
 for sub in MNEstable_all:
     # Crop the first 3 subjects from 110 samples to 90 samples
     if c <= 2:
         print(c)
-        scene_avg, face_avg = extractEvokeds(sub)
+        evokeds, scene_avg, face_avg = extractEvokeds(sub)
         scene_avg.crop(tmin=-0.1,tmax=0.79)
         face_avg.crop(tmin=-0.1,tmax=0.79)
         MNEscene_all.append(scene_avg)
         MNEface_all.append(face_avg)
+        MNEevoked_all.append(evokeds)
         c += 1
     else:
         print(c)
-        scene_avg, face_avg = extractEvokeds(sub)
+        evokeds, scene_avg, face_avg = extractEvokeds(sub)
         MNEscene_all.append(scene_avg)
         MNEface_all.append(face_avg)
+        MNEevoked_all.append(evokeds)
         c += 1
     
-
-    
-mne.viz.plot_compare_evokeds(MNEscene_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
-mne.viz.plot_compare_evokeds(MNEface_all,picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
-
-# If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
-
-# Only one sub
+#%% 
+# Plotting evoked responses for 1 subject, individually
 MNEstable_all[0]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 MNEstable_all[0]['scene'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 
+mne.viz.plot_compare_evokeds(MNEscene_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+mne.viz.plot_compare_evokeds(MNEface_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
 
-from mne.decoding import (SlidingEstimator, GeneralizingEstimator, Scaler,
-                          cross_val_multiscore, LinearModel, get_coef,
-                          Vectorizer, CSP, PSDEstimator)
+# If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
+
+# from mne.decoding import Scaler
+# scale_test=Scaler(scalings='mean').fit_transform(MNEstable_all[0][2].get_data())
 
 
-scale_test=Scaler(scalings='mean').fit_transform(allSubs_MNE[0][2].get_data())
+#%% 
+colorAll = sns.color_palette("Set2",44)
 
-
-
-# What is going on w. sub 15    
-# allSubs_MNE[2][2]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
-
-#%%
-# Plot showing where the correct predictions are located pr. run.
-
-n_it=5
-
-pred_run = np.reshape(sub13n['RT_correct_NFtest_pred'],[n_it,200])
-
-for run in range(n_it):
-    plt.figure(run)
-    plt.bar(np.arange(200),pred_run[run,:])
-    
-    
-#%% Plot based on categories
-allSubs_MNE[0][0]['face'].average().plot(spatial_colors=True, time_unit='s')#,picks=[7])
-allSubs_MNE[0][0]['scene'].average().plot(spatial_colors=True, time_unit='s')
-
-# Plot of the SSP projectors
-allSubs_MNE[0][0].average().plot_projs_topomap()
+# Plot of the SSP projectors, 1 subject
+MNEstable_all[0].average().plot_projs_topomap()
 # Consider adding p_variance values to the plot.
 
 # Plot the topomap of the power spectral density across epochs.
-stable_blocksSSP_plot.plot_psd_topomap(proj=True)
+MNEstable_all[0].plot_psd_topomap(proj=True)
 
-stable_blocksSSP_plot['face'].plot_psd_topomap(proj=True)
-stable_blocksSSP_plot['scene'].plot_psd_topomap(proj=True)
+# Category-wise
+MNEstable_all[0]['face'].plot_psd_topomap(proj=True)
+MNEstable_all[0]['scene'].plot_psd_topomap(proj=True)
 
 # Plot topomap (possibiity of adding specific times)
-allSubs_MNE[0][0].average().plot_topomap(proj=True)
-allSubs_MNE[0][0].average().plot_topomap(proj=True,times=np.linspace(0.05, 0.15, 5))
+MNEstable_all[0].average().plot_topomap(proj=True,times=np.linspace(0.05, 0.15, 5))
 
-# Plot joint topomap and evoked ERP
-allSubs_MNE[0][0].average().plot_joint()
+# Grand averaging
+MNEevoked_scene = mne.grand_average(MNEscene_all)
+MNEevoked_face = mne.grand_average(MNEface_all)
+
+MNEevoked_scene.plot_joint()
+MNEevoked_face.plot_joint()
 
 # If manually adding a sensor plot
-stable_blocksSSP_plot.plot_sensors(show_names=True)
+MNEevoked_scene.plot_sensors(show_names=True)
 
-# Noise covariance plot - not really sure what to make of this (yet)
-noise_cov = mne.compute_covariance(stable_blocksSSP_plot)
-fig = mne.viz.plot_cov(noise_cov, stable_blocksSSP_plot.info) 
-
-# Generate list of evoked objects from condition names
-evokeds = [allSubs_MNE[0][0][name].average() for name in ('scene','face')]
-
+# Evokeds based on conditions
 colors = 'blue', 'red'
 title = 'Subject \nscene vs face'
 
-# Plot evoked across all channels, comparing two categories
-mne.viz.plot_evoked_topo(evokeds, color=colors, title=title, background_color='w')
+# Plot evoked across all channels, comparing two categories, 1 subject
+mne.viz.plot_evoked_topo(MNEevoked_all[17], title=title, background_color='w') # color=colors
 
 # Compare two categories
-mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap=None,colors=['b','r'])#,ci=True)
+mne.viz.plot_compare_evokeds(MNEevoked_all,title=title,show_sensors=True,cmap=None,colors=['b','r'])#,ci=True)
 # When multiple channels are passed, this function combines them all, to get one time course for each condition. 
 
-mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,ci=True,picks=[7],colors=['b','r'])
-
-# Make animation
-fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 100),butterfly=True)
-# Save animation
-fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 50),frame_rate=10,blit=False)
-anim.save('Brainmation.gif', writer='imagemagick', fps=10)
+# For each subject separately, no CI
+mne.viz.plot_compare_evokeds(MNEevoked_all[17],title=title,show_sensors=True,ci=True,picks=[7],colors=['b','r'])
 
 
-# Sort epochs based on categories
-sorted_epochsarray = [allSubs_MNE[0][0][name] for name in ('scene','face')]
+#%% Evoked responses across all participants with CI 95% bootstrapped confidence interval, based on categories
 
-# Plot image
-stable_blocksSSP_plot.plot_image()
+# Create dict where with key "Scene" for all participants' evoked responses to scenes.
+e_dict = {}
+e_dict['Scene'] = [item[0] for item in MNEevoked_all]
+e_dict['Face'] = [item[1] for item in MNEevoked_all]
+
+mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
+                             truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
+                             show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
+
+#%% Sort epochs based on categories
+
+MNEepochs_all = []
+for idx,subj in enumerate(MNEstable_all):
+    sorted_epochsarray = [MNEstable_all[idx][name] for name in ('scene','face')]
+    MNEepochs_all.append(sorted_epochsarray)
+
+
+#%% ??
+
+sorted_epochsarray = [MNEstable_all[0][name] for name in ('scene','face')]
 
 # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) 
-g2 = allSubs_MNE[0][0].get_data()
+g2 = MNEstable_all[0][0].get_data()
 evoked_array = [mne.EvokedArray(entry, info_fs100,tmin=-0.1) for entry in g2]
 
 # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) - category info added as comments
@@ -453,7 +442,6 @@ evoked_array2[0].plot(picks=[7])
 
 
 
-
 # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
 evoked_array_c0 = []
 evoked_array_c1 = []
@@ -468,8 +456,35 @@ for idx,cat in enumerate(events_list):
 e_dict={}
 e_dict['0'] = evoked_array_c0
 e_dict['1'] = evoked_array_c1
-# Could create these e_dicts for several people, and plot the means. Or create an e_dict with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
+# Could create these e_dicts for several people, and plot the means. Or create an e_dict
+# with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
 
 
-mne.viz.plot_compare_evokeds(e_dict,ci=0.4,picks=[7],colors=['b','r'])#,title=title,show_sensors=True,cmap='viridis',ci=True)
-mne.viz.plot_compare_evokeds(e_dict,ci=0.8,picks=[7],colors=['b','r'])#,title=title,show_sensors=True,cmap='viridis',ci=True)
+#%% Scene vs face ERP (evoked grand average), meaned across all participants
+
+# Compare mean of evoked response across all participants. Comparing categories.
+e_dict = {}
+e_dict['Scene'] = MNEevoked_scene # Grand averages
+e_dict['Face'] = MNEevoked_face
+
+mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
+                             truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
+                             show_sensors=True,show_legend=True,truncate_yaxis=False) #cmap='viridis'
+
+
+#%% Currently not relevant
+
+# Plot image
+MNEstable_all[0].plot_image()
+
+
+# Noise covariance plot - not really sure what to make of this (yet)
+# noise_cov = mne.compute_covariance(stable_blocksSSP_plot)
+# fig = mne.viz.plot_cov(noise_cov, stable_blocksSSP_plot.info) 
+
+#%%
+# Make animation
+fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 100),butterfly=True)
+# Save animation
+fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 50),frame_rate=10,blit=False)
+anim.save('Brainmation.gif', writer='imagemagick', fps=10)
