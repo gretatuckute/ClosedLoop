@@ -63,7 +63,7 @@ for day in ['1','2','3','4','5']:
     
     d['TOTAL_keypress_day'+str(expDay)] = nKeypress
     
-    responseTimes,pairs = matchTimes(stimuliTimes, keypressTimes, 0.15, 1.15)
+    responseTimes,pairs = matchTimes(stimuliTimes, keypressTimes, 0.15, 1)
     
     d['responseTimes_day'+str(expDay)] = responseTimes
     
@@ -128,7 +128,7 @@ for day in ['1','2','3','4','5']:
     if expDay == '5':
         pkl_arr = [d]
     
-        saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
+        saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_150_1000\\'
         os.chdir(saveDir)
     
     # PICKLE TIME

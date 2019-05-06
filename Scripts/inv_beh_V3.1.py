@@ -16,11 +16,13 @@ import statistics
 import numpy as np
 from scipy import stats
 import seaborn as sns
-os.chdir('C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\')
+scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
+os.chdir(scriptsDir)
 from responseTime_func import findRTsBlocks
 import random
-
+from sklearn.linear_model import LinearRegression
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
+# saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_150_1000\\'
 os.chdir(saveDir)
 
 plt.style.use('seaborn-pastel')
@@ -129,9 +131,9 @@ def computeStats(subjID):
     with open('BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
         sub = (pickle.load(fin))[0]
     
-    statsDay = np.zeros((5,8))
-    statsBlock = np.zeros((4,16,5))
-    statsBlock_day2 = np.zeros((48,5))
+    statsDay = np.zeros((5,9))
+    statsBlock = np.zeros((4,16,6))
+    statsBlock_day2 = np.zeros((48,6))
     
     idx_c = 0
     
@@ -160,11 +162,11 @@ def computeStats(subjID):
         
         sensitivity = TP/(TP+FN)
         specificity = TN/(TN+FP)
-        
+        FPR = FP/(FP+TN)
         accuracy = (TP+TN)/(TP+TN+FP+FN)
 #        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
         
-        statsDay[idx,:] = sensitivity, specificity, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
+        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
 
         # Block-wise
         for block in range(1,int(len(responseTimes)/50)+1):
@@ -177,14 +179,14 @@ def computeStats(subjID):
             
             sensitivity = TP/(TP+FN)
             specificity = TN/(TN+FP)
-            
+            FPR = FP/(FP+TN)
             accuracy = (TP+TN)/(TP+TN+FP+FN)
             
             if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
         
             if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, accuracy, RT_mean, nNaN
+                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
                 
         if expDay != '2':            
             idx_c += 1
@@ -207,25 +209,11 @@ for idx,subjID in enumerate(subjID_all):
 #%% Functions for extracting stats values from statsDay_all, statsBlock_all and statsBlockDay2_all
     
 def extractStatsDay(day_idx,wanted_measure):
-    #sensitivity, specificity, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
+    #sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
     day_idx = day_idx-1
     
-    if wanted_measure == 'sen':
-        w_idx = 0
-    if wanted_measure == 'spec':
-        w_idx = 1
-    if wanted_measure == 'acc':
-        w_idx = 2
-    if wanted_measure == 'rt_lure':
-        w_idx = 3
-    if wanted_measure == 'rt_nlure':
-        w_idx = 4
-    if wanted_measure == 'rt':
-        w_idx = 5
-    if wanted_measure == 'nkeypress':
-        w_idx = 6
-    if wanted_measure == 'nan':
-        w_idx = 7
+    wanted_measure_lst = ['sen','spec','fpr','acc','rt_lure','rt_nlure','rt','nkeypress','nan']
+    w_idx = wanted_measure_lst.index(wanted_measure)
     
     subsAll = []
     subsNF = []
@@ -257,18 +245,10 @@ def extractStatsBlock(day,wanted_measure):
         day_idx = 2
     if day == 5:
         day_idx = 3
-        
-    if wanted_measure == 'sen':
-        w_idx = 0
-    if wanted_measure == 'spec':
-        w_idx = 1
-    if wanted_measure == 'acc':
-        w_idx = 2
-    if wanted_measure == 'rt':
-        w_idx = 3
-    if wanted_measure == 'nan':
-        w_idx = 4
     
+    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
+    w_idx = wanted_measure_lst.index(wanted_measure)
+   
     subsAll = []
     subsNF = []
     subsC = []
@@ -286,20 +266,29 @@ def extractStatsBlock(day,wanted_measure):
     return subsAll, subsNF, subsC
 
 #%% 
-def make4Bars(wanted_measure,title,ylabel):
+def make4Bars(wanted_measure,title,ylabel,part2=False):
     '''
     Comparing day 1 and 3, NF and controls, using the statsDay_all structure and extract function.
     
     Connected lines bar plot.
     '''
-    
-    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
-    all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
-    
-    print('NF mean day 1: ',round(np.mean(NF_d1),3))
-    print('NF mean day 3: ',round(np.mean(NF_d3),3))
-    print('C mean day 1: ',round(np.mean(C_d1),3))
-    print('C mean day 3: ',round(np.mean(C_d3),3))
+    if part2 == True:
+        all_d1, NF_d1, C_d1 = extractStatsDay(4,wanted_measure)
+        all_d3, NF_d3, C_d3 = extractStatsDay(5,wanted_measure)
+        
+        print('NF mean day 1, part 2: ',round(np.mean(NF_d1),3))
+        print('NF mean day 3, part 2: ',round(np.mean(NF_d3),3))
+        print('C mean day 1, part 2: ',round(np.mean(C_d1),3))
+        print('C mean day 3, part2: ',round(np.mean(C_d3),3))
+        
+    else:        
+        all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+        all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
+        
+        print('NF mean day 1: ',round(np.mean(NF_d1),3))
+        print('NF mean day 3: ',round(np.mean(NF_d3),3))
+        print('C mean day 1: ',round(np.mean(C_d1),3))
+        print('C mean day 3: ',round(np.mean(C_d3),3))
     
     y_min = np.min([np.min(all_d1),np.min(all_d3)])
     y_max = np.max([np.max(all_d1),np.max(all_d3)])
@@ -313,7 +302,13 @@ def make4Bars(wanted_measure,title,ylabel):
         
     else:
         plt.ylim([y_min-0.01,y_max+0.01])
-    plt.xticks([1,2,3,4],['NF day 1','NF day 3', 'Control day 1', 'Control day 3'])
+    
+    if part2 == True:
+        plt.xticks([1,2,3,4],['NF day 1, part 2','NF day 3, part 2', 'Control day 1, part 2', 'Control day 3, part 2'])
+        
+    if part2 == False:
+        plt.xticks([1,2,3,4],['NF day 1','NF day 3', 'Control day 1', 'Control day 3'])
+        
     plt.title(title)
     
     plt.bar(1,np.mean(NF_d1),color=(0,0,0,0),edgecolor='tomato')
@@ -332,11 +327,19 @@ def make4Bars(wanted_measure,title,ylabel):
         
     t_fb = stats.ttest_rel(NF_d1,NF_d3)
     t_c = stats.ttest_rel(C_d1,C_d3)
+    t_baseline = stats.ttest_ind(NF_d1,C_d1)
     
-    print('P-value between day 1 and 3, NF: ', round(t_fb[1],3))
-    print('P-value between day 1 and 3, C: ', round(t_c[1],3))
-
-    return plt, t_fb, t_c
+    if part2 == True:
+        print('P-value between day 1 and 3, part 2, NF: ', round(t_fb[1],3))
+        print('P-value between day 1 and 3, part 2, control: ', round(t_c[1],3))
+        print('P-value between NF and control group day 1 (baseline), part 2: ', round(t_baseline[1],3))
+    
+    if part2 == False:
+        print('P-value between day 1 and 3, NF: ', round(t_fb[1],3))
+        print('P-value between day 1 and 3, control: ', round(t_c[1],3))
+        print('P-value between NF and control group day 1 (baseline): ', round(t_baseline[1],3))
+    
+    return plt, t_fb, t_c, all_d1
 
 def make2Bars(wanted_measure,title,ylabel):
     '''
@@ -374,19 +377,27 @@ def make2Bars(wanted_measure,title,ylabel):
     return plt, t, all_d2
 
 #%% # Plots comparing day 1 and 3
-pl, t_fb, t_c = make4Bars('sen','Sensitivity','Response sensitivity')
-pl, t_fb, t_c = make4Bars('spec','Specificity','Response specificity')
-pl, t_fb, t_c = make4Bars('acc','Accuracy','Response accuracy')
+pl, t_fb, t_c, all_d1 = make4Bars('sen','Sensitivity','Response sensitivity')
+pl, t_fb, t_c, all_d1 = make4Bars('spec','Specificity','Response specificity')
+pl, t_fb, t_c, all_d1 = make4Bars('fpr','FPR','False positive rate')
+pl, t_fb, t_c, all_d1 = make4Bars('acc','Accuracy','Response accuracy')
 
-pl, t_fb, t_c = make4Bars('rt','Overall response time','Response time (s)')
+pl, t_fb, t_c, all_d1 = make4Bars('rt','Overall response time','Response time (s)')
 pl, t_fb, t_c = make4Bars('rt_lure','Response time for lures','Response time (s)')
 pl, t_fb, t_c = make4Bars('rt_nlure','Response time for non lures','Response time (s)')
 pl, t_fb, t_c = make4Bars('nkeypress','Number of total keypresses','Number keypresses')
 pl, t_fb, t_c = make4Bars('nan','Number of total NaNs','Number ') # Not saved
 
+#%% Compare day 4 and 5
+pl, t_fb, t_c, all_d1 = make4Bars('sen','Sensitivity','Response sensitivity',part2=True)
+pl, t_fb, t_c, all_d1 = make4Bars('acc','Accuracy','Response accuracy',part2=True)
+pl, t_fb, t_c, all_d1 = make4Bars('rt','Response time','Response time ',part2=True)
+
+
 #%%  Investigate day 2, using make2Bars and StatsDayAll (NOT block-wise)
 pl, t, sen_all_d2 = make2Bars('sen','Sensitivity day 2','Sensitivity') 
 pl, t, acc_all_d2 = make2Bars('acc','Accuracy day 2','Accuracy') 
+pl, t, fpr_all_d2 = make2Bars('fpr','FPR day 2','FPR') 
 pl, t, rt_all_d2 = make2Bars('rt','RT day 2','RT') 
 pl, t, nkeypress_all_d2 = make2Bars('nkeypress','Number of total keypresses','Number keypresses') 
 
@@ -406,7 +417,7 @@ rt_all_d2_c = np.copy(rt_all_d2)
 rt_all_d2_c = rt_all_d2_c[~np.isnan(rt_all_d2_c)]
 
 # Load RT accuracy np array
-subsAll_RT_acc = np.load('subsAll_RT_acc.npy')
+subsAll_RT_acc = np.load(scriptsDir+'subsAll_RT_acc.npy')
 subsAll_c = np.copy(subsAll_RT_acc) # From EEG inv 18April
 subsAll_c = np.delete(subsAll_c, 2)
 
@@ -450,7 +461,7 @@ plt.title('Sensitivity day 1 vs. real-time decoding accuracy, N=22')
 np.corrcoef(sen_all_d1,subsAll_RT_acc)
 
 # LOBO
-subsAll_LOBO = np.load('subsAll_LOBO.npy')
+subsAll_LOBO = np.load(scriptsDir+'subsAll_LOBO.npy')
 
 # Sensitivity day 1 vs LOBO accuracy day 2
 plt.scatter(subsAll_LOBO,sen_all_d1)
@@ -466,7 +477,37 @@ stats.linregress(np.asarray(subsNF_LOBO).flatten(),sen_NF_d1)
 # LORO
 np.corrcoef(subsAll_LORO,acc_all_d1)
 
-# Somewhere here: check whether good decoding acc corresponds with good day 1 to 3 improvement
+#%% Somewhere here: check whether good decoding acc corresponds with good day 1 to 3 improvement
+
+# I.e. if you had good decoding accuracy, how much did you gain?
+# Extract values for day 1 and 3
+all_d1, NF_d1, C_d1 = extractStatsDay(1,'sen')
+all_d3, NF_d3, C_d3 = extractStatsDay(3,'sen')
+
+diff = (np.asarray(all_d3) - np.asarray(all_d1))
+lm = LinearRegression()
+lm.fit(np.reshape(subsAll_RT_acc,[-1,1]),np.reshape(diff,[-1,1]))
+
+plt.scatter(subsAll_RT_acc,diff)
+plt.plot(np.reshape(subsAll_RT_acc,[-1,1]), lm.predict(np.reshape(subsAll_RT_acc,[-1,1])),linewidth=0.8)
+plt.ylabel('Change in sensitivity from day 1 to 3\n Positive values indicate improvement')
+
+np.corrcoef(subsAll_RT_acc,diff)
+
+# Response time
+all_d1, NF_d1, C_d1 = extractStatsDay(1,'rt')
+all_d3, NF_d3, C_d3 = extractStatsDay(3,'rt')
+diff = (np.asarray(all_d1) - np.asarray(all_d3))
+
+lm = LinearRegression()
+lm.fit(np.reshape(subsAll_RT_acc,[-1,1]),np.reshape(diff,[-1,1]))
+
+plt.scatter(subsAll_RT_acc,diff)
+plt.plot(np.reshape(subsAll_RT_acc,[-1,1]), lm.predict(np.reshape(subsAll_RT_acc,[-1,1])),linewidth=0.8)
+plt.ylabel('Change in response time from day 1 to 3\n Positive values indicate improvement (i.e. quicker response)')
+
+np.corrcoef(subsAll_RT_acc,diff)
+
 
 #%% ########## BLOCK-WISE ANALYSIS #############
 
@@ -577,82 +618,180 @@ plotResponseTimes('2')
 # [7,17], [8,18], [27,23], [26,34], [30,31]
 # [11,15], [13,24], [14,21], [16,33], [22,32], [19,25]
 
-# Extract values for day 1 and 3
-sen_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'sen')
-sen_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'sen')
-
-diff_sen = np.asarray(sen_all_d3) - np.asarray(sen_all_d1)
-
-
-
-subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
-
 # Rearrange to I can make paired test
-
 NF_group = ['07','08','11','13','14','16','19','22','26','27','30']
-
 C_group = ['17','18','15','24','21','33','25','32','34','23','31']
 
-NF_group_match = []
-C_group_match = []
+def matchedSubjects(wanted_measure,title):
 
-for idx,subjID in enumerate(subjID_all):
-    if subjID in NF_group:
-        NF_group_match.append(diff_sen[idx])
-    else:
-        C_group_match.append(diff_sen[idx])
+    # Extract values for day 1 and 3
+    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+    all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
+    
+    diff = np.asarray(all_d3) - np.asarray(all_d1)
+
+    NF_group_match = []
+    C_group_match = []
+
+    for idx,subjID in enumerate(subjID_all):
+        if subjID in NF_group:
+            NF_group_match.append([subjID,diff[idx]])
+        else:
+            C_group_match.append([subjID,diff[idx]])
+    
+    C_group_match_re = []
+    for subjID in C_group:
+        for subORDER in C_group_match:
+            if subjID == subORDER[0]:
+                C_group_match_re.append([subjID,subORDER[1]])
+    
+    NF = [item[1] for item in NF_group_match]
+    C = [item[1] for item in C_group_match_re]
+    
+    # Remove pair 26-34
+    # del NF[8] 
+    # del C[8]
+    
+    print(stats.ttest_rel(NF,C))
+
+    plt.figure(random.randint(0,100))
+    plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 3, NF group')
+    plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 3, control group')
+    
+    plt.scatter(np.full(11,1),NF,color='tomato')
+    plt.scatter(np.full(11,2),C,color='dodgerblue')
+    
+    for i in range(11):
+        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF)[i],(C)[i]],color='gray')
         
-
-stats.ttest_rel(NF_group_match,C_group_match)   
-
-plt.figure(100)
-plt.bar(1,np.mean(NF_group_match),color=(0,0,0,0),edgecolor='tomato')
-plt.bar(2,np.mean(C_group_match),color=(0,0,0,0),edgecolor='dodgerblue')
-
-plt.scatter(np.full(11,1),NF_group_match,color='tomato')
-plt.scatter(np.full(11,2),C_group_match,color='dodgerblue')
-
-for i in range(11):
-    plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF_group_match)[i],(C_group_match)[i]],color='gray')
-
+    plt.xticks([1,2],['NF group','Control group'])
+    plt.ylabel('Change in measure from day 1 to 3')
+    plt.title(title)
 
 
 #%%
-# Extract values for day 1 and 3
-rt_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'rt')
-rt_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'rt')
+matchedSubjects('sen','Sensitivity improvement - matched participants')
+matchedSubjects('spec','Specificity improvement - matched participants')
+matchedSubjects('acc','Accuracy improvement - matched participants')
+matchedSubjects('rt','Response time improvement - matched participants')
+# If negative, means that the response time has improved (i.e. shortened) from day 1 to 3. 
+# A larger absolute value (the more negative), means better response time improvement
 
-diff_rt = np.asarray(rt_all_d3) - np.asarray(rt_all_d1)
 
+#%% Does NF effect the brain on day 2, during NF? 
 
+def NFimprovement(wanted_measure):
 
-# Rearrange to I can make paired test
-
-NF_group_match2 = []
-C_group_match2 = []
-
-for idx,subjID in enumerate(subjID_all):
-    if subjID in NF_group:
-        NF_group_match2.append(diff_rt[idx])
+    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+    all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
+    
+    del NF_d1[2]
+    del NF_d2[2]
+    
+    print('NF mean day 1 and 2: ',round(np.mean(NF_d1),3),round(np.mean(NF_d2),3))
+    print('Control mean day 1 and 2: ',round(np.mean(C_d1),3),round(np.mean(C_d2),3))
+    
+    t_NF = stats.ttest_rel(NF_d1,NF_d2)
+    t_C = stats.ttest_rel(C_d1,C_d2)
+    
+    if t_NF[1] < 0.001:
+        print('T-test between NF group day 1 and 2\n T-statistic = '+str(round(t_NF[0],3))
+              +'\n P-value = '+'{:0.3e}'.format(t_NF[1]))
+        print('T-test between control group day 1 and 2\n T-statistic = '+str(round(t_C[0],3))
+              +'\n P-value = '+'{:0.3e}'.format(t_C[1]))
     else:
-        C_group_match2.append(diff_rt[idx])
+        print('T-test between NF group day 1 and 2\n T-statistic = '+str(round(t_NF[0],3))
+              +'\n P-value = '+str(round(t_NF[1],3)))
+        print('T-test between control group day 1 and 2\n T-statistic = '+str(round(t_C[0],3))
+              +'\n P-value = '+str(round(t_C[1],3)))
+#%%
+# It seems that sensitivity goes down for C, while opposite is true for NF (different t-statistic)
+
+NFimprovement('sen')
+NFimprovement('spec')
+NFimprovement('acc')
+NFimprovement('rt')
+
+#%% Also do this with matched pairs
+def matchedSubjects2(wanted_measure,title):
+
+    # Extract values for day 1 and 2
+    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+    all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
+    
+    # Delete subj 11
+    del all_d1[2]
+    del all_d2[2]
+    # Delete subj 15
+    del all_d1[4]
+    del all_d2[4]
+    
+    diff = np.asarray(all_d2) - np.asarray(all_d1)
+
+    NF_group_match = []
+    C_group_match = []
+    
+    # Subj 11 and 15 removed
+    subjID_20 = ['07','08','13','14','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+
+    for idx,subjID in enumerate(subjID_20):
+        if subjID in NF_group:
+            NF_group_match.append([subjID,diff[idx]])
+        else:
+            C_group_match.append([subjID,diff[idx]])
+    
+    C_group_match_re = []
+    for subjID in C_group:
+        for subORDER in C_group_match:
+            if subjID == subORDER[0]:
+                C_group_match_re.append([subjID,subORDER[1]])
+    
+    NF = [item[1] for item in NF_group_match]
+    C = [item[1] for item in C_group_match_re]
+    
+    print(stats.ttest_rel(NF,C))
+
+    plt.figure(random.randint(0,100))
+    plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 2, NF group')
+    plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 2, control group')
+    
+    plt.scatter(np.full(10,1),NF,color='tomato')
+    plt.scatter(np.full(10,2),C,color='dodgerblue')
+    
+    for i in range(10):
+        plt.plot([(np.full(10,1))[i],(np.full(10,2))[i]], [(NF)[i],(C)[i]],color='gray')
         
-
-stats.ttest_rel(NF_group_match2,C_group_match2)  
-
-
-
-
-
+    plt.xticks([1,2],['NF group','Control group'])
+    plt.ylabel('Change in measure from day 1 to 2')
+    plt.title(title)
+    
+    return diff
 
 
+#%%
+    
+diff_d12_sen = matchedSubjects2('sen','Sensitivity change, day 1 to 2')
+matchedSubjects2('spec','Specificity change, day 1 to 2') # NF become less specific
+
+matchedSubjects2('rt','Response time change, day 1 to 2')
+
+#%% Match diff between days 1 and 2 with decoding acc
+subs20_RT_acc = np.copy(subsAll_RT_acc)
+subs20_RT_acc = np.delete(subs20_RT_acc,2)
+subs20_RT_acc = np.delete(subs20_RT_acc,4)
+
+lm = LinearRegression()
+lm.fit(np.reshape(subs20_RT_acc,[-1,1]),np.reshape(diff_d12_sen,[-1,1]))
+
+plt.figure(22)
+plt.scatter(subs20_RT_acc,diff_d12_sen)
+plt.plot(np.reshape(subs20_RT_acc,[-1,1]), lm.predict(np.reshape(subs20_RT_acc,[-1,1])),linewidth=0.8,color='black')
+plt.ylabel('Change in sensitivity from day 1 to 3\n Positive values indicate improvement')
+plt.title('Real-time decoding accuracy vs. sensitivity improvement day 1-2')
 
 
-
-
-
-
-
+np.corrcoef(subs20_RT_acc,diff_d12_sen)
+stats.linregress(subs20_RT_acc,diff_d12_sen)
 
 
 
