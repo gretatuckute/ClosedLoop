@@ -21,8 +21,10 @@ os.chdir(scriptsDir)
 from responseTime_func import findRTsBlocks
 import random
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
-# saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_150_1000\\'
+#saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_150_1000\\'
 os.chdir(saveDir)
 
 plt.style.use('seaborn-pastel')
@@ -31,10 +33,16 @@ font = {'family' : 'sans-serif',
        'weight' : 1,
        'size'   : 12}
 
+import matplotlib
+matplotlib.use('TkAgg') 
 #%% Variables
 subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
 subjID_NF = ['07','08','11','13','14','16','19','22','26','27','30']
 subjID_C = ['15','17','18','21','23','24','25','31','32','33','34']
+
+# Model fits
+lm = LinearRegression()
+
 
 #%% RTs surrounding lures
 def extractSurroundingRTs(subjID):
@@ -377,10 +385,10 @@ def make2Bars(wanted_measure,title,ylabel):
     return plt, t, all_d2
 
 #%% # Plots comparing day 1 and 3
-pl, t_fb, t_c, all_d1 = make4Bars('sen','Sensitivity','Response sensitivity')
+pl, t_fb, t_c, sen_all_d1 = make4Bars('sen','Sensitivity','Response sensitivity')
 pl, t_fb, t_c, all_d1 = make4Bars('spec','Specificity','Response specificity')
 pl, t_fb, t_c, all_d1 = make4Bars('fpr','FPR','False positive rate')
-pl, t_fb, t_c, all_d1 = make4Bars('acc','Accuracy','Response accuracy')
+pl, t_fb, t_c, acc_all_d1 = make4Bars('acc','Accuracy','Response accuracy')
 
 pl, t_fb, t_c, all_d1 = make4Bars('rt','Overall response time','Response time (s)')
 pl, t_fb, t_c = make4Bars('rt_lure','Response time for lures','Response time (s)')
@@ -396,6 +404,7 @@ pl, t_fb, t_c, all_d1 = make4Bars('rt','Response time','Response time ',part2=Tr
 
 #%%  Investigate day 2, using make2Bars and StatsDayAll (NOT block-wise)
 pl, t, sen_all_d2 = make2Bars('sen','Sensitivity day 2','Sensitivity') 
+pl, t, spec_all_d2 = make2Bars('spec','Specificity day 2','Specificity') 
 pl, t, acc_all_d2 = make2Bars('acc','Accuracy day 2','Accuracy') 
 pl, t, fpr_all_d2 = make2Bars('fpr','FPR day 2','FPR') 
 pl, t, rt_all_d2 = make2Bars('rt','RT day 2','RT') 
@@ -407,6 +416,10 @@ pl, t, nkeypress_all_d2 = make2Bars('nkeypress','Number of total keypresses','Nu
 # Sensitivity
 sen_all_d2_c = np.copy(sen_all_d2)
 sen_all_d2_c = sen_all_d2_c[~np.isnan(sen_all_d2_c)]
+
+# Specificity
+spec_all_d2_c = np.copy(spec_all_d2)
+spec_all_d2_c = spec_all_d2_c[~np.isnan(spec_all_d2_c)]
 
 # Accuracy
 acc_all_d2_c = np.copy(acc_all_d2)
@@ -422,6 +435,7 @@ subsAll_c = np.copy(subsAll_RT_acc) # From EEG inv 18April
 subsAll_c = np.delete(subsAll_c, 2)
 
 # Sensitivity
+plt.figure(100)
 plt.scatter(subsAll_c,sen_all_d2_c)
 plt.ylabel('Sensitivity day 2')
 plt.xlabel('Real-time decoding accuracy (NF blocks)')
@@ -431,51 +445,218 @@ np.corrcoef(sen_all_d2_c,subsAll_c)
 stats.linregress(sen_all_d2_c,subsAll_c)
 
 # Accuracy
+lm.fit(np.reshape(subsAll_c,[-1,1]),np.reshape(acc_all_d2_c,[-1,1]))
+
+plt.figure(101)
 plt.scatter(subsAll_c,acc_all_d2_c)
 plt.ylabel('Accuracy day 2')
 plt.xlabel('Real-time decoding accuracy (NF blocks)')
 plt.title('Accuracy day 2 vs. real-time decoding accuracy, N=21')
+plt.plot(np.reshape(subsAll_c,[-1,1]), lm.predict(np.reshape(subsAll_c,[-1,1])),linewidth=0.8,color='black')
 
 stats.linregress(acc_all_d2_c,subsAll_c)
 
 # Plot RT vs decoding acc
+lm.fit(np.reshape(subsAll_c,[-1,1]),np.reshape(rt_all_d2_c,[-1,1]))
+
+plt.figure(102)
 plt.scatter(subsAll_c,rt_all_d2_c)
 plt.ylabel('Response time day 2')
 plt.xlabel('Real-time decoding accuracy, bias corrected')
 plt.title('Response time day 2 vs. real-time decoding accuracy, N=21')
+plt.plot(np.reshape(subsAll_c,[-1,1]), lm.predict(np.reshape(subsAll_c,[-1,1])),linewidth=0.8,color='black')
 
 stats.linregress(rt_all_d2_c,subsAll_c)
 np.corrcoef(rt_all_d2_c,subsAll_c)
 
+#%% RT vs sensitivity
+lm.fit(np.reshape(rt_all_d2_c,[-1,1]),np.reshape(sen_all_d2_c,[-1,1]))
+
+plt.figure(103)
+plt.scatter(rt_all_d2_c,sen_all_d2_c)
+plt.ylabel('Sensitivity day 2')
+plt.xlabel('Response time (ms)')
+plt.title('Response time day 2 vs. sensitivity day 2, N=21')
+plt.plot(np.reshape(rt_all_d2_c,[-1,1]), lm.predict(np.reshape(rt_all_d2_c,[-1,1])),linewidth=0.8,color='black')
+plt.scatter(rt_all_d2_c,sen_all_d2_c)
+
+# RT vs accuracy
+plt.figure(104)
+lm.fit(np.reshape(rt_all_d2_c,[-1,1]),np.reshape(acc_all_d2_c,[-1,1]))
+
+plt.scatter(rt_all_d2_c,acc_all_d2_c)
+plt.ylabel('Accuracy day 2')
+plt.xlabel('Response time (ms)')
+plt.title('Response time day 2 vs. accuracy day 2, N=21')
+plt.plot(np.reshape(rt_all_d2_c,[-1,1]), lm.predict(np.reshape(rt_all_d2_c,[-1,1])),linewidth=0.8,color='black')
+plt.scatter(rt_all_d2_c,acc_all_d2_c)
+
+stats.linregress(rt_all_d2_c,acc_all_d2_c)
+
+# RT vs specificity
+lm.fit(np.reshape(rt_all_d2_c,[-1,1]),np.reshape(spec_all_d2_c,[-1,1]))
+
+plt.scatter(rt_all_d2_c,spec_all_d2_c)
+plt.ylabel('Specificity day 2')
+plt.xlabel('Response time (ms)')
+plt.title('Response time day 2 vs. specificity day 2, N=21')
+plt.plot(np.reshape(rt_all_d2_c,[-1,1]), lm.predict(np.reshape(rt_all_d2_c,[-1,1])),linewidth=0.8,color='black')
+plt.scatter(rt_all_d2_c,spec_all_d2_c)
+
+stats.linregress(rt_all_d2_c,spec_all_d2_c)
+
 #%% Is good decoding accuracy STABLE blocks correlated with a good day 1 behavioral response?
 
 sen_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'sen')
+spec_all_d1, spec_NF_d1, spec_C_d1 = extractStatsDay(1,'spec')
 acc_all_d1, acc_NF_d1, acc_C_d1 = extractStatsDay(1,'acc')
 
-# Sensitivity day 1 vs. day2 accuracy
-plt.scatter(subsAll_RT_acc,sen_all_d1)
-plt.ylabel('Sensitivity day 2')
-plt.xlabel('Real-time decoding accuracy (NF blocks)')
-plt.title('Sensitivity day 1 vs. real-time decoding accuracy, N=22')
-
-np.corrcoef(sen_all_d1,subsAll_RT_acc)
-
-# LOBO
+# LOBO and LORO
 subsAll_LOBO = np.load(scriptsDir+'subsAll_LOBO.npy')
+subsAll_LORO = np.load(scriptsDir+'subsAll_LORO.npy')
 
-# Sensitivity day 1 vs LOBO accuracy day 2
-plt.scatter(subsAll_LOBO,sen_all_d1)
-np.corrcoef(subsAll_LOBO,sen_all_d1)
+# Sensitivity/accuracy vs LOBO
+plt.figure(105)
 
-# Accuracy
-np.corrcoef(subsAll_LOBO,acc_all_d1)
+lm.fit(np.reshape(subsAll_LOBO,[-1,1]),np.reshape(np.array(acc_all_d1),[-1,1]))
+plt.scatter(subsAll_LOBO,acc_all_d1,color='brown',label='Accuracy')
+plt.ylabel('Accuracy or sensitivity day 1')
+plt.xlabel('Leave one block out offline decoding accuracy')
+plt.title('Accuracy/sensitivity day 1 vs. offline decoding accuracy, N=22')
+plt.plot(np.reshape(subsAll_LOBO,[-1,1]), lm.predict(np.reshape(subsAll_LOBO,[-1,1])),linewidth=0.8,color='brown')
 
-# Only NF
-np.corrcoef(np.asarray(subsNF_LOBO).flatten(),np.asarray(sen_NF_d1))
-stats.linregress(np.asarray(subsNF_LOBO).flatten(),sen_NF_d1)
+lm.fit(np.reshape(subsAll_LOBO,[-1,1]),np.reshape(np.array(sen_all_d1),[-1,1]))
+plt.scatter(subsAll_LOBO,sen_all_d1,color='tomato',label='Sensitivity')
+plt.plot(np.reshape(subsAll_LOBO,[-1,1]), lm.predict(np.reshape(subsAll_LOBO,[-1,1])),linewidth=0.8,color='tomato')
+plt.legend()
 
-# LORO
-np.corrcoef(subsAll_LORO,acc_all_d1)
+# Sensitivity/accuracy vs LORO
+plt.figure(106)
+
+lm.fit(np.reshape(subsAll_LORO,[-1,1]),np.reshape(np.array(acc_all_d1),[-1,1]))
+plt.scatter(subsAll_LORO,acc_all_d1,color='brown',label='Accuracy')
+plt.ylabel('Accuracy or sensitivity day 1')
+plt.xlabel('Leave one run out offline decoding accuracy')
+plt.title('Accuracy/sensitivity day 1 vs. offline decoding accuracy, N=22')
+plt.plot(np.reshape(subsAll_LORO,[-1,1]), lm.predict(np.reshape(subsAll_LORO,[-1,1])),linewidth=0.8,color='brown')
+
+lm.fit(np.reshape(subsAll_LORO,[-1,1]),np.reshape(np.array(sen_all_d1),[-1,1]))
+plt.scatter(subsAll_LORO,sen_all_d1,color='tomato',label='Sensitivity')
+plt.plot(np.reshape(subsAll_LORO,[-1,1]), lm.predict(np.reshape(subsAll_LORO,[-1,1])),linewidth=0.8,color='tomato')
+plt.legend()
+
+# Divided into groups
+
+# If omitting subjects
+#%%
+def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False):
+    '''Uses LORO and LOBO'''
+    
+    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+    
+    # Create arrays
+    if LOBO == False:
+        subsC_LORO_a = np.array(subsC_LORO).flatten()
+        subsNF_LORO_a = np.array(subsNF_LORO).flatten()
+    if LOBO == True:
+        subsC_LORO_a = np.array(subsC_LOBO).flatten()
+        subsNF_LORO_a = np.array(subsNF_LOBO).flatten()
+    
+    C_d1_a = np.array(C_d1)
+    NF_d1_a = np.array(NF_d1)
+    
+    subjID_C_a = np.array(subjID_C)
+    subjID_NF_a = np.array(subjID_NF)
+
+    fig,ax = plt.subplots()
+    
+    if masking != False:
+        
+        # Match the unwanted subject
+        try:
+            m_idx = subjID_C.index(masking)
+        except:
+            m_idx = subjID_NF.index(masking)
+        
+        mask = np.ones([11],dtype=bool)
+        mask[m_idx] = 0 # Omit subj 18 in C
+                
+        # NF
+        lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
+        ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF')
+        ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=0.8,color='brown')
+
+        r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
+        print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
+        
+        for i, txt in enumerate(subjID_NF_a):
+            ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
+        
+        # C
+        lm.fit(np.reshape((subsC_LORO_a[mask]),[-1,1]),np.reshape((C_d1_a[mask]),[-1,1]))
+        ax.scatter((subsC_LORO_a[mask].tolist()),(C_d1_a[mask].tolist()),color='dodgerblue',label='Control')
+        ax.plot(np.reshape(subsC_LORO_a[mask],[-1,1]), lm.predict(np.reshape(subsC_LORO_a[mask],[-1,1])),linewidth=0.8,color='navy')
+
+        r_val_C = np.corrcoef(subsC_LORO_a[mask].tolist(),(C_d1_a[mask].tolist()))
+        print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
+        
+        plt.ylabel(ylabel + ' day 1')
+        if LOBO == False:
+            plt.xlabel('Leave one run out offline decoding accuracy')
+        if LOBO == True:
+            plt.xlabel('Leave one block out offline decoding accuracy')
+        plt.title(ylabel+' day 1 vs. offline decoding accuracy, N=21')
+        
+        for i, txt in enumerate(subjID_C_a[mask]):
+            ax.annotate(txt, (np.reshape(subsC_LORO_a[mask],[-1,1])[i], (np.reshape(C_d1_a[mask],[-1,1])[i])))
+        
+        plt.legend()
+
+    if masking == False:        
+        # NF
+        lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
+        ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF')
+        ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=0.8,color='brown')
+
+        r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
+        print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
+        
+        for i, txt in enumerate(subjID_NF_a):
+            ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
+        
+        # C
+        lm.fit(np.reshape((subsC_LORO_a),[-1,1]),np.reshape((C_d1_a),[-1,1]))
+        ax.scatter((subsC_LORO_a.tolist()),(C_d1_a.tolist()),color='dodgerblue',label='Control')
+        ax.plot(np.reshape(subsC_LORO_a,[-1,1]), lm.predict(np.reshape(subsC_LORO_a,[-1,1])),linewidth=0.8,color='navy')
+
+        r_val_C = np.corrcoef(subsC_LORO_a.tolist(),(C_d1_a.tolist()))
+        print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
+        
+        plt.ylabel(ylabel + ' day 1')
+        if LOBO == False:
+            plt.xlabel('Leave one run out offline decoding accuracy')
+        if LOBO == True:
+            plt.xlabel('Leave one block out offline decoding accuracy')
+        
+        plt.title(ylabel+' day 1 vs. offline decoding accuracy, N=22')
+        
+        for i, txt in enumerate(subjID_C_a):
+            ax.annotate(txt, (np.reshape(subsC_LORO_a,[-1,1])[i], (np.reshape(C_d1_a,[-1,1])[i])))
+        
+        plt.legend()
+
+#%% Create behavioral day 1 vs offline decoding accuracy plots
+behVSdecode('sen','Sensitivity',LOBO=False,masking=False)
+behVSdecode('acc','Accuracy',LOBO=False,masking=False)
+behVSdecode('spec','Specificity',LOBO=False,masking=False)
+behVSdecode('spec','Specificity',LOBO=False,masking='15')
+behVSdecode('rt','Response time',LOBO=False,masking=False)
+
+behVSdecode('sen','Sensitivity',LOBO=True,masking=False)
+behVSdecode('spec','Specificity',LOBO=True,masking=False)
+behVSdecode('acc','Accuracy',LOBO=True,masking=False)
+behVSdecode('rt','Response time',LOBO=True,masking=False)
+
 
 #%% Somewhere here: check whether good decoding acc corresponds with good day 1 to 3 improvement
 
@@ -485,9 +666,9 @@ all_d1, NF_d1, C_d1 = extractStatsDay(1,'sen')
 all_d3, NF_d3, C_d3 = extractStatsDay(3,'sen')
 
 diff = (np.asarray(all_d3) - np.asarray(all_d1))
-lm = LinearRegression()
 lm.fit(np.reshape(subsAll_RT_acc,[-1,1]),np.reshape(diff,[-1,1]))
 
+plt.figure(109)
 plt.scatter(subsAll_RT_acc,diff)
 plt.plot(np.reshape(subsAll_RT_acc,[-1,1]), lm.predict(np.reshape(subsAll_RT_acc,[-1,1])),linewidth=0.8)
 plt.ylabel('Change in sensitivity from day 1 to 3\n Positive values indicate improvement')
@@ -499,9 +680,9 @@ all_d1, NF_d1, C_d1 = extractStatsDay(1,'rt')
 all_d3, NF_d3, C_d3 = extractStatsDay(3,'rt')
 diff = (np.asarray(all_d1) - np.asarray(all_d3))
 
-lm = LinearRegression()
 lm.fit(np.reshape(subsAll_RT_acc,[-1,1]),np.reshape(diff,[-1,1]))
 
+plt.figure(110)
 plt.scatter(subsAll_RT_acc,diff)
 plt.plot(np.reshape(subsAll_RT_acc,[-1,1]), lm.predict(np.reshape(subsAll_RT_acc,[-1,1])),linewidth=0.8)
 plt.ylabel('Change in response time from day 1 to 3\n Positive values indicate improvement (i.e. quicker response)')
@@ -572,6 +753,7 @@ for idx,subjID in enumerate(subjID_all):
         
 responseTimes_m = np.nanmean(responseTimes_all,axis=0)
 
+plt.figure(111)
 plt.plot(responseTimes_m)
 
 #%% ResponseTimes plot
@@ -751,7 +933,7 @@ def matchedSubjects2(wanted_measure,title):
     
     print(stats.ttest_rel(NF,C))
 
-    plt.figure(random.randint(0,100))
+    plt.figure(random.randint(150,250))
     plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 2, NF group')
     plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 2, control group')
     
@@ -769,29 +951,38 @@ def matchedSubjects2(wanted_measure,title):
 
 
 #%%
-    
 diff_d12_sen = matchedSubjects2('sen','Sensitivity change, day 1 to 2')
 matchedSubjects2('spec','Specificity change, day 1 to 2') # NF become less specific
+diff_d12_acc = matchedSubjects2('acc','Accuracy change, day 1 to 2')
 
-matchedSubjects2('rt','Response time change, day 1 to 2')
+diff_d12_rt = matchedSubjects2('rt','Response time change, day 1 to 2')
 
-#%% Match diff between days 1 and 2 with decoding acc
+#%% Match diff between days 1 and 2 sensitivity with decoding acc
 subs20_RT_acc = np.copy(subsAll_RT_acc)
 subs20_RT_acc = np.delete(subs20_RT_acc,2)
 subs20_RT_acc = np.delete(subs20_RT_acc,4)
 
-lm = LinearRegression()
 lm.fit(np.reshape(subs20_RT_acc,[-1,1]),np.reshape(diff_d12_sen,[-1,1]))
 
-plt.figure(22)
+plt.figure(222)
 plt.scatter(subs20_RT_acc,diff_d12_sen)
 plt.plot(np.reshape(subs20_RT_acc,[-1,1]), lm.predict(np.reshape(subs20_RT_acc,[-1,1])),linewidth=0.8,color='black')
 plt.ylabel('Change in sensitivity from day 1 to 3\n Positive values indicate improvement')
 plt.title('Real-time decoding accuracy vs. sensitivity improvement day 1-2')
 
-
 np.corrcoef(subs20_RT_acc,diff_d12_sen)
 stats.linregress(subs20_RT_acc,diff_d12_sen)
 
+#%% Match diff between days 1 and 2 accuracy with decoding acc
+subs20_RT_acc = np.copy(subsAll_RT_acc)
+subs20_RT_acc = np.delete(subs20_RT_acc,2)
+subs20_RT_acc = np.delete(subs20_RT_acc,4)
 
+lm.fit(np.reshape(subs20_RT_acc,[-1,1]),np.reshape(diff_d12_acc,[-1,1]))
+
+plt.figure(223)
+plt.scatter(subs20_RT_acc,diff_d12_acc)
+plt.plot(np.reshape(subs20_RT_acc,[-1,1]), lm.predict(np.reshape(subs20_RT_acc,[-1,1])),linewidth=0.8,color='black')
+plt.ylabel('Change in accuracy from day 1 to 3\n Positive values indicate improvement')
+plt.title('Real-time decoding accuracy vs. accuracy improvement day 1-2')
 

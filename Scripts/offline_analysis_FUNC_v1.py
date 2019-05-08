@@ -12,6 +12,9 @@
 # Difference between V2 and V3 save pckl file is that in V3 all files are names RT in front, if it has something to do with the RT offline analysis.
 #wMNE_v2.2. has new dict save names. Add correlation with alpha file. 
 
+# FUNC v1.0 Script offline analysis FUNC V1.0 saves the clf output and alpha test values for each subject. 
+# Also outputs new LORO values (5 CV folds). Training on stable and NF omitted.
+
 #%% Imports
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
@@ -328,12 +331,15 @@ def analyzeOffline(subjID):
     print('Alpha, corrected, above chance per run: ' + str(a_per_run))
     print('Score, uncorrected, per run: ' + str(score_per_run))
     
-    
     d['RT_train_acc'] = train_acc
     d['RT_test_acc_corr'] = above_chance_offline
     d['RT_test_acc_corr_run'] = a_per_run
     d['RT_test_acc_uncorr'] = score
     d['RT_test_acc_uncorr_run'] = score_per_run
+
+    #%% Analyze RT session block-wise
+    d['ALPHA_test'] = alpha_test
+    d['CLFO_test'] = clf_output_test
 
     #%% Compare RT alpha with RT offline alpha
     alphan = np.asarray(alpha)
@@ -479,153 +485,6 @@ def analyzeOffline(subjID):
     d['MNE_stable_blocks_SSP_projvariance'] = p_variance
     d['MNE_y_stable_blocks'] = y_stable_blocks
 
-
-    if plot_MNE == True:
-        print('Making a lot of MNE plots!')
-    
-        #%% Adding events manually to epochs *also implemented in applySSP_forplot*
-        stable_blocksSSP_get = stable_blocksSSP_plot.get_data()
-        events_list = y_stable_blocks
-        event_id = dict(scene=0, face=1)
-        n_epochs = len(events_list)
-        events_list = [int(i) for i in events_list]
-        events = np.c_[np.arange(n_epochs), np.zeros(n_epochs, int),events_list]
-        
-        epochs_events = mne.EpochsArray(stable_blocksSSP_get, info_fs100, events=events, tmin=-0.1, event_id=event_id,baseline=None)
-        
-        epochs_events['face'].average().plot()
-        epochs_events['scene'].average().plot()
-        
-        #%%
-        # Overall average plot, all channels 
-        stable_blocksSSP_plot.average().plot(spatial_colors=True, time_unit='s')#,picks=[7]) 
-        
-        # Plot based on categories
-        stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')#,picks=[7])
-        stable_blocksSSP_plot['scene'].average().plot(spatial_colors=True, time_unit='s')
-        
-        # Plot of the SSP projectors
-        stable_blocksSSP_plot.average().plot_projs_topomap()
-        # Consider adding p_variance values to the plot.
-        
-        
-        # Plot the topomap of the power spectral density across epochs.
-        stable_blocksSSP_plot.plot_psd_topomap(proj=True)
-        
-        stable_blocksSSP_plot['face'].plot_psd_topomap(proj=True)
-        stable_blocksSSP_plot['scene'].plot_psd_topomap(proj=True)
-        
-        # Plot topomap (possibiity of adding specific times)
-        stable_blocksSSP_plot.average().plot_topomap(proj=True)
-        stable_blocksSSP_plot.average().plot_topomap(proj=True,times=np.linspace(0.05, 0.15, 5))
-        
-        # Plot joint topomap and evoked ERP
-        stable_blocksSSP_plot.average().plot_joint()
-        
-        # If manually adding a sensor plot
-        stable_blocksSSP_plot.plot_sensors(show_names=True)
-        
-        # Noise covariance plot - not really sure what to make of this (yet)
-        noise_cov = mne.compute_covariance(stable_blocksSSP_plot)
-        fig = mne.viz.plot_cov(noise_cov, stable_blocksSSP_plot.info) 
-        
-        # Generate list of evoked objects from condition names
-        evokeds = [stable_blocksSSP_plot[name].average() for name in ('scene','face')]
-        
-        colors = 'blue', 'red'
-        title = 'Subject \nscene vs face'
-        
-        # Plot evoked across all channels, comparing two categories
-        mne.viz.plot_evoked_topo(evokeds, color=colors, title=title, background_color='w')
-        
-        # Compare two categories
-        mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis')#,ci=True)
-        # When multiple channels are passed, this function combines them all, to get one time course for each condition. 
-        
-        mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,cmap='viridis',ci=True,picks=[7])
-        
-        # Make animation
-        fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 100),butterfly=True)
-        # Save animation
-        fig,anim = evokeds[0].animate_topomap(times=np.linspace(0.00, 0.79, 50),frame_rate=10,blit=False)
-        anim.save('Brainmation.gif', writer='imagemagick', fps=10)
-        
-        
-        # Sort epochs based on categories
-        sorted_epochsarray = [stable_blocksSSP_plot[name] for name in ('scene','face')]
-        
-        # Plot image
-        stable_blocksSSP_plot.plot_image()
-        
-        # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) 
-        g2 = stable_blocksSSP_plot.get_data()
-        evoked_array = [mne.EvokedArray(entry, info_fs100,tmin=-0.1) for entry in g2]
-        
-        # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) - category info added as comments
-        evoked_array2 = []
-        for idx,cat in enumerate(events_list):
-            evoked_array2.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat))
-            
-        mne.viz.plot_compare_evokeds(evoked_array2[:10]) # Plotting all the individual evoked arrays (up to 10)
-        
-        # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
-        evoked_array_c0 = []
-        evoked_array_c1 = []
-        
-        for idx,cat in enumerate(events_list):
-            if cat == 0:
-                evoked_array_c0.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
-                print
-            if cat == 1:
-                evoked_array_c1.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
-        
-        e_dict={}
-        e_dict['0'] = evoked_array_c0
-        e_dict['1'] = evoked_array_c1
-        # Could create these e_dicts for several people, and plot the means. Or create an e_dict with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
-        
-        
-        mne.viz.plot_compare_evokeds(e_dict,ci=0.4,picks=[7])#,title=title,show_sensors=True,cmap='viridis',ci=True)
-        mne.viz.plot_compare_evokeds(e_dict,ci=0.8,picks=[7])#,title=title,show_sensors=True,cmap='viridis',ci=True)
-        
-        # Comparing
-        mne.viz.plot_compare_evokeds(evokeds,title=title,show_sensors=True,picks=[7],ci=False)
-        mne.viz.plot_compare_evokeds(e_dict,title=title,show_sensors=True,picks=[7],ci=True)#,,ci=True)
-        
-        # Based on categories, the correct epochs are added to the evoked_array_c0 and c1
-    
-        #%% Manually check whether the MNE events correspond to the actual categories
-        
-        g1 = stable_blocksSSP_plot.get_data()
-        
-        g3 = g1[y_stable_blocks==True] # Faces = 1
-        g4 = g1[y_stable_blocks==False] # Scenes = 0
-        
-        g3a = np.mean(g3,axis=0)
-        g4a = np.mean(g4,axis=0)
-        
-        plt.figure(4)
-        plt.plot(g3a.T[:,7]) # Corresponds to: stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s')
-        plt.plot(g4a.T[:,7])
-        
-        epochsg3 = mne.EpochsArray(g3, info=info_fs100)
-        epochsg4 = mne.EpochsArray(g4, info=info_fs100)
-        
-        plt.figure(6)
-        epochsg3.average().plot(spatial_colors=True, time_unit='s',picks=[7]) # Corresponds to: stable_blocksSSP_plot['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
-        epochsg4.average().plot(spatial_colors=True, time_unit='s',picks=[7]) 
-        
-        # Plot topomap
-        a3 = epochsg3.average()
-        a3.plot_topomap(times=np.linspace(0.05, 0.15, 5))
-        
-        # Plot of evoked ERP and topomaps, in one plot!
-        a3.plot_joint()
-        
-        # Control the y axis
-        a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
-        a3.plot(ylim=dict(eeg=[-2000000, 2000000]))
-    
     #%% Confusion matrices - stable blocks accuracy, LOBO
     
     # y_stable_blocks has the correct y vals, y_pred has the predicted vals. For uncorrected prediction.
@@ -658,115 +517,7 @@ def analyzeOffline(subjID):
     d['LOBO_stable_scene_acc_corr'] = scene_acc
     d['LOBO_stable_face_acc_corr'] = face_acc
     
-    #%% Training accuracy, training on stable and NF - leave one block out CV. Accuracy can be based on either stable+NF, only stable or only NF blocks
-    offset_pred_lst = []
-    c_test = 0
-    
-    no_b = 8+8*n_it # Number blocks total
-    pred_prob_test = np.zeros((no_b*block_len,2))
-    pred_prob_test_corr = np.zeros((no_b*block_len,2))
-    alpha_test = np.zeros((no_b*block_len))
-    y_pred = np.zeros(no_b*block_len) 
-    
-    for b in range(no_b):
-        val_indices = range(b*block_len,(b+1)*block_len)
-        blocks_val = e[val_indices]
-        y_val = y[val_indices]
-        
-        blocks_train = np.delete(e, val_indices,axis=0)
-        y_train = np.delete(y, val_indices)
-        blocks_train_prep = np.zeros((len(y_train),23,n_samples_fs100))
-        
-        for t in range(blocks_train_prep.shape[0]):
-            epoch = blocks_train[t,:,:]
-            epoch = preproc1epoch(epoch,info_fs500,SSP=False,reject=reject,mne_reject=mne_reject,reject_ch=reject_ch,flat=flat,bad_channels=bad_channels,opt_detrend=opt_detrend)
-            blocks_train_prep[t,:,:] = epoch
-    
-        projs1,blocksSSP_train = applySSP(blocks_train_prep,info_fs100,threshold=threshold)
-        
-        # Average after SSP correction
-        blocksSSP_train = average_stable(blocksSSP_train)
-        clf,offset_pred = trainLogReg_cross_offline(blocksSSP_train,y_train) #cur. in EEG_classification
-        offset_pred = np.min([np.max([offset_pred,-0.25]),0.25])/2
-        offset_pred_lst.append(offset_pred)
-        
-        # Test epochs in left out block
-        for t in range(block_len):
-            epoch = blocks_val[t,:,:]
-            epoch = preproc1epoch(epoch,info_fs500,projs=projs1,SSP=True,reject=reject,mne_reject=mne_reject,reject_ch=reject_ch,flat=flat,bad_channels=bad_channels,opt_detrend=opt_detrend)
-            
-            if t > 0:
-                epoch = (epoch+epoch_prev)/2
-                
-            pred_prob_test[c_test,:],y_pred[c_test] = testEpoch(clf,epoch)
-            
-            # Correct the prediction bias offset
-            pred_prob_test_corr[c_test,0] = np.min([np.max([pred_prob_test[c_test,0]+offset_pred,0]),1]) 
-            pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
-            
-            clf_output = pred_prob_test_corr[c_test,int(y_val[t])]-pred_prob_test_corr[c_test,int(y_val[t]-1)]
-            alpha_test[c_test] = sigmoid(clf_output)
-            
-            epoch_prev = epoch
-            
-            c_test += 1
-            
-        print('No c_test: ' + str(c_test) + ' out of ' + str(no_b*block_len))
-            
-    above_chance_train = len(np.where((np.array(alpha_test[:c_test])>0.5))[0])/len(alpha_test[:c_test])
-    print('Above chance alpha train (corrected) on both stable and NF: ' + str(above_chance_train))
-    
-    # Separate in stable only, and stable + NF
-    e_mock = np.arange((8+n_it*8)*block_len)
-    stable_blocks_fbrun = np.concatenate([e_mock[400+n*400:600+n*400] for n in range(n_it)]) # Stable blocks feedback run
-    stable_blocks_idx = np.concatenate((e_mock[:400],stable_blocks_fbrun))
-    
-    a = alpha_test[stable_blocks_idx] 
-    
-    above_chance_stable = len(np.where((np.array(a)>0.5))[0])/len(a)
-    print('Above chance alpha train (corrected) on stable blocks: ' + str(above_chance_stable))
-    
-    #nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
-    #a2 = alpha_test[nf_blocks_idx] 
-    #above_chance_nf = len(np.where((np.array(a2)>0.5))[0])/len(a2)
-    #print('Above chance alpha train (corrected) on NF blocks: ' + str(above_chance_nf))
-    
-    d['LOBO_all_train_offsets'] = offset_pred_lst
-    d['LOBO_all_train_acc'] = above_chance_train # All blocks included
-    d['LOBO_all_train_acc_stable_test'] = above_chance_stable # Trained on both stable and NF, only tested on stable
-    #d['train_acc_nf_test'] = above_chance_nf # Trained on both stable and NF, only tested on NF
-    
-    #%% Confusion matrices - training on stable+NF blocks, testing on stable+NF, stable or NF blocks
-    
-    # Uncorrected, all (stable + NF)
-    correct = (y == y_pred)
-    conf_train_all_uncorr = confusion_matrix(y,y_pred)
-    
-    # Separate into scenes and faces accuracy  
-    scene_acc_uncorr = conf_train_all_uncorr[0,0]/(conf_train_all_uncorr[0,0]+conf_train_all_uncorr[0,1])
-    face_acc_uncorr = conf_train_all_uncorr[1,1]/(conf_train_all_uncorr[1,0]+conf_train_all_uncorr[1,1])
-    
-    # Corrected, all
-    alpha_test_c = np.copy(alpha_test)
-    alpha_test_c[alpha_test_c > 0.5] = True # 1 is a correctly predicted 
-    alpha_test_c[alpha_test_c < 0.5] = False
-    
-    alpha_predcat = np.argmax(pred_prob_test_corr,axis=1)
-    conf_train_all = confusion_matrix(y,alpha_predcat)
-    
-    # Separate into scenes and faces accuracy  
-    scene_acc = conf_train_all[0,0]/(conf_train_all[0,0]+conf_train_all[0,1])
-    face_acc = conf_train_all[1,1]/(conf_train_all[1,0]+conf_train_all[1,1])
-    
-    d['LOBO_all_conf_uncorr'] = conf_train_all_uncorr
-    d['LOBO_all_scene_acc_uncorr'] = scene_acc_uncorr
-    d['LOBO_all_face_acc_uncorr'] = face_acc_uncorr
-    
-    d['LOBO_all_conf_corr'] = conf_train_all
-    d['LOBO_all_scene_acc_corr'] = scene_acc
-    d['LOBO_all_face_acc_corr'] = face_acc
-    
-    #%% Training on stable blocks only - leave one run out CV
+    #%% Training on stable blocks only - leave one run out CV. The first run is not used as test set, only for training.
     offset_pred_lst = []
     c_test = 0
     
@@ -785,17 +536,11 @@ def analyzeOffline(subjID):
     
     y_pred = np.zeros(no_sb*block_len) 
     
-    for r in range(n_it+1): # 6 runs
+    for r in range(n_it): # 5 runs
         print('Run no: ',r)
-        if r == 0: # First run
-            val_indices = range(0,400) # First run
-            stable_blocks_val = stable_blocks[val_indices]
-            y_val = y_stable_blocks[val_indices]
-            
-        if r > 0: 
-            val_indices = range((r+1)*200,((r+1)*200)+200) # Validation block index
-            stable_blocks_val = stable_blocks[val_indices]
-            y_val = y_stable_blocks[val_indices]
+        val_indices = range((r+2)*200,((r+2)*200)+200) # Validation block index
+        stable_blocks_val = stable_blocks[val_indices]
+        y_val = y_stable_blocks[val_indices]
         
         stable_blocks_train = np.delete(stable_blocks, val_indices, axis=0)
         y_train = np.delete(y_stable_blocks, val_indices)
@@ -847,7 +592,7 @@ def analyzeOffline(subjID):
     d['LORO_stable_acc_uncorr'] = score    
         
     #%% Extract RT epochs (non-averaged) for plots and analysis
-    stable_blocks0 = e[:600,:,:] # First run
+    stable_blocks0 = e[:600,:,:] # First run + stable in run 2
     stable_blocks1 = np.zeros((600,n_channels,n_samples_fs100)) 
     
     y = np.array([int(x) for x in cat])

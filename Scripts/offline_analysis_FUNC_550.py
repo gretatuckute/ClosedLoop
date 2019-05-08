@@ -219,7 +219,7 @@ def analyzeOffline(subjID):
     pred_prob_test = np.zeros((n_it*200,2)) # Prediction probability
     pred_prob_test_corr = np.zeros((n_it*200,2)) # Prediction probability, corrected for classifier bias
     alpha_test = np.zeros((n_it*200))
-#    clf_output_test = np.zeros((n_it*200))
+    clf_output_test = np.zeros((n_it*200))
     train_acc = np.zeros(n_it)
     c_test = 0
     c = 0
@@ -300,7 +300,7 @@ def analyzeOffline(subjID):
             pred_prob_test_corr[c_test,1] = np.min([np.max([pred_prob_test[c_test,1]-offset_pred,0]),1])
     
             clf_output = pred_prob_test_corr[c_test,int(y[c])]-pred_prob_test_corr[c_test,int(y[c]-1)]
-#            clf_output_test[c_test] = clf_output # Save classifier output for correlation checks
+            clf_output_test[c_test] = clf_output # Save classifier output for correlation checks
             alpha_test[c_test] = sigmoid(clf_output) # Convert corrected classifier output to an alpha value using a sigmoid transfer function
             
             epoch_prev = epoch
