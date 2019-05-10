@@ -17,8 +17,14 @@ from sklearn.metrics import confusion_matrix
 import os
 import numpy as np
 import mne
+from scipy.stats import zscore
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
+os.chdir(scriptsDir)
+from responseTime_func import extractCat
+
+saveDir = 'P:\\closed_loop_data\\beh_analysis\\' 
+EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
 
 #%% Plot styles
 plt.style.use('seaborn-notebook')
@@ -31,7 +37,7 @@ matplotlib.rcParams['mathtext.rm'] = 'Bitstream Vera Sans'
 matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
 matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
 matplotlib.rcParams['legend.frameon'] = True
-matplotlib.rcParams['grid.alpha'] = 0.3
+matplotlib.rcParams['grid.alpha'] = 0.5
 
 #%% Variables
 subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
@@ -47,7 +53,7 @@ os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
 d2_all = {}
 
 for subj in subjID_all:
-    with open('08May_subj_'+subj+'.pkl', "rb") as fin:
+    with open('09May_subj_'+subj+'.pkl', "rb") as fin:
          d2_all[subj] = (pickle.load(fin))[0]
 
 #%%
@@ -70,10 +76,10 @@ def extractVal2(wkey):
                     subsC_result.append(v)
         
         if len(subsNF_result) == 1:
-            subsNF.append(subsNF_result)
+            subsNF.append(subsNF_result[0])
             
         if len(subsC_result) == 1:
-            subsC.append(subsC_result)
+            subsC.append(subsC_result[0])
     
     return subsAll, subsNF, subsC
 
@@ -102,72 +108,361 @@ def extractStatsBlockDay2(wkey):
     
     return subsAll, subsNF, subsC
 
+def computeStats(subjID):
+    '''Computes stats based on days (statsDay) and blocks for each day (both statsBlock: day 1, 3, 4, 5 and statsBlock_day2)
+    '''
+    
+    with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
+    
+    statsDay = np.zeros((5,9))
+    statsBlock = np.zeros((4,16,6))
+    statsBlock_day2 = np.zeros((48,6))
+    
+    idx_c = 0
+    
+    for idx, expDay in enumerate(['1','2','3','4','5']):
+        
+        # Load catFile
+        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+        
+        if subjID == '11' and expDay == '2':
+            responseTimes = [np.nan]
+            nKeypress = np.nan
+        else:
+            responseTimes = sub['responseTimes_day'+expDay]
+            nKeypress = sub['TOTAL_keypress_day'+expDay]
+        
+        if subjID == '11' and expDay == '2':
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
+        else:
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
+    
+        # Compute stats (for visibility)
+        TP = NI_nlure
+        FP = NI_lure
+        TN = CI_lure
+        FN = I_nlure
+        
+        sensitivity = TP/(TP+FN)
+        specificity = TN/(TN+FP)
+        FPR = FP/(FP+TN)
+        accuracy = (TP+TN)/(TP+TN+FP+FN)
+#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
+        
+        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
+
+        # Block-wise
+        for block in range(1,int(len(responseTimes)/50)+1):
+            print(block)
+            
+            if subjID == '11' and expDay == '2': 
+                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
+            else:
+                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
+            
+            sensitivity = TP/(TP+FN)
+            specificity = TN/(TN+FP)
+            FPR = FP/(FP+TN)
+            accuracy = (TP+TN)/(TP+TN+FP+FN)
+            
+            if expDay == '2':
+                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
+        
+            if expDay != '2':
+                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
+                
+        if expDay != '2':            
+            idx_c += 1
+
+    return statsDay, statsBlock, statsBlock_day2
+
+#%% Extract stats for day 2 for all subjs
+
+#%%
+
+statsBlockDay2_all = {}
+
+# Extract stats for all subjects
+for idx,subjID in enumerate(subjID_all):
+    statsDay, statsBlock, statsBlock_day2 = computeStats(subjID)
+    
+    statsBlockDay2_all[subjID] = statsBlock_day2 
+
+
+#%%
+
 def blockAlpha():
-    
-    alphaAll = []
-    accAll = []
-    clfoAll = []
-    
-    
+
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
     
+    # # Test RT accuracy for reality check
+    # for idx, item in enumerate(subsAll_clf):
+    #     # above_a = len(np.where((np.array(item)>0.5))[0])/len(item)
+    #     above_clfo = len(np.where((np.array(item)>0))[0])/len(item)
+    #     print(subjID_all[idx],above_clfo)
     
-    for idx, item in subsAll_a:
-        above_a = len(np.where((np.array(item)>0.5))[0])/len(item)
-        print(subjID_all[idx],above_a)
+    # Alpha and clf output and alpha accuracy per block. For all subjects
+    # a_per_block = np.zeros((22,n_it*4)) # Subjects as rows, and blocks as columns
+    # acc_per_block = np.zeros((22,n_it*4))
+    # clfo_per_block = np.zeros((22,n_it*4))
+    
+    
+    # for idx, item in enumerate(subsAll_a):
+    #     k = 0
+    #     for b in range(n_it*4):
+    #         a_per_block[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
+    #         acc_per_block[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
+    #         k += 50
+    
+    # for idx, item in enumerate(subsAll_clf):
+    #     k = 0
+    #     for b in range(n_it*4):
+    #         clfo_per_block[idx,b] = (np.mean(item[k:k+50])) 
+    #         k += 50
+    
+    a_per_block_NF = np.zeros((11,n_it*4)) # Subjects as rows, and blocks as columns
+    a_per_block_C = np.zeros((11,n_it*4))
+    
+    acc_per_block_NF = np.zeros((11,n_it*4))
+    acc_per_block_C = np.zeros((11,n_it*4))
+    
+    clfo_per_block_NF = np.zeros((11,n_it*4))
+    clfo_per_block_C = np.zeros((11,n_it*4))
+    
+    # NF alpha
+    for idx, item in enumerate(subsNF_a):
+        k = 0
+        for b in range(n_it*4):
+            a_per_block_NF[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
+            acc_per_block_NF[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
+            k += 50
+            
+    # C alpha
+    for idx, item in enumerate(subsC_a):
+        k = 0
+        for b in range(n_it*4):
+            a_per_block_C[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
+            acc_per_block_C[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
+            k += 50
+    
+    # NF clf output
+    for idx, item in enumerate(subsNF_clf):
+        k = 0
+        for b in range(n_it*4):
+            clfo_per_block_NF[idx,b] = (np.mean(item[k:k+50])) 
+            k += 50
+            
+     # C clf output
+    for idx, item in enumerate(subsC_clf):
+        k = 0
+        for b in range(n_it*4):
+            clfo_per_block_C[idx,b] = (np.mean(item[k:k+50])) 
+            k += 50
+    
+    return a_per_block_NF, a_per_block_C, acc_per_block_NF, acc_per_block_C, clfo_per_block_NF, clfo_per_block_C
 
+def getAvgBeh(wanted_measure):
+    '''
+    Returns averaged stats per block for NF subjects and C subjects
+    '''
+    # Extract wanted behavioral measure
+    subsAll_beh, subsNF_beh, subsC_beh = extractStatsBlockDay2(wanted_measure)
+    
+    NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
+    
+    behBlocksNF_all = []
+    behBlocksC_all = []
+    
+    # Chosen beh measure
+    for idx, item in enumerate(subsNF_beh):
+        behBlocksNF = (np.copy(item))[NFBlocks_idx]
+        behBlocksNF_all.append(behBlocksNF)
         
-    # above_clfo = len(np.where((np.array(subsAll_clf)>0))[0])/len(subsAll_clf)
-
+    for idx, item in enumerate(subsC_beh):
+        behBlocksC = (np.copy(item))[NFBlocks_idx]
+        behBlocksC_all.append(behBlocksC)
     
-    # Alpha and clf output and alpha accuracy per block
-    a_per_block = np.zeros((n_it*4))
-    acc_per_block = np.zeros((n_it*4))
-    clfo_per_block = np.zeros((n_it*4))
-    k = 0
+    # Average over NF behavioral measure
+    behBlockNF_avg = np.mean(behBlocksNF_all,axis=0)
     
-    for b in range(n_it*4):
-        a_per_block[b] = (np.mean(subsAll_a[k:k+50])) # Mean alpha per block
-        acc_per_block[b] = (len(np.where((np.array(subsAll_a[k:k+50])>0.5))[0])/50)
-        clfo_per_block[b] = (np.mean(subsAll_clf[k:k+50])) 
-        k += 50
-        
-    return a_per_block, acc_per_block, clfo_per_block
-
-
+    # Average over C behavioral measure
+    behBlockC_avg = np.mean(behBlocksC_all,axis=0)
+    
+    return behBlockNF_avg, behBlockC_avg
+    
 
 def plotAlphaVSbeh():
     
-    # Extract wanted behavioral measure
-    subsAll_sen, subsNF_sen, subsC_sen = extractStatsBlockDay2('sen')
+    # Get averaged behavioral measures for each group
+    senBlockNF_avg, senBlockC_avg = getAvgBeh('sen')
+    specBlockNF_avg, specBlockC_avg = getAvgBeh('spec')
+    accBlockNF_avg, accBlockC_avg = getAvgBeh('acc')
+    rtBlockNF_avg, rtBlockC_avg = getAvgBeh('rt')
+
+    # Extract alpha, accuracy and clf output per block
+    a_per_block_NF, a_per_block_C, acc_per_block_NF, acc_per_block_C, clfo_per_block_NF, clfo_per_block_C = blockAlpha()
     
-    a_per_block, acc_per_block, clfo_per_block = blockAlpha()
+    # Average over alpha for NF
+    alphaBlockNF_avg = np.mean(a_per_block_NF,axis=0)
     
-    NFBlocks = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
+    # Average over alpha for C
+    alphaBlockC_avg = np.mean(a_per_block_C,axis=0)
     
-    senBlocksNF = (np.copy(senBlocks))[NFBlocks]
-    accBlocksNF = (np.copy(accBlocks))[NFBlocks]
-    specBlocksNF = (np.copy(specBlocks))[NFBlocks]
-    RTBlocksNF = (np.copy(RTBlocks))[NFBlocks]
+    # Average over clf output for NF
+    clfoBlockNF_avg = np.mean(clfo_per_block_NF,axis=0)
     
-    # Plot
-    plt.step(np.arange(1,n_it*4+1),a_per_block,where='post',label='alpha',linewidth=4.0)
-    plt.step(np.arange(1,n_it*4+1),clfo_per_block,where='post',label='clf output',linewidth=4.0)
-    plt.step(np.arange(1,n_it*4+1),acc_per_block,where='post',label='decoding acc',linewidth=4.0)
+    # Average over clf output for C
+    clfoBlockC_avg = np.mean(clfo_per_block_C,axis=0)
+    
+    zscore(alphaBlockNF_avg)
     
     
+    # Plot NF
+    plt.figure(random.randint(0,100))
     plt.xticks(np.arange(1,n_it*4+1),[str(item) for item in np.arange(1,n_it*4+1)])
-    plt.step(np.arange(1,n_it*4+1),senBlocksNF,where='post',label='sensitivity')
-    plt.step(np.arange(1,n_it*4+1),specBlocksNF,where='post',label='specificity')
-    plt.step(np.arange(1,n_it*4+1),accBlocksNF,where='post',label='accuracy')
-    plt.step(np.arange(1,n_it*4+1),RTBlocksNF,where='post',label='RT')
-    
+
+    # plt.step(np.arange(1,n_it*4+1),alphaBlockNF_avg/np.sum(alphaBlockNF_avg),where='post',label='alpha NF',linewidth=4.0)
+    plt.step(np.arange(1,n_it*4+1),zscore(clfoBlockNF_avg),where='post',label='clf output NF',linewidth=4.0)
+    # plt.step(np.arange(1,n_it*4+1),senBlockNF_avg/np.sum(senBlockNF_avg),where='post',label='sensitivity NF')
+    # plt.step(np.arange(1,n_it*4+1),specBlockNF_avg/np.sum(specBlockNF_avg),where='post',label='specificity NF')
+    plt.step(np.arange(1,n_it*4+1),zscore(accBlockNF_avg),where='post',label='accuracy NF')
+    # plt.step(np.arange(1,n_it*4+1),zscore(rtBlockNF_avg),where='post',label='response time NF')
     plt.legend()
     
+    # Plot C
+    plt.figure(random.randint(0,100))
+    plt.xticks(np.arange(1,n_it*4+1),[str(item) for item in np.arange(1,n_it*4+1)])
+
+    # plt.step(np.arange(1,n_it*4+1),alphaBlockC_avg/np.sum(alphaBlockC_avg),where='post',label='alpha C',linewidth=4.0)
+    plt.step(np.arange(1,n_it*4+1),zscore(clfoBlockC_avg),where='post',label='clf output C',linewidth=4.0)
+    # plt.step(np.arange(1,n_it*4+1),senBlockC_avg/np.sum(senBlockC_avg),where='post',label='sensitivity C')
+    # plt.step(np.arange(1,n_it*4+1),specBlockC_avg/np.sum(specBlockC_avg),where='post',label='specificity C')
+    plt.step(np.arange(1,n_it*4+1),zscore(accBlockC_avg),where='post',label='accuracy C')
+    # plt.step(np.arange(1,n_it*4+1),zscore(rtBlockC_avg),where='post',label='response time C')
+    plt.legend()
+
     
+def plotMatchedAlphavsBeh():
+    '''
+    Does not average across participants, but plots the participant with its matched control participant.
+    '''
+    NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
+
+    subsAll_beh, subsNF_beh, subsC_beh = extractStatsBlockDay2('acc')
     
+    behBlocksNF_all = [] # Only NF blocks extracted
+    for idx, item in enumerate(subsAll_beh):
+        behBlocksNF = (np.copy(item))[NFBlocks_idx]
+        behBlocksNF_all.append(behBlocksNF)
     
+    # Extract alpha, accuracy and clf output per block
+    a_per_block_all, acc_per_block_all, clfo_per_block_all = blockMatchedAlpha() 
+    
+    # For alpha control
+    subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
+    
+    matchedAlpha = []
+    matchedAlphaBlock = []
+    matchedClfBlock = []
+    matchedAccBlock = []
+    matchedBeh = []
+    
+    for NF_person, C_person in d_match.items():
+        # print(NF_person)
+        for subjKey, val in d_all2.items():
+            # print(key)
+            if C_person == subjKey:
+                print(NF_person,subjKey)
+                # Compare two alpha files. Check wheter corr between alpha and clf output is 
+                
+                # print(val_match) # Take this subject, which is the key! extract alpha file from values
+                
+                # Get behavioral measure for the NF participant and control
+                # behBlocksNF has all subjects' chosen behavioral measure. 
+                
+                print('This is the subjKey, i.e. matched participant ',subjKey)
+                control_idx = subjID_all.index(subjKey)
+                NF_idx = subjID_all.index(NF_person)
+                print('This is the NF idx, i.e. NF participant ',NF_idx)
+                print('subj_idx of the matched person ',control_idx)
+                
+                # Get alpha list or beh measure 
+                matched = [behBlocksNF_all[NF_idx],behBlocksNF_all[control_idx]]
+                matchedBeh.append(matched)
+                
+                # Extract alpha 
+                matched_a = [subsAll_a[NF_idx],subsAll_a[control_idx]]
+                matchedAlpha.append(matched_a)
+                
+                matched_a_block = [a_per_block_all[NF_idx],a_per_block_all[control_idx]]
+                matchedAlphaBlock.append(matched_a_block)
+                
+                # Add clf output
+                matched_clf_block = [clfo_per_block_all[NF_idx],clfo_per_block_all[control_idx]]
+                matchedClfBlock.append(matched_clf_block)
+                
+                # Add decoding accuracy
+                matched_acc_block = [acc_per_block_all[NF_idx],acc_per_block_all[control_idx]]
+                matchedAccBlock.append(matched_acc_block)
+    
+    # Manually add the last value as the same as the last?
+    
+    # Plot NF subject vs matched control, with the alpha shown (the NF person's alpha)
+    fig,ax=plt.subplots()
+    
+    for axis in [ax.xaxis]:
+        axis.set(ticks=np.arange(1.5,n_it*4+1), ticklabels=[str(item) for item in np.arange(1,n_it*4+1)])
+    
+    #plt.xticks(np.arange(1,n_it*4+2),[str(item) for item in np.arange(1,n_it*4+1)])
+    # Plotting alpha of the NF subject, e.g. subj 7, which was also used for subj 17
+    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedAlphaBlock[7][0]),(zscore(matchedAlphaBlock[7][0])[-1:])),where='post',label='Alpha value (shown for both subjects)',linewidth=2.0, color='black')
+    # plt.step(np.arange(1,n_it*4+1),zscore(clfoBlockNF_avg),where='post',label='clf output NF',linewidth=4.0)
+    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[7][0]),zscore(matchedBeh[7][0])[-1:]),where='post',label='Behavioral accuracy, NF subject',linewidth=1.0,color='tomato')
+    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[7][1]),zscore(matchedBeh[7][1])[-1:]),where='post',label='Behavioral accuracy, matched control subject',linewidth=1.0,color='dodgerblue')
+    plt.xlabel('NF block number, day 2')
+    plt.ylabel('Z-scored units')
+    plt.legend()
+    plt.title('Behavioral accuracy per block for NF subject and matched control')
+    
+    # Reality check
+    # han = matchedAccBlock[7][0] # Must be the NF person of d_match index 7, i.e. subj 22
+    # np.mean(han) # Matches with the RT accuracy for subj 22 in d_all2
+    
+def blockMatchedAlpha():
+    NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
+
+    subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
+    subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
+    
+    a_per_block_all = np.zeros((22,n_it*4)) # Subjects as rows, and blocks as columns
+    acc_per_block_all = np.zeros((22,n_it*4))
+    clfo_per_block_all = np.zeros((22,n_it*4))
+    
+    # alpha and acc all
+    for idx, item in enumerate(subsAll_a):
+        k = 0
+        for b in range(n_it*4):
+            a_per_block_all[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
+            a_per_block_all = a_per_block_all[]
+            
+            acc_per_block_all[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
+            k += 50    
+            
+    # clf output all
+    for idx, item in enumerate(subsAll_clf):
+        k = 0
+        for b in range(n_it*4):
+            clfo_per_block_all[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
+            k += 50  
+            
+    return a_per_block_all, acc_per_block_all, clfo_per_block_all
+            
+    
+
+
+      
 #%% Check correlation between NF matched alpha subject and that particular subject
 
 # Delta beh output vs correlation of real and yoked clf output
@@ -206,11 +501,7 @@ def corrControl():
     
     
 #%% Classifier output pre (and post?) FR and CR
-os.chdir(scriptsDir)
-from responseTime_func import extractCat
 
-saveDir = 'P:\\closed_loop_data\\beh_analysis\\' 
-EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
 
 def preFRandCR(subjID):
     '''
