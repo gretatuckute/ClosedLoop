@@ -554,6 +554,9 @@ def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False):
     
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     
+    subsNF_LORO = np.load(scriptsDir+'subsNF_LORO_09May.npy') # omit 09 May if old one
+    subsC_LORO = np.load(scriptsDir+'subsC_LORO_09May.npy')
+
     # Create arrays
     if LOBO == False:
         subsC_LORO_a = np.array(subsC_LORO).flatten()

@@ -693,7 +693,7 @@ def analyzeOffline(subjID):
     print('Finished running test and train analyses for subject: ' + str(subjID))
     
     # PICKLE TIME
-    fname = '09May_subj_'+str(subjID)+'.pkl'
+    fname = '08May2_subj_'+str(subjID)+'.pkl'
     with open(fname, 'wb') as fout:
         pickle.dump(pkl_arr, fout)
     

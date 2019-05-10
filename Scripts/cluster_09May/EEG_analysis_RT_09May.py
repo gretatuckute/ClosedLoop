@@ -11,9 +11,11 @@ vectors, preprocessing of epoched EEG data (filtering, baseline correction, rere
 
 #### Imports ####
 
+import csv
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import zscore
+import pandas as pd
 import os 
 import mne
 from scipy.signal import detrend
@@ -95,8 +97,8 @@ def applySSP(EEG,info,threshold=0.1,):
     - EEG after SSP
     
     '''    
-    EEG = mne.EpochsArray(EEG, info, baseline=None)
-    projs = computeSSP(EEG, info, threshold)
+    EEG = mne.EpochsArray(EEG, info,baseline=None)
+    projs = computeSSP(EEG,info,threshold)
     EEG.add_proj(projs)
     EEG.apply_proj()
     EEG = EEG.get_data()
@@ -213,10 +215,9 @@ def preproc1epoch(eeg,info,projs=[],SSP=True,reject=None,mne_reject=1,reject_ch=
     - eeg: numPy array. EEG epoch in the following format: (time samples, channels).
     - info: MNE info data structure. Predefined info containing channels etc. Can be generated using create_info_mne function.
     - projs: MNE SSP projector objects. Used if SSP = True. 
-    - SSP: bool. Whether to apply SSP projectors on eeg.
     - reject: bool. Whether to reject channels, either manually defined or based on MNE analysis.
-    - mne_reject: bool. Whether to use MNE rejection based on epochs._is_good. 
     - reject_ch: bool. Whether to reject nine predefined channels.
+    - mne_reject: bool. Whether to use MNE rejection based on epochs._is_good. 
     - flat: bool??. Input for MNE rejection
     - bad_channels: list. Manual rejection of channels.
     - opt_detrend: bool. Whether to apply temporal EEG detrending (linear).

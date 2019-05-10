@@ -57,7 +57,19 @@ for subj in subs550:
 for subj in subs450:
     with open('18April_subj_'+subj+'.pkl', "rb") as fin:
          d_all[subj] = (pickle.load(fin))[0] 
-         
+
+#%% Pipeline with updated LORO and ouput alpha and clf output values
+
+d_all2 = {}
+
+for subj in sub_axis_all:
+    with open('09May_subj_'+subj+'.pkl', "rb") as fin:
+         d_all2[subj] = (pickle.load(fin))[0]
+
+#%% Test difference between old and new LORO CV
+subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('LORO_stable_acc_corr')         
+subsAll2, subsNF2, subsC2, meanAll2, meanNF2, meanC2 = extractVal('LORO_stable_acc_corr')         
+
 #%% Check GROUP assignments (checked 23 April - OK)
 dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
 GROUP_keys = ('ALPHA_correlation','GROUP')
@@ -72,11 +84,15 @@ for key, value in d_all.items():
 #%% Extract values from EEG dict, d_all
 
 def extractVal(wanted_key):
+    '''
+    Remember to change from d_all to d_all2 (if using analyses from 09May)
+    '''
+    
     subsAll = []
     subsNF = []
     subsC = []
     
-    for key, value in d_all.items():
+    for key, value in d_all2.items():
         subsNF_result = []
         subsC_result = []
         
@@ -232,7 +248,9 @@ plt.legend()
 #%% Plot offline train LORO accuracies, bias corrected, stable
 subsAll_LORO, subsNF_LORO, subsC_LORO, meanAll_LORO, meanNF_LORO, meanC_LORO = extractVal('LORO_stable_acc_corr')
 
-# np.save('subsAll_LORO.npy',subsAll_LORO)
+# np.save('subsAll_LORO_09May.npy',subsAll_LORO)
+# np.save('subsNF_LORO_09May.npy',subsNF_LORO)
+# np.save('subsC_LORO_09May.npy',subsC_LORO)
 
 plt.figure(11)
 plt.scatter(np.arange(0,len(subsNF_LORO),1),subsNF_LORO,color='tomato') # NF subjects

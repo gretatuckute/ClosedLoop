@@ -525,4 +525,3 @@ def findFiles(fileLst,expDay):
     
     return catFile, stimuliFile, keypressFile
     
-
