@@ -45,19 +45,26 @@ subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','
 subjID_NF = ['07','08','11','13','14','16','19','22','26','27','30']
 subjID_C = ['15','17','18','21','23','24','25','31','32','33','34']
 
+# For matching
+NF_group = ['07','08','11','13','14','16','19','22','26','27','30']
+C_group = ['17','18','15','24','21','33','25','32','34','23','31']
+
 n_it = 5
 
 #%%
 os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
 
-d2_all = {}
+d_all2 = {}
 
 for subj in subjID_all:
     with open('09May_subj_'+subj+'.pkl', "rb") as fin:
-         d2_all[subj] = (pickle.load(fin))[0]
+         d_all2[subj] = (pickle.load(fin))[0]
 
 #%%
 def extractVal2(wkey):
+    '''
+    Extracts a value from the EEG dict, d_all2.
+    '''
     subsAll = []
     subsNF = []
     subsC = []
@@ -181,9 +188,10 @@ def computeStats(subjID):
 
 #%%
 
+
+#%% Extract stats for all subjects
 statsBlockDay2_all = {}
 
-# Extract stats for all subjects
 for idx,subjID in enumerate(subjID_all):
     statsDay, statsBlock, statsBlock_day2 = computeStats(subjID)
     
@@ -193,7 +201,9 @@ for idx,subjID in enumerate(subjID_all):
 #%%
 
 def blockAlpha():
-
+    '''
+    Extracts alpha, accuracy and clf output for NF and C groups individually.
+    '''
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
     
@@ -231,7 +241,7 @@ def blockAlpha():
     clfo_per_block_NF = np.zeros((11,n_it*4))
     clfo_per_block_C = np.zeros((11,n_it*4))
     
-    # NF alpha
+    # NF alpha + acc
     for idx, item in enumerate(subsNF_a):
         k = 0
         for b in range(n_it*4):
@@ -239,7 +249,7 @@ def blockAlpha():
             acc_per_block_NF[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
             k += 50
             
-    # C alpha
+    # C alpha + acc
     for idx, item in enumerate(subsC_a):
         k = 0
         for b in range(n_it*4):
@@ -265,7 +275,7 @@ def blockAlpha():
 
 def getAvgBeh(wanted_measure):
     '''
-    Returns averaged stats per block for NF subjects and C subjects
+    Returns averaged beh stats per block for NF subjects and C subjects
     '''
     # Extract wanted behavioral measure
     subsAll_beh, subsNF_beh, subsC_beh = extractStatsBlockDay2(wanted_measure)
@@ -294,7 +304,10 @@ def getAvgBeh(wanted_measure):
     
 
 def plotAlphaVSbeh():
+    '''
+    Plots alpha (or acc or clf output) meaned for NF and C, respectively, vs. chosen behavioral measure.
     
+    '''
     # Get averaged behavioral measures for each group
     senBlockNF_avg, senBlockC_avg = getAvgBeh('sen')
     specBlockNF_avg, specBlockC_avg = getAvgBeh('spec')
@@ -445,7 +458,7 @@ def blockMatchedAlpha():
         k = 0
         for b in range(n_it*4):
             a_per_block_all[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
-            a_per_block_all = a_per_block_all[]
+            # a_per_block_all = a_per_block_all[]
             
             acc_per_block_all[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
             k += 50    
@@ -467,39 +480,59 @@ def blockMatchedAlpha():
 
 # Delta beh output vs correlation of real and yoked clf output
 
-def corrControl():
-    # Rearrange to I can make paired test
-    NF_group = ['07','08','11','13','14','16','19','22','26','27','30']
-    C_group = ['17','18','15','24','21','33','25','32','34','23','31']
-    
-    d_match = {}
-    
-    for i in range(len(NF_group)):
-        d_match[NF_group[i]] = C_group[i]
-    
-    
-    # for key, value in d_all.items():
+d_match = {}
+
+for i in range(len(NF_group)):
+    d_match[NF_group[i]] = C_group[i]
         
-    for k_match, val_match in d_match.items():
-        # print(k_match)
-        for key, val in d_all.items():
-            # print(key)
-            if k_match == key:
-                print(k_match)
-                # Compare two alpha files. Check wheter corr between alpha and clf output is 
-                
-                print(val_match) # Take this subject, which is the key! extract alpha file from values
-                
-                
-                alpha_control = []
-                # Extract alpha from here
-                for name,item in d_all[val_match].items():
-                    if name == 'subjID':
-                        alpha_control.append(item) # Appending to a list 
-                    
-                print(val) # extract alpha file here too 
+# Using matchedAlpha from plotMatchedAlphavsBeh function.
+
+alphaCorrs = []
+alpha_all = [] # List with all subjects' alpha lists. The decoded ones. Not the ones shown! 
+for idx, entry in enumerate(matchedAlpha):
+    alphaCorr = np.corrcoef(matchedAlpha[idx][0],matchedAlpha[idx][1]) # NF vs control
+    d_match['Match_'+str(NF_group[idx])+'_'+str(C_group[idx])] = alphaCorr[0][1]
+    alphaCorrs.append(alphaCorr[0][1])
+    alpha_all.append(matchedAlpha[idx][0])
+    alpha_all.append(matchedAlpha[idx][1])
+
+np.mean(alphaCorrs)
+
+# Make alpha lists with the shown alphas (e.g. 3 alphas=0.5 for each block)
+
+alpha_all_shown = np.copy(alpha_all)
+
+for number in np.arange(0,1000,50):
+    alpha_all_shown[:,number] = 0.5
+    alpha_all_shown[:,number+1] = 0.5
+    alpha_all_shown[:,number+2] = 0.5
     
-    
+# Correlation between alpha and classifier output in general
+alpha_sub13=matchedAlpha[3][0]
+
+a=d_all2['13']
+clfo_sub13=a['CLFO_test']
+
+np.corrcoef(alpha_sub13,clfo_sub13)
+
+plt.hist(alpha_sub13)
+
+# Average across all subjects' alpha values:
+alpha_all_shownlst = alpha_all_shown.tolist()
+
+plt.figure(3)
+plt.hist(alpha_all_shownlst,color=['black']*22,bins=22)
+plt.xticks(np.arange(0.1,1.1,0.1),['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1'])
+plt.xlabel('Feedback (mixture proportion of attended category)')
+plt.ylabel('Count (number of trials)')
+plt.axvline(0.17,color='black',linewidth=0.5)
+plt.axvline(0.27,color='black',linewidth=0.5)
+plt.axvline(0.5,color='black',linewidth=0.5)
+plt.axvline(0.84,color='black',linewidth=0.5)
+plt.axvline(0.98,color='black',linewidth=0.5)
+plt.title('Feedback (alpha) values for all participants')
+
+
 #%% Classifier output pre (and post?) FR and CR
 
 
@@ -642,7 +675,7 @@ def preFRandCR(subjID):
             except:
                 post3_CR.append(np.nan)
     
-    return np.nanmean(post3_FR), np.nanmean(post3_CR)
+    return np.nanmean(pre2_FR), np.nanmean(pre2_CR)
 
 #%%           
 preFR_NF = []
@@ -678,8 +711,8 @@ sem_CR_C = np.std(preCR_C)/np.sqrt(11)
 
 #%% Plot
 plt.figure(random.randint(0,100))
-plt.ylabel('Mean classifier 3 trials post lure')
-plt.xticks([1,2,3,4],['NF FR','NF CR','Control FR','Control CR'])# 'Control day 1, part 2', 'Control day 3, part 2'])
+plt.ylabel('Mean classifier 2 trials pre lure')
+plt.xticks([1,2,3,4],['NF, false alarms','NF, correct rejections','Control, false alarms','Control, correct rejections'])# 'Control day 1, part 2', 'Control day 3, part 2'])
 # plt.title(title)
 
 plt.scatter(np.full(10,1),preFR_NF,color='lightsalmon')

@@ -272,7 +272,9 @@ plt.legend()
 #%% Plot offline train LOBO accuracies, corrected, stable
 subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = extractVal('LOBO_stable_train_acc_corr')
 
-# np.save('subsAll_LOBO.npy',subsAll_LOBO)
+# np.save('subsNF_LOBO.npy',subsNF_LOBO)
+# np.save('subsC_LOBO.npy',subsC_LOBO)
+
 
 plt.figure(12)
 plt.scatter(np.arange(0,len(subsNF_LOBO),1),subsNF_LOBO,color='tomato') # NF subjects
