@@ -575,7 +575,6 @@ def analyzeOffline(subjID):
         for idx,cat in enumerate(events_list):
             if cat == 0:
                 evoked_array_c0.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
-                print
             if cat == 1:
                 evoked_array_c1.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
         

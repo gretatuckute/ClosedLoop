@@ -273,6 +273,29 @@ def extractStatsBlock(day,wanted_measure):
     
     return subsAll, subsNF, subsC
 
+def extractStatsBlockDay2(wkey):
+    '''
+    
+    '''
+    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
+    w_idx = wanted_measure_lst.index(wkey)
+   
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in statsBlockDay2_all.items():
+        result = value[:,w_idx]
+        # print(result.shape)
+        subsAll.append(result)
+        
+        if key in subjID_NF:
+            subsNF.append(result)
+        if key in subjID_C:
+            subsC.append(result) 
+    
+    return subsAll, subsNF, subsC
+
 #%% 
 def make4Bars(wanted_measure,title,ylabel,part2=False):
     '''
@@ -893,13 +916,16 @@ plotResponseTimes('2')
 NF_group = ['07','08','11','13','14','16','19','22','26','27','30']
 C_group = ['17','18','15','24','21','33','25','32','34','23','31']
 
-def matchedSubjects(wanted_measure,title):
+def matchedSubjects(wanted_measure,title,relative=False):
 
     # Extract values for day 1 and 3
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
     
-    diff = np.asarray(all_d3) - np.asarray(all_d1)
+    if relative == False:
+        diff = np.asarray(all_d3) - np.asarray(all_d1)
+    if relative == True:
+        diff = (np.asarray(all_d3) - np.asarray(all_d1))/(1-np.asarray(all_d1))
 
     NF_group_match = []
     C_group_match = []
@@ -941,9 +967,9 @@ def matchedSubjects(wanted_measure,title):
 
 
 #%%
-matchedSubjects('sen','Sensitivity improvement - matched participants')
+matchedSubjects('sen','Sensitivity improvement - matched participants',relative=True)
 matchedSubjects('spec','Specificity improvement - matched participants')
-matchedSubjects('acc','Accuracy improvement - matched participants')
+matchedSubjects('acc','Accuracy improvement - matched participants',relative=True)
 matchedSubjects('rt','Response time improvement - matched participants')
 # If negative, means that the response time has improved (i.e. shortened) from day 1 to 3. 
 # A larger absolute value (the more negative), means better response time improvement
@@ -984,12 +1010,16 @@ NFimprovement('acc')
 NFimprovement('rt')
 
 #%% Also do this with matched pairs
-def matchedSubjects2(wanted_measure,title):
-
+def matchedSubjects2(wanted_measure,title,relative=False,NFblocks=False):
+    '''
+    Matched pairs, looks at the difference between day 1 and day 2 (overall behavioral measure for that day)
+    If NFblocks == True, the day2 stats is only based on NF (or stable?) blocks
+    '''
+    
     # Extract values for day 1 and 2
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
-    
+
     # Output diff without subj 11 only, for non matched participant analysis
     all_d1_21 = np.copy(all_d1)
     all_d2_21 = np.copy(all_d2)
@@ -1001,12 +1031,39 @@ def matchedSubjects2(wanted_measure,title):
     
     # Delete subj 11
     del all_d1[2]
-    del all_d2[2]
     # Delete subj 15
     del all_d1[4]
-    del all_d2[4]
     
-    diff = np.asarray(all_d2) - np.asarray(all_d1)
+    if NFblocks == False:        
+        # Delete subj 11
+        del all_d2[2]
+        # Delete subj 15
+        del all_d2[4]
+    
+    if NFblocks == True:
+        all_d2_block, NF_d2_block, C_d2_block = extractStatsBlockDay2(wanted_measure)
+        # Only use NF blocks
+        NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
+    
+        behBlocksNF_all = [] # Only NF blocks extracted
+        for idx, item in enumerate(all_d2_block):
+            behBlocksNF = (np.copy(item))[NFBlocks_idx]
+            behBlocksNF_all.append(behBlocksNF)
+        
+        all_d2 = []
+        for subj in behBlocksNF_all:
+            subj_avg = np.mean(subj)
+            all_d2.append(subj_avg)
+            
+        # Delete subj 11
+        del all_d2[2]
+        # Delete subj 15
+        del all_d2[4]
+
+    if relative == True:
+        diff = (np.asarray(all_d2) - np.asarray(all_d1))/(1-np.asarray(all_d1))
+    if relative == False:
+        diff = np.asarray(all_d2) - np.asarray(all_d1)
 
     NF_group_match = []
     C_group_match = []
@@ -1048,12 +1105,12 @@ def matchedSubjects2(wanted_measure,title):
     return diff, diff_21
 
 
-#%%
-diff_d12_sen, diff_d12_sen_21 = matchedSubjects2('sen','Sensitivity change, day 1 to 2')
-diff_d12_spec, diff_d12_spec_21 = matchedSubjects2('spec','Specificity change, day 1 to 2') # NF become less specific
-diff_d12_acc, diff_d12_acc_21 = matchedSubjects2('acc','Accuracy change, day 1 to 2')
+#%% Matched day 2-day 1 change
+diff_d12_sen, diff_d12_sen_21 = matchedSubjects2('sen','Sensitivity change, day 1 to 2',relative=False,NFblocks=True)
+diff_d12_spec, diff_d12_spec_21 = matchedSubjects2('spec','Specificity change, day 1 to 2',relative=True) # NF become less specific
+diff_d12_acc, diff_d12_acc_21 = matchedSubjects2('acc','Accuracy change, day 1 to 2',relative=True,NFblocks=True)
 
-diff_d12_rt, diff_d12_rt_21 = matchedSubjects2('rt','Response time change, day 1 to 2')
+diff_d12_rt, diff_d12_rt_21 = matchedSubjects2('rt','Response time change, day 1 to 2',relative=True)
 
 #%% Create RT decoding acc and LORO acc without subj 11
 
@@ -1167,5 +1224,7 @@ plt.title('Offline decoding accuracy (LORO) vs. response time improvement day 1-
 
 np.corrcoef(subs21_LORO,diff_d12_rt_21)
 
+
+#%% Check correlation between NF matched alpha subject and that particular subject
 
 

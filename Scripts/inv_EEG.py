@@ -335,6 +335,7 @@ def extractEvokeds(epochsArray):
 #%% Extract evoked responses (averaged)
     
 MNEstable_all = extractMNE('MNE_stable_blocks_SSP')
+y_stable_all = extractMNE('MNE_y_stable_blocks')
 
 #%% Append scene and face evoked to lists
 MNEscene_all = []
@@ -360,20 +361,64 @@ for sub in MNEstable_all:
         MNEface_all.append(face_avg)
         MNEevoked_all.append(evokeds)
         c += 1
+
+#%% Check whether MNE category labeling corresponds
+        
+face_avg_all = []
+scene_avg_all = []
+c = 0
+for idx, subj in enumerate(MNEstable_all):
+    if c <= 2:
+        g1 = subj.get_data()
+        g1 = g1[:,:,:90]
+        y_stable = y_stable_all[idx]       
+        g3 = g1[y_stable==True] # Faces = 1
+        g4 = g1[y_stable==False] # Scenes = 0
+        
+        g3a = np.mean(g3,axis=0) #faces 
+        g4a = np.mean(g4,axis=0)
+        
+        face_avg_all.append(g3a)
+        scene_avg_all.append(g4a)
+        c+=1
+    else:
+        g1 = subj.get_data()
+        y_stable = y_stable_all[idx]       
+        g3 = g1[y_stable==True] # Faces = 1
+        g4 = g1[y_stable==False] # Scenes = 0
+        
+        g3a = np.mean(g3,axis=0) #faces 
+        g4a = np.mean(g4,axis=0)
+        
+        face_avg_all.append(g3a)
+        scene_avg_all.append(g4a)
+        c+=1
+    
+plt.figure(14)
+plt.plot(np.mean(face_avg_all,axis=0).T[:,7],color='red') # Corresponds to e_dict['Face'] as below
+plt.plot(np.mean(scene_avg_all,axis=0).T[:,7],color='blue')
+        
+e_dict = {}
+e_dict['Scene'] = [item[0] for item in MNEevoked_all] # Rearranges alphabetically
+e_dict['Face'] = [item[1] for item in MNEevoked_all]
+
+mne.viz.plot_compare_evokeds(e_dict,picks=[7],colors=['r','b'],\
+                             truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
+                             show_sensors=True,show_legend=True,truncate_yaxis=False,ci=False)
+      
     
 #%% 
 # Plotting evoked responses for 1 subject, individually
-MNEstable_all[0]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
+MNEstable_all[17]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 MNEstable_all[0]['scene'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 
 mne.viz.plot_compare_evokeds(MNEscene_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
-mne.viz.plot_compare_evokeds(MNEface_all[:9],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
+mne.viz.plot_compare_evokeds(MNEface_all[:2],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
 
 # If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
 
 # from mne.decoding import Scaler
 # scale_test=Scaler(scalings='mean').fit_transform(MNEstable_all[0][2].get_data())
-
 
 #%% 
 colorAll = sns.color_palette("Set2",44)
@@ -403,7 +448,6 @@ MNEevoked_face.plot_joint()
 MNEevoked_scene.plot_sensors(show_names=True)
 
 # Evokeds based on conditions
-colors = 'blue', 'red'
 title = 'Subject \nscene vs face'
 
 # Plot evoked across all channels, comparing two categories, 1 subject
@@ -421,12 +465,31 @@ mne.viz.plot_compare_evokeds(MNEevoked_all[17],title=title,show_sensors=True,ci=
 
 # Create dict where with key "Scene" for all participants' evoked responses to scenes.
 e_dict = {}
-e_dict['Scene'] = [item[0] for item in MNEevoked_all]
+e_dict['Scene'] = [item[0] for item in MNEevoked_all] # Rearranges alphabetically
 e_dict['Face'] = [item[1] for item in MNEevoked_all]
 
 mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
                              truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
                              show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
+
+# Plot for individual subjects, based on category, e.g. face here
+dict_face = e_dict['Face']
+
+for item in dict_face[6:7]:
+    mne.viz.plot_compare_evokeds(item,picks=[6,7,12,13,22])
+
+# Plot averaged evoked for each subject, no CI
+for item in MNEevoked_all[6:8]:
+    mne.viz.plot_compare_evokeds(item,picks=[6,7,12,13,22],colors=['r','b'],\
+        truncate_xaxis=False,title='Scene vs face ERP',\
+        show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
+    # Save and add to big plot
+    # No 2 (by default is the face category)
+
+
+# Plot grand averaged ERPs for both categories
+MNEevoked_face.plot(picks=[6,7,12,13,22])
+MNEevoked_scene.plot(picks=[6,7,12,13,22])
 
 #%% Sort epochs based on categories
 
@@ -436,9 +499,21 @@ for idx,subj in enumerate(MNEstable_all):
     MNEepochs_all.append(sorted_epochsarray)
 
 
-#%% ??
+mne.viz.plot_compare_evokeds(sorted_epochsarray)
 
-sorted_epochsarray = [MNEstable_all[0][name] for name in ('scene','face')]
+#%% Plot evoked averages for individual subjects with CI
+
+for idx,subj in enumerate(MNEstable_all):
+    single_sub = MNEstable_all[idx].get_data()
+    single_evoked_array = [mne.EvokedArray(entry, info_fs100, tmin=-0.1) for entry in single_sub]
+
+
+
+
+
+
+
+
 
 # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) 
 g2 = MNEstable_all[0][0].get_data()
@@ -479,8 +554,9 @@ e_dict['1'] = evoked_array_c1
 # Could create these e_dicts for several people, and plot the means. Or create an e_dict
 # with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
 
+mne.viz.plot_compare_evokeds(e_dict,picks=[7])
 
-#%% Scene vs face ERP (evoked grand average), meaned across all participants
+#%% Scene vs face ERP (evoked grand average), meaned across all participants. No CI.
 
 # Compare mean of evoked response across all participants. Comparing categories.
 e_dict = {}
@@ -493,10 +569,6 @@ mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
 
 
 #%% Currently not relevant
-
-# Plot image
-MNEstable_all[0].plot_image()
-
 
 # Noise covariance plot - not really sure what to make of this (yet)
 # noise_cov = mne.compute_covariance(stable_blocksSSP_plot)

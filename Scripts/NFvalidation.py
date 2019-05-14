@@ -357,13 +357,18 @@ def plotAlphaVSbeh():
     plt.legend()
 
     
-def plotMatchedAlphavsBeh():
+def plotMatchedAlphavsBeh(pair,wanted_measure,zscored=False):
     '''
     Does not average across participants, but plots the participant with its matched control participant.
+    
+    Plots a chosen participant pair, for a wanted behavioral measure
     '''
+    d_match_pairs = [[k,v] for k, v in d_match.items()]
+    subject_pair = d_match_pairs[pair]
+    
     NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
 
-    subsAll_beh, subsNF_beh, subsC_beh = extractStatsBlockDay2('acc')
+    subsAll_beh, subsNF_beh, subsC_beh = extractStatsBlockDay2(wanted_measure)
     
     behBlocksNF_all = [] # Only NF blocks extracted
     for idx, item in enumerate(subsAll_beh):
@@ -373,7 +378,7 @@ def plotMatchedAlphavsBeh():
     # Extract alpha, accuracy and clf output per block
     a_per_block_all, acc_per_block_all, clfo_per_block_all = blockMatchedAlpha() 
     
-    # For alpha control
+    # For alpha corr control
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     
     matchedAlpha = []
@@ -387,9 +392,7 @@ def plotMatchedAlphavsBeh():
         for subjKey, val in d_all2.items():
             # print(key)
             if C_person == subjKey:
-                print(NF_person,subjKey)
-                # Compare two alpha files. Check wheter corr between alpha and clf output is 
-                
+                print(NF_person,subjKey)                
                 # print(val_match) # Take this subject, which is the key! extract alpha file from values
                 
                 # Get behavioral measure for the NF participant and control
@@ -420,32 +423,51 @@ def plotMatchedAlphavsBeh():
                 matched_acc_block = [acc_per_block_all[NF_idx],acc_per_block_all[control_idx]]
                 matchedAccBlock.append(matched_acc_block)
     
-    # Manually add the last value as the same as the last?
+    if zscored == True:
+        # Manually add the last value as the same as the last
+        
+        # Plot NF subject vs matched control, with the alpha shown (the NF person's alpha)
+        fig,ax=plt.subplots()
+        
+        for axis in [ax.xaxis]:
+            axis.set(ticks=np.arange(1.5,n_it*4+1), ticklabels=[str(item) for item in np.arange(1,n_it*4+1)])
+        
+        #plt.xticks(np.arange(1,n_it*4+2),[str(item) for item in np.arange(1,n_it*4+1)])
+        # Plotting alpha of the NF subject, e.g. subj 7, which was also used for subj 17
+        plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedAlphaBlock[pair][0]),(zscore(matchedAlphaBlock[pair][0])[-1:])),where='post',label='Alpha value (shown for both subjects)',linewidth=2.0, color='black')
+        # plt.step(np.arange(1,n_it*4+1),zscore(clfoBlockNF_avg),where='post',label='clf output NF',linewidth=4.0)
+        plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[pair][0]),zscore(matchedBeh[pair][0])[-1:]),where='post',label='Behavioral accuracy, NF subject',linewidth=1.0,color='tomato')
+        plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[pair][1]),zscore(matchedBeh[pair][1])[-1:]),where='post',label='Behavioral accuracy, matched control subject',linewidth=1.0,color='dodgerblue')
+        plt.xlabel('NF block number, day 2')
+        plt.ylabel('Z-scored units')
+        plt.legend()
+        plt.title('Behavioral accuracy per block for NF subject and matched control: '+str(subject_pair))
     
-    # Plot NF subject vs matched control, with the alpha shown (the NF person's alpha)
-    fig,ax=plt.subplots()
-    
-    for axis in [ax.xaxis]:
-        axis.set(ticks=np.arange(1.5,n_it*4+1), ticklabels=[str(item) for item in np.arange(1,n_it*4+1)])
-    
-    #plt.xticks(np.arange(1,n_it*4+2),[str(item) for item in np.arange(1,n_it*4+1)])
-    # Plotting alpha of the NF subject, e.g. subj 7, which was also used for subj 17
-    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedAlphaBlock[7][0]),(zscore(matchedAlphaBlock[7][0])[-1:])),where='post',label='Alpha value (shown for both subjects)',linewidth=2.0, color='black')
-    # plt.step(np.arange(1,n_it*4+1),zscore(clfoBlockNF_avg),where='post',label='clf output NF',linewidth=4.0)
-    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[7][0]),zscore(matchedBeh[7][0])[-1:]),where='post',label='Behavioral accuracy, NF subject',linewidth=1.0,color='tomato')
-    plt.step(np.arange(1,n_it*4+2),np.append(zscore(matchedBeh[7][1]),zscore(matchedBeh[7][1])[-1:]),where='post',label='Behavioral accuracy, matched control subject',linewidth=1.0,color='dodgerblue')
-    plt.xlabel('NF block number, day 2')
-    plt.ylabel('Z-scored units')
-    plt.legend()
-    plt.title('Behavioral accuracy per block for NF subject and matched control')
-    
+    if zscored == False:
+        fig,ax=plt.subplots()
+        
+        for axis in [ax.xaxis]:
+            axis.set(ticks=np.arange(1.5,n_it*4+1), ticklabels=[str(item) for item in np.arange(1,n_it*4+1)])
+        
+        plt.step(np.arange(1,n_it*4+2),np.append(matchedAlphaBlock[pair][0],matchedAlphaBlock[pair][0][-1:]),where='post',label='Alpha value (shown for both subjects)',linewidth=2.0, color='black')
+        plt.step(np.arange(1,n_it*4+2),np.append(matchedBeh[pair][0],matchedBeh[pair][0][-1:]),where='post',label='Behavioral accuracy, NF subject',linewidth=1.0,color='tomato')
+        plt.step(np.arange(1,n_it*4+2),np.append(matchedBeh[pair][1],matchedBeh[pair][1][-1:]),where='post',label='Behavioral accuracy, matched control subject',linewidth=1.0,color='dodgerblue')
+        plt.xlabel('NF block number, day 2')
+        plt.ylabel('Non z-scored units')
+        plt.legend()
+        plt.title('Behavioral accuracy per block for NF subject and matched control: '+str(subject_pair))
+
     # Reality check
     # han = matchedAccBlock[7][0] # Must be the NF person of d_match index 7, i.e. subj 22
     # np.mean(han) # Matches with the RT accuracy for subj 22 in d_all2
     
+    return matchedAlphaBlock, matchedBeh
+    
 def blockMatchedAlpha():
-    NFBlocks_idx = np.sort(np.concatenate([np.arange(12,8+n_it*8,8),np.arange(13,8+n_it*8,8),np.arange(14,8+n_it*8,8),np.arange(15,8+n_it*8,8)]))
-
+    '''
+    Returns alpha, accuracy and clf output er block for all subjects.
+    
+    '''
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
     
@@ -476,14 +498,51 @@ def blockMatchedAlpha():
 
 
       
-#%% Check correlation between NF matched alpha subject and that particular subject
-
-# Delta beh output vs correlation of real and yoked clf output
+#%% Create d_match
 
 d_match = {}
 
 for i in range(len(NF_group)):
     d_match[NF_group[i]] = C_group[i]
+    
+#%% Analyze block-wise matched pairs
+    
+# Plot alpha vs behavioral correlation value
+# plt.figure(101)
+# plt.scatter(matchedAlphaBlock[7][0],matchedBeh[7][1])
+
+# Simple correlations for all pairs
+matchedAlpha_test, matchedBeh_sen = plotMatchedAlphavsBeh(pair=10,wanted_measure='sen',zscored=1)
+matchedAlpha_test, matchedBeh_acc = plotMatchedAlphavsBeh(pair=10,wanted_measure='acc',zscored=1)
+matchedAlpha_test, matchedBeh_rt = plotMatchedAlphavsBeh(pair=7,wanted_measure='rt',zscored=1)
+
+corrs_sen = np.zeros((11,2))
+corrs_acc = np.zeros((11,2))
+corrs_rt = np.zeros((11,2))
+for idx in range(0,11):
+    if idx == 2:
+        corrs_acc[idx] = np.nan, np.nan
+        corrs_sen[idx] = np.nan, np.nan
+        corrs_rt[idx] = np.nan, np.nan
+    else:
+        corr_NF_sen = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_sen[idx][0])
+        corr_C_sen = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_sen[idx][1])
+        
+        corr_NF_acc = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_acc[idx][0])
+        corr_C_acc = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_acc[idx][1])
+        
+        corr_NF_rt = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_rt[idx][0])
+        corr_C_rt = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_rt[idx][1])
+        
+        corrs_sen[idx] = corr_NF_sen[0][1],corr_C_sen[0][1]
+        corrs_acc[idx] = corr_NF_acc[0][1],corr_C_acc[0][1]
+        corrs_rt[idx] = corr_NF_rt[0][1],corr_C_rt[0][1]
+
+print(np.round(corrs_sen,decimals=3))
+print(np.round(corrs_acc,decimals=3))
+
+
+#%% Check correlation between NF matched alpha subject and that particular subject
         
 # Using matchedAlpha from plotMatchedAlphavsBeh function.
 
@@ -508,15 +567,16 @@ for number in np.arange(0,1000,50):
     alpha_all_shown[:,number+2] = 0.5
     
 # Correlation between alpha and classifier output in general
-alpha_sub13=matchedAlpha[3][0]
+# alpha_sub13=matchedAlpha[3][0]
 
-a=d_all2['13']
-clfo_sub13=a['CLFO_test']
+# a=d_all2['13']
+# clfo_sub13=a['CLFO_test']
 
-np.corrcoef(alpha_sub13,clfo_sub13)
+# np.corrcoef(alpha_sub13,clfo_sub13)
 
-plt.hist(alpha_sub13)
+# plt.hist(alpha_sub13)
 
+# ALPHA PLOT
 # Average across all subjects' alpha values:
 alpha_all_shownlst = alpha_all_shown.tolist()
 
@@ -531,6 +591,24 @@ plt.axvline(0.5,color='black',linewidth=0.5)
 plt.axvline(0.84,color='black',linewidth=0.5)
 plt.axvline(0.98,color='black',linewidth=0.5)
 plt.title('Feedback (alpha) values for all participants')
+
+#%% Alpha correlation, shown ones
+
+alphaCorrs_shown = []
+alpha_all = [] # List with all subjects' alpha lists. The decoded ones. Not the ones shown! 
+for idx, entry in enumerate(matchedAlpha):
+    alphaCorr = np.corrcoef(matchedAlpha[idx][0],matchedAlpha[idx][1]) # NF vs control
+    d_match['Match_'+str(NF_group[idx])+'_'+str(C_group[idx])] = alphaCorr[0][1]
+    alphaCorrs.append(alphaCorr[0][1])
+    alpha_all.append(matchedAlpha[idx][0])
+    alpha_all.append(matchedAlpha[idx][1])
+
+np.mean(alphaCorrs)
+
+np.corrcoef(alpha_all_shownlst[0],alpha_all_shownlst[1])
+np.corrcoef(alpha_all_shownlst[2],alpha_all_shownlst[3])
+np.corrcoef(alpha_all_shownlst[4],alpha_all_shownlst[5])
+
 
 
 #%% Classifier output pre (and post?) FR and CR
@@ -675,7 +753,7 @@ def preFRandCR(subjID):
             except:
                 post3_CR.append(np.nan)
     
-    return np.nanmean(pre2_FR), np.nanmean(pre2_CR)
+    return np.nanmean(on_FR), np.nanmean(on_CR)
 
 #%%           
 preFR_NF = []
@@ -711,7 +789,7 @@ sem_CR_C = np.std(preCR_C)/np.sqrt(11)
 
 #%% Plot
 plt.figure(random.randint(0,100))
-plt.ylabel('Mean classifier 2 trials pre lure')
+plt.ylabel('Mean classifier 3 trials pre lure')
 plt.xticks([1,2,3,4],['NF, false alarms','NF, correct rejections','Control, false alarms','Control, correct rejections'])# 'Control day 1, part 2', 'Control day 3, part 2'])
 # plt.title(title)
 
@@ -757,77 +835,6 @@ for cap in caps:
 print(stats.ttest_ind(preFR_NF,preCR_NF,nan_policy='omit'))
 print(stats.ttest_ind(preFR_C,preCR_C,nan_policy='omit'))
 
-#%%    Draft for pre and post analysis
-        
-block_len = 50
-# I need info for when a lure was correctly rejected, and FR (not rejected). Match this with the clf output
-                
-clfo30 = np.copy(clf_output_test)
-a30 = np.copy(alpha_test)
-
-lureLst30 = np.copy(lureLst2)
-
-# Only extract vals for the NF blocks
-e_mock = np.arange((8+n_it*8)*block_len)
-nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
-lureLstNF = lureLst30[nf_blocks_idx]
-    
-# There are a total of 5*8*6 = 240 lures during day 2
-# Sorry, a lot of lists.. 
-
-on_FR = [] # Clf output during FR
-on_CR = []
-
-pre1_FR = [] # Clf output 1 trial before FR
-pre1_CR = []
-
-pre2_FR = [] # Clf output 2 trials before FR
-pre2_CR = []
-
-pre3_FR = [] # Clf output 3 trials before FR
-pre3_CR = []
-
-post1_FR = []
-post1_CR = []
-
-post2_FR = []
-post2_CR = []
-
-post3_FR = []
-post3_CR = []
-
-
-for count,trial in enumerate(lureLstNF):
-    if trial == 'FR':
-        on_FR.append(clfo30[count])
-        pre1_FR.append(clfo30[count-1])
-        pre2_FR.append(clfo30[count-2])
-        pre3_FR.append(clfo30[count-3])
-        
-        post1_FR.append(clfo30[count+1])
-        post2_FR.append(clfo30[count+2])
-        post3_FR.append(clfo30[count+3])
-        
-    if trial == 'CR':
-        on_CR.append(clfo30[count])
-        pre1_CR.append(clfo30[count-1])
-        pre2_CR.append(clfo30[count-2])
-        pre3_CR.append(clfo30[count-3])
-        
-        post1_CR.append(clfo30[count+1])
-        post2_CR.append(clfo30[count+2])
-        post3_CR.append(clfo30[count+3])
-        
-
-np.mean(pre1_FR)
-
-np.mean(pre1_CR)
-
-np.mean(post3_FR)
-np.mean(post3_CR)
-
-    
-    
     
     
     
