@@ -18,6 +18,9 @@ import os
 import numpy as np
 import mne
 from scipy.stats import zscore
+from pandas import Series
+import pandas as pd
+from sklearn.cross_decomposition import CCA
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
@@ -519,13 +522,20 @@ for i in range(len(NF_group)):
 # Simple correlations for all pairs
 matchedAlpha, matchedAlphaBlock, matchedBeh_sen = plotMatchedAlphavsBeh(pair=7,wanted_measure='sen',zscored=1)
 matchedAlpha, matchedAlphaBlock, matchedBeh_spec = plotMatchedAlphavsBeh(pair=10,wanted_measure='spec',zscored=1)
-matchedAlpha, matchedAlphaBlock, matchedBeh_acc = plotMatchedAlphavsBeh(pair=10,wanted_measure='acc',zscored=1)
+matchedAlpha, matchedAlphaBlock, matchedBeh_acc = plotMatchedAlphavsBeh(pair=10,wanted_measure='acc',zscored=False)
 matchedAlpha, matchedAlphaBlock, matchedBeh_rt = plotMatchedAlphavsBeh(pair=7,wanted_measure='rt',zscored=1)
 
 corrs_sen = np.zeros((11,2))
 corrs_spec = np.zeros((11,2))
 corrs_acc = np.zeros((11,2))
 corrs_rt = np.zeros((11,2))
+
+stats.ttest_rel(corrs_sen[:,0],corrs_sen[:,1],nan_policy='omit')
+stats.ttest_rel(corrs_acc[:,0],corrs_acc[:,1],nan_policy='omit')
+stats.ttest_rel(corrs_spec[:,0],corrs_spec[:,1],nan_policy='omit')
+stats.ttest_rel(corrs_rt[:,0],corrs_rt[:,1],nan_policy='omit')
+
+
 
 for idx in range(0,11):
     if idx == 2:
@@ -589,10 +599,7 @@ for sublist in shownAlphaPair:
 os.chdir(scriptsDir)
 from responseTime_func import extractCat
 
-def computeStatsTimepoint(subjID):
-    '''Computes TP, FN, FP, TN for each time point, day 2.
-    '''
-    
+def extractPointResponse(subjID):
     with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
         sub = (pickle.load(fin))[0]
         
@@ -607,10 +614,10 @@ def computeStatsTimepoint(subjID):
         responseTimes = sub['responseTimes_day2']
 
     # Compute stats (for visibility)
-    TP = NI_nlure
-    FP = NI_lure
-    TN = CI_lure
-    FN = I_nlure
+    # TP = NI_nlure
+    # FP = NI_lure
+    # TN = CI_lure
+    # FN = I_nlure
     
     pointResponse = [] 
     lureIdx = [] # Lure indices 
@@ -629,23 +636,88 @@ def computeStatsTimepoint(subjID):
                 pointResponse.append('FP')
             lureIdx.append(count)
             
+    pointResponseNFblocks = np.copy(pointResponse)
+    e_mock = np.arange((8+n_it*8)*block_len)
+    nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+    pointResponseNFblocks = pointResponseNFblocks[nf_blocks_idx]
+    
+    return pointResponseNFblocks
+
+def computeShownAlpha(subjID):
+    ''' Computes the shown alphas (using the moving window averaging)
+    '''
+    
     with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
         subEEG = (pickle.load(fin))[0]
                 
     alphaOutput = subEEG['ALPHA_test']
-        
-    pointResponseNF = np.copy(pointResponse)
-    e_mock = np.arange((8+n_it*8)*block_len)
-    nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
-    pointResponseNF = pointResponseNF[nf_blocks_idx]
-
-    # Moving windows, alpha
-    from pandas import Series
-    import pandas as pd
     
+    # Create a mean alpha lst (which subject "viewed", i.e. with a starting proportion of 0.5)
+    alphaWINDOWlst = []
+
+    for i in np.arange(0,1000,50):
+        a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
+        alphaWINDOWlst.append(a)
+    
+    alphaMEANlst = []
+    
+    for sublst in alphaWINDOWlst:
+        intermedlst = []
+        for entry in sublst:
+            m = np.mean(entry)
+            intermedlst.append(m)
+            
+        # Every list needs to have removed the last value in each block, and add a 0.5 in the start instead 
+        # Add 3 times 0.5 in the beginning
+        del intermedlst[-1:]
+        intermedlst2 = [0.5,0.5,0.5] + intermedlst
+        alphaMEANlst.append(intermedlst2)
+        
+    alphameanSHOWN = [item for sublist in alphaMEANlst for item in sublist]
+    
+    return alphameanSHOWN
+    
+    
+
+def computeStatsTimepoint(subjID):
+    '''
+    Always input the NF subject. The function finds the control
+    Computes TP, FN, FP, TN for each time point, day 2.
+    '''
+        
+    with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
+        subEEG = (pickle.load(fin))[0]
+                
+    alphaOutput = subEEG['ALPHA_test']
+    
+    # Create a mean alpha lst (which subject "viewed", i.e. with a starting proportion of 0.5)
+    alphaWINDOWlst = []
+
+    for i in np.arange(0,1000,50):
+        a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
+        alphaWINDOWlst.append(a)
+    
+    alphaMEANlst = []
+    
+    for sublst in alphaWINDOWlst:
+        intermedlst = []
+        for entry in sublst:
+            m = np.mean(entry)
+            intermedlst.append(m)
+            
+        # Every list needs to have removed the last value in each block, and add a 0.5 in the start instead 
+        # Add 3 times 0.5 in the beginning
+        del intermedlst[-1:]
+        intermedlst2 = [0.5,0.5,0.5] + intermedlst
+        alphaMEANlst.append(intermedlst2)
+        
+    alphameanSHOWN = [item for sublist in alphaMEANlst for item in sublist]
+    
+    # Mean this further?
+   
+    # Mean of the non 3 averaged alpha... 
     alphaOutput_pd = pd.DataFrame(data=alphaOutput)
     alphaOutput_rolling = alphaOutput_pd.rolling(window=10, min_periods=1)
-        
     alphaRollingMean = alphaOutput_rolling.mean()
     print(alphaRollingMean.head(15))
 
@@ -654,41 +726,113 @@ def computeStatsTimepoint(subjID):
     plt.plot(alphaRollingMean,color='red')
     plt.plot(alphaOutput,color='green')
     
-    pointWindow, pointWindowFull = rolling_window(pointResponseNF,10)
+    # Extract the pointResponses (first for NF subject)
+    pointResponseNF = extractPointResponse(subjID)
     
-    windowAcc = []
-    for windowLst in pointWindowFull:
+    pointWindowNF, pointWindowFullNF = rolling_window(pointResponseNF,10)
+    
+    windowAccNF = []
+    for windowLst in pointWindowFullNF:
         winAcc = computeWindowStats(windowLst)
-        windowAcc.append(winAcc)
-    
-    plt.figure(random.randint(50,140)) 
-    plt.plot(windowAcc)
+        windowAccNF.append(winAcc)
     
     # Find the control subject
     for NFsubj, Csubj in d_match.items():
         # print(NFsubj)
         if NFsubj == subjID:
-            controlSub = Csubj
-        else:
-            print('Control subject not found')
+            subjID_control = Csubj
+        # else:
+        #     print('Control subject not found')
+      
+     # Extract the pointResponses (for control subject)
+    pointResponseC = extractPointResponse(subjID_control)
     
+    pointWindowC, pointWindowFullC = rolling_window(pointResponseC,10)
+    
+    windowAccC = []
+    for windowLst in pointWindowFullC:
+        winAcc = computeWindowStats(windowLst)
+        windowAccC.append(winAcc)
+    
+    # Plot the beh accuracy of NF, and of C
+    plt.figure(random.randint(50,140)) 
+    plt.plot(windowAccNF,color='red')
+    plt.plot(windowAccC,color='blue')
         
+    windowAccNF_a = np.asarray(windowAccNF)
+    windowAccC_a = np.asarray(windowAccC)
+    alphaRollingMean_a = alphaRollingMean.as_matrix()
+    alphaRollingMean_l = [sublist[0] for sublist in alphaRollingMean_a]
+
+    # Check for simple correlations
+    np.corrcoef(alphaRollingMean_l,windowAccNF_a)
+    np.corrcoef(alphaRollingMean_l,windowAccC_a)
+    
+    corval = np.correlate(alphaRollingMean_l,windowAccNF_a,"valid")
+    corval2 = np.correlate(alphaRollingMean_l,windowAccC_a,"same")
+    
+    np.correlate(windowAccNF_a,windowAccC_a)
+
         
+    #  After calculating the cross-correlation between the two signals, the maximum (or minimum if the signals are negatively correlated) 
+    # of the cross-correlation function indicates the point in time where the signals are best aligned; i.e.,
+    # the time delay between the two signals is determined by or argmax of the cross-correlation
+    # lag between signals is given by the argmax of the cross-correlation
+    # lag = np.argmax(correlate(alphaRollingMean_l,windowAccNF_a))
+    # c_sig = np.roll(windowAccNF_a, shift=int(np.ceil(lag)))
+    
+    plt.figure(random.randint(53,100))
+    plt.plot(alphaRollingMean_l,color='black')
+    plt.plot(windowAccNF_a,color='red')
+    
+    corr = np.correlate(alphaRollingMean_l - np.mean(alphaRollingMean_l), 
+                    windowAccNF_a - np.mean(windowAccNF_a),
+                    mode='full')
+    
+    plt.figure(random.randint(53,100))
+    plt.plot(corr)
+    
+    # uncorrelated shifts will be 0?
+    
+    lag = corr.argmax() - (len(alphaRollingMean_l) - 1)
+    
+    # Using matplotlib functions
+    fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True)
+    ax1.xcorr(alphaRollingMean_l,windowAccNF_a, usevlines=True, maxlags=50, normed=True, lw=2)
+    ax1.grid(True)
+    ax1.axhline(0, color='black', lw=2)
+    
+    ax2.acorr(alphaRollingMean_l, usevlines=True, normed=True, maxlags=50, lw=2)
+    ax2.grid(True)
+    ax2.axhline(0, color='black', lw=2)
+    
+    plt.show()
+    
+    lags, c, line, b = plt.xcorr(alphaRollingMean_l,windowAccNF_a, maxlags=50, normed=True)
+
+    
     
                 
-def rolling_window(a, window):
-    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-    strides = a.strides + (a.strides[-1],)
+def rolling_window(a, window, meanalpha=False):
+    '''
+    If meanalpha=True
+    '''
     
-    stride_array = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    if meanalpha == True:
+            
+        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+        strides = a.strides + (a.strides[-1],)
+        
+        stride_array = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
     
-    startAppend = window - 1
+    if meanalpha== False:
+        startAppend = window - 1
+        
+        stride_0 = stride_array[0]
+        
+        full_strideArray = np.vstack(([stride_0]*startAppend,stride_array))
     
-    stride_0 = stride_array[0]
-    
-    full_strideArray = np.vstack(([stride_0]*startAppend,stride_array))
-    
-    return stride_array, full_strideArray
+    return stride_array# , full_strideArray
      
     
 def computeWindowStats(windowLst):
@@ -795,7 +939,7 @@ for number in np.arange(0,1000,50):
 
 # plt.hist(alpha_sub13)
 
-# ALPHA PLOT
+# ALPHA PLOT OBS NOT OVER A MOVING 3 AVERAGE
 # Average across all subjects' alpha values:
 alpha_all_shownlst = alpha_all_shown.tolist()
 
@@ -810,6 +954,15 @@ plt.axvline(0.5,color='black',linewidth=0.5)
 plt.axvline(0.84,color='black',linewidth=0.5)
 plt.axvline(0.98,color='black',linewidth=0.5)
 plt.title('Feedback (alpha) values for all participants')
+
+# Moving window 3 averaging added
+alpha_all_shown_window = []
+
+for subjID in subjID_all:
+    s = computeShownAlpha(subjID)
+    s
+
+
 
 #%% Alpha correlation, shown ones
 
@@ -970,7 +1123,7 @@ def preFRandCR(subjID):
             except:
                 post3_CR.append(np.nan)
     
-    return np.nanmean(pre2_FR), np.nanmean(pre2_CR)
+    return np.nanmean(pre1_FR), np.nanmean(pre1_CR)
 
 #%%           
 preFR_NF = []
@@ -978,6 +1131,7 @@ preCR_NF = []
 
 preFR_C = []
 preCR_C = []
+
      
 for subjID in subjID_NF:
     print(subjID)
@@ -993,48 +1147,63 @@ for subjID in subjID_C:
     preFR, preCR = preFRandCR(subjID)
     preFR_C.append(preFR)
     preCR_C.append(preCR)
+    
+# Running it for: averaging over the three precesing trials! 
+preFR_NF_a = np.mean(np.reshape(np.asarray(preFR_NF),[3,10]),axis=0)
+preCR_NF_a = np.mean(np.reshape(np.asarray(preCR_NF),[3,10]),axis=0)
+
+preFR_C_a = np.mean(np.reshape(np.asarray(preFR_C),[3,11]),axis=0)
+preCR_C_a = np.mean(np.reshape(np.asarray(preCR_C),[3,11]),axis=0)
+
 
 #%%
 # Errorbars
-
 sem_FR_NF = np.std(preFR_NF)/np.sqrt(10)
 sem_CR_NF = np.std(preCR_NF)/np.sqrt(10)
 
 sem_FR_C = np.std(preFR_C)/np.sqrt(11)
 sem_CR_C = np.std(preCR_C)/np.sqrt(11)
 
+# 3 trials meaned
+sem_FR_NF = np.std(preFR_NF_a)/np.sqrt(10)
+sem_CR_NF = np.std(preCR_NF_a)/np.sqrt(10)
+
+sem_FR_C = np.std(preFR_C_a)/np.sqrt(11)
+sem_CR_C = np.std(preCR_C_a)/np.sqrt(11)
+
+
 
 #%% Plot
 plt.figure(random.randint(0,100))
-plt.ylabel('Mean classifier 3 trials pre lure')
+plt.ylabel('Mean classifier 3 trials AVERAGED pre lure')
 plt.xticks([1,2,3,4],['NF, false alarms','NF, correct rejections','Control, false alarms','Control, correct rejections'])# 'Control day 1, part 2', 'Control day 3, part 2'])
 # plt.title(title)
 
-plt.scatter(np.full(10,1),preFR_NF,color='lightsalmon')
-plt.scatter(np.full(10,2),preCR_NF,color='lightsalmon')
-plt.scatter(np.full(11,3),preFR_C,color='powderblue')
-plt.scatter(np.full(11,4),preCR_C,color='powderblue')
+plt.scatter(np.full(10,1),preFR_NF_a,color='lightsalmon')
+plt.scatter(np.full(10,2),preCR_NF_a,color='lightsalmon')
+plt.scatter(np.full(11,3),preFR_C_a,color='powderblue')
+plt.scatter(np.full(11,4),preCR_C_a,color='powderblue')
 
 for i in range(10):
-    plt.plot([(np.full(10,1))[i],(np.full(10,2))[i]], [(preFR_NF)[i],(preCR_NF)[i]],color='lightsalmon')
+    plt.plot([(np.full(10,1))[i],(np.full(10,2))[i]], [(preFR_NF_a)[i],(preCR_NF_a)[i]],color='lightsalmon')
 
 for i in range(11):
-    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(preFR_C)[i],(preCR_C)[i]],color='powderblue')
+    plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(preFR_C_a)[i],(preCR_C_a)[i]],color='powderblue')
     
-plt.plot([(np.full(1,1)),(np.full(1,2))], [(np.mean(preFR_NF)),np.mean(preCR_NF)],color='black')
-plt.plot([(np.full(1,3)),(np.full(1,4))], [(np.mean(preFR_C)),np.mean(preCR_C)],color='black')
+plt.plot([(np.full(1,1)),(np.full(1,2))], [(np.mean(preFR_NF_a)),np.mean(preCR_NF_a)],color='black')
+plt.plot([(np.full(1,3)),(np.full(1,4))], [(np.mean(preFR_C_a)),np.mean(preCR_C_a)],color='black')
 
-(_, caps, _) = plt.errorbar(np.full(1,1),np.mean(preFR_NF),yerr=sem_FR_NF, capsize=8, color='black',elinewidth=2,barsabove=True)
+(_, caps, _) = plt.errorbar(np.full(1,1),np.mean(preFR_NF_a),yerr=sem_FR_NF_a, capsize=8, color='black',elinewidth=2,barsabove=True)
 for cap in caps:
     cap.set_markeredgewidth(2)
-(_, caps, _) = plt.errorbar(np.full(1,2),np.mean(preCR_NF),yerr=sem_CR_NF, capsize=8, color='black',elinewidth=2,barsabove=True)
+(_, caps, _) = plt.errorbar(np.full(1,2),np.mean(preCR_NF_a),yerr=sem_CR_NF_a, capsize=8, color='black',elinewidth=2,barsabove=True)
 for cap in caps:
     cap.set_markeredgewidth(2)
 
-(_, caps, _) = plt.errorbar(np.full(1,3),np.mean(preFR_C),yerr=sem_FR_C, capsize=8, color='black',elinewidth=2,barsabove=True)
+(_, caps, _) = plt.errorbar(np.full(1,3),np.mean(preFR_C_a),yerr=sem_FR_C_a, capsize=8, color='black',elinewidth=2,barsabove=True)
 for cap in caps:
     cap.set_markeredgewidth(2)
-(_, caps, _) = plt.errorbar(np.full(1,4),np.mean(preCR_C),yerr=sem_FR_C, capsize=8, color='black',elinewidth=2,barsabove=True)
+(_, caps, _) = plt.errorbar(np.full(1,4),np.mean(preCR_C_a),yerr=sem_FR_C_a, capsize=8, color='black',elinewidth=2,barsabove=True)
 for cap in caps:
     cap.set_markeredgewidth(2)
     
@@ -1051,6 +1220,10 @@ for cap in caps:
 
 print(stats.ttest_ind(preFR_NF,preCR_NF,nan_policy='omit'))
 print(stats.ttest_ind(preFR_C,preCR_C,nan_policy='omit'))
+
+# 3 averaged
+print(stats.ttest_ind(preFR_NF_a,preCR_NF_a,nan_policy='omit'))
+print(stats.ttest_ind(preFR_C_a,preCR_C_a,nan_policy='omit'))
 
 #%% Plot with subject annotation
 subjID_NF_a = np.array(subjID_NF)
@@ -1111,6 +1284,95 @@ print(stats.ttest_ind(preFR_C,preCR_C,nan_policy='omit'))
     
     
     
+
+
+#%% For generating plots, subjID 26
+
+with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+    sub = (pickle.load(fin))[0]
+
+with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
+    subEEG = (pickle.load(fin))[0]
+# Load catFile
+catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+domCats, shownCats = extractCat(catFile)
+
+clfOutput = subEEG['CLFO_test']              
+alphaOutput = subEEG['ALPHA_test']        
+
+plt.figure(random.randint(0,100))
+plt.plot(clfOutput[500:550])
+plt.plot(alphaOutput[500:550])
+
+# Create mean alphas for the entire length of alpha
+alphaWINDOWlst = []
+
+for i in np.arange(0,1000,50):
+    a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
+    alphaWINDOWlst.append(a)
+
+alphaMEANlst = []
+
+for sublst in alphaWINDOWlst:
+    intermedlst = []
+    for entry in sublst:
+        m = np.mean(entry)
+        intermedlst.append(m)
+        
+    # Every list needs to have removed the last value in each block, and add a 0.5 in the start instead 
+    # Add 3 times 0.5 in the beginning
+    del intermedlst[-1:]
+    intermedlst2 = [0.5,0.5,0.5] + intermedlst
+    alphaMEANlst.append(intermedlst2)
+    
+# 11th block must be 
+chosen_meanalpha = alphaMEANlst[10]
+
+# By using pandas
+colnames = ['idx', 'mean_alpha']
+data = pd.read_csv('P:\\closed_loop_data\\' + str(subjID) + '\\MEANalpha_subjID_26__day_204-09-19_08-48.csv', names=colnames)
+mean_alpha = data.mean_alpha.tolist() 
+del mean_alpha[0]
+# Len of mean_alpha is 940, because for each block, the first 3 are not appended as mean alpha (0.5 mixture)
+
+# Validate mean in running windows usind pandas
+# chosen_block_pd = pd.DataFrame(data=chosen_block)
+# chosen_block_rolling = chosen_block_pd.rolling(window=3, min_periods=3)
+# chosen_block_Mean = chosen_block_rolling.mean()
+
+# # Every 47th is a new block in mean_alpha
+# mean_alpha_chosen = [0.5,0.5,0.5]+mean_alpha[470:470+47] # same as chosen_block_Mean
+chosen_clfoutput = clfOutput[500:550]
+chosen_clfoutput[0] = 0
+chosen_clfoutput[1] = 0
+chosen_clfoutput[2] = 0
+
+chosen_alpha = alphaOutput[500:550] # 11th block
+
+
+# Clf output plot
+plt.figure(random.randint(0,100))
+plt.plot(chosen_clfoutput,color='black')
+plt.ylabel('Attended category decoding')
+plt.xlabel('Trial number')
+plt.xticks(np.arange(0,60,10),[str(item) for item in np.arange(0,60,10)])
+plt.yticks(np.arange(-1,2,1),[str(item) for item in np.arange(-1,2,1)])
+
+# Mean alpha plot (or it could be the real alpha...)
+plt.figure(random.randint(0,100))
+plt.plot(chosen_meanalpha,color='black')
+plt.ylabel('Mixture proportion of attended category \n (meaned over a running window of 3 trials)')
+plt.xlabel('Trial number')
+plt.xticks(np.arange(0,60,10),[str(item) for item in np.arange(0,60,10)])
+plt.yticks(np.arange(0,1.5,0.5),[str(item) for item in np.arange(0,1.5,0.5)])
+
+
+# Clf output and alpha
+plt.figure(random.randint(0,100))
+plt.plot(chosen_clfoutput)
+plt.plot(chosen_alpha)
+plt.plot(chosen_meanalpha,color='red')
+
 
 
 

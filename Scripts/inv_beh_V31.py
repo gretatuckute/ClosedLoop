@@ -1106,7 +1106,7 @@ def matchedSubjects2(wanted_measure,title,relative=False,NFblocks=False):
 
 
 #%% Matched day 2-day 1 change
-diff_d12_sen, diff_d12_sen_21 = matchedSubjects2('sen','Sensitivity change, day 1 to 2',relative=False,NFblocks=True)
+diff_d12_sen, diff_d12_sen_21 = matchedSubjects2('sen','Sensitivity change, day 1 to 2',relative=True,NFblocks=False)
 diff_d12_spec, diff_d12_spec_21 = matchedSubjects2('spec','Specificity change, day 1 to 2',relative=True) # NF become less specific
 diff_d12_acc, diff_d12_acc_21 = matchedSubjects2('acc','Accuracy change, day 1 to 2',relative=True,NFblocks=True)
 
