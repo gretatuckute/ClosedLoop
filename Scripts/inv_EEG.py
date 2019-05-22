@@ -17,6 +17,7 @@ import os
 import numpy as np
 import mne
 
+
 #%% Plot styles
 plt.style.use('seaborn-notebook')
 
@@ -40,6 +41,7 @@ color = ['tomato']*11 + ['dodgerblue']*11
 color_uncor = ['brown']*11 + ['navy']*11
 sub_axis = subjID_NF + subjID_C
 sub_axis_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
 
 #%% New pipeline: offline_analysis_FUNC, 18 April
 os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
@@ -122,7 +124,7 @@ subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')
 subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_uncor = extractVal('RT_test_acc_uncorr')
 
 # Save subsAll for beh comparsion
-# np.save('subsAll_RT_acc.npy',subsAll)
+np.save(scriptsDir+'subsC_RT_acc.npy',subsC)
 
 #%% RT pipeline analysis. RT decoding accuracy corrected.
 
@@ -498,22 +500,31 @@ for idx,subj in enumerate(MNEstable_all):
     sorted_epochsarray = [MNEstable_all[idx][name] for name in ('scene','face')]
     MNEepochs_all.append(sorted_epochsarray)
 
-
-mne.viz.plot_compare_evokeds(sorted_epochsarray)
-
 #%% Plot evoked averages for individual subjects with CI
 
-for idx,subj in enumerate(MNEstable_all):
+for idx,subj in enumerate(MNEstable_all[:2]):
     single_sub = MNEstable_all[idx].get_data()
-    single_evoked_array = [mne.EvokedArray(entry, info_fs100, tmin=-0.1) for entry in single_sub]
+   
+    evoked_array_c0 = []
+    evoked_array_c1 = []
+
+    for catidx,cat in enumerate(y_stable_all[idx]):
+        if cat == 0:
+            evoked_array_c0.append(mne.EvokedArray(single_sub[catidx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
+            print
+        if cat == 1:
+            evoked_array_c1.append(mne.EvokedArray(single_sub[catidx], info_fs100,tmin=-0.1,comment=cat))
+
+    e_dict_single = {}
+    e_dict_single['Scene'] = evoked_array_c0
+    e_dict_single['Face'] = evoked_array_c1
+
+    fig =mne.viz.plot_compare_evokeds(e_dict_single,picks=[6,7,12,13,22],colors=['r','b'],\
+        truncate_xaxis=False,title='Face vs scene ERP \n Subject ' + str(subjID_all[idx]),\
+        show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
 
 
-
-
-
-
-
-
+fig.savefig('C://Users//Greta//Desktop//closed_loop//RESULTS//EEG//single_subject_ERPs//evoked_'+str(subjID_all[idx])+'.tiff',dpi=120)
 
 # Appending all entries in the overall epochsarray as single evoked arrays of shape (n_channels, n_times) 
 g2 = MNEstable_all[0][0].get_data()

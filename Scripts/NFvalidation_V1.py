@@ -24,7 +24,7 @@ from sklearn.cross_decomposition import CCA
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
-from responseTime_func import extractCat
+from responseTime_func import extractCat, findRTsBlocks
 
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\' 
 EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
@@ -40,6 +40,9 @@ matplotlib.rcParams['mathtext.rm'] = 'Bitstream Vera Sans'
 matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
 matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
 matplotlib.rcParams['legend.frameon'] = True
+# matplotlib.rc('text',usetex=True)
+# matplotlib.rc('font',family='serif')
+# plt.rcParams.update({'font.size':20})
 matplotlib.rcParams['grid.alpha'] = 0.5
 
 #%% Variables
@@ -55,7 +58,7 @@ C_group = ['17','18','15','24','21','33','25','32','34','23','31']
 n_it = 5
 
 #%%
-os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
+os.chdir(EEGDir)
 
 d_all2 = {}
 
@@ -502,9 +505,6 @@ def blockMatchedAlpha():
             
     return a_per_block_all, acc_per_block_all, clfo_per_block_all
             
-    
-
-
       
 #%% Create d_match
 
@@ -599,12 +599,15 @@ for sublist in shownAlphaPair:
 os.chdir(scriptsDir)
 from responseTime_func import extractCat
 
-def extractPointResponse(subjID):
+def extractPointResponse(subjID,stable=False):
+    '''Extract the response for every single time point
+    '''
+    
     with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
         sub = (pickle.load(fin))[0]
         
     # Load catFile
-    catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+    catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_2.csv'
 
     domCats, shownCats = extractCat(catFile)
     
@@ -635,11 +638,13 @@ def extractPointResponse(subjID):
             if np.isnan(responseTimes[count]) == False: # A response during a lure, i.e. FR
                 pointResponse.append('FP')
             lureIdx.append(count)
-            
+    
     pointResponseNFblocks = np.copy(pointResponse)
-    e_mock = np.arange((8+n_it*8)*block_len)
-    nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
-    pointResponseNFblocks = pointResponseNFblocks[nf_blocks_idx]
+
+    if stable == False:
+        e_mock = np.arange((8+n_it*8)*50)
+        nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+        pointResponseNFblocks = pointResponseNFblocks[nf_blocks_idx]
     
     return pointResponseNFblocks
 
@@ -656,7 +661,7 @@ def computeShownAlpha(subjID):
     alphaWINDOWlst = []
 
     for i in np.arange(0,1000,50):
-        a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
+        edges_none, a = makeRollingWindows(alphaOutput[i:i+50],3,meanalpha=True)
         alphaWINDOWlst.append(a)
     
     alphaMEANlst = []
@@ -679,162 +684,169 @@ def computeShownAlpha(subjID):
     
     
 
-def computeStatsTimepoint(subjID):
+def computeStatsTimepoint(subjID,stable=False):
     '''
     Always input the NF subject. The function finds the control
     Computes TP, FN, FP, TN for each time point, day 2.
     '''
-        
-    with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
-        subEEG = (pickle.load(fin))[0]
-                
-    alphaOutput = subEEG['ALPHA_test']
-    
     # Create a mean alpha lst (which subject "viewed", i.e. with a starting proportion of 0.5)
-    alphaWINDOWlst = []
-
-    for i in np.arange(0,1000,50):
-        a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
-        alphaWINDOWlst.append(a)
+    # In function computeShownAlpha
     
-    alphaMEANlst = []
-    
-    for sublst in alphaWINDOWlst:
-        intermedlst = []
-        for entry in sublst:
-            m = np.mean(entry)
-            intermedlst.append(m)
-            
-        # Every list needs to have removed the last value in each block, and add a 0.5 in the start instead 
-        # Add 3 times 0.5 in the beginning
-        del intermedlst[-1:]
-        intermedlst2 = [0.5,0.5,0.5] + intermedlst
-        alphaMEANlst.append(intermedlst2)
-        
-    alphameanSHOWN = [item for sublist in alphaMEANlst for item in sublist]
+    alphameanSHOWN = computeShownAlpha(subjID)
     
     # Mean this further?
-   
-    # Mean of the non 3 averaged alpha... 
-    alphaOutput_pd = pd.DataFrame(data=alphaOutput)
-    alphaOutput_rolling = alphaOutput_pd.rolling(window=10, min_periods=1)
-    alphaRollingMean = alphaOutput_rolling.mean()
-    print(alphaRollingMean.head(15))
-
-    # Plot rolling mean
-    plt.figure(50)
-    plt.plot(alphaRollingMean,color='red')
-    plt.plot(alphaOutput,color='green')
+    alphaSHOWN_pd = pd.DataFrame(data=alphameanSHOWN)
+    alphaSHOWN_rolling = alphaSHOWN_pd.rolling(window=10, min_periods=1)
+    alphaSHOWNRollingMean = alphaSHOWN_rolling.mean()
     
     # Extract the pointResponses (first for NF subject)
-    pointResponseNF = extractPointResponse(subjID)
+    if stable == False:
+        pointResponseNF = extractPointResponse(subjID)
+    if stable == True:
+        pointResponseNF = extractPointResponse(subjID,stable=True)
     
-    pointWindowNF, pointWindowFullNF = rolling_window(pointResponseNF,10)
+    edgeNF, pointWindowFullNF = makeRollingWindows(pointResponseNF,10)
     
     windowAccNF = []
+    for edgeWindow in edgeNF:
+        winAcc = computeWindowStats(edgeWindow)
+        windowAccNF.append(winAcc)
+        
     for windowLst in pointWindowFullNF:
         winAcc = computeWindowStats(windowLst)
         windowAccNF.append(winAcc)
     
     # Find the control subject
     for NFsubj, Csubj in d_match.items():
-        # print(NFsubj)
         if NFsubj == subjID:
             subjID_control = Csubj
-        # else:
-        #     print('Control subject not found')
       
      # Extract the pointResponses (for control subject)
-    pointResponseC = extractPointResponse(subjID_control)
+    if stable == False:
+        pointResponseC = extractPointResponse(subjID_control)
+    if stable == True:
+        pointResponseC = extractPointResponse(subjID_control,stable=True)
     
-    pointWindowC, pointWindowFullC = rolling_window(pointResponseC,10)
+    edgeC, pointWindowFullC = makeRollingWindows(pointResponseC,10)
     
     windowAccC = []
+    for edgeWindow in edgeC:
+        winAcc = computeWindowStats(edgeWindow)
+        windowAccC.append(winAcc)
+        
     for windowLst in pointWindowFullC:
         winAcc = computeWindowStats(windowLst)
         windowAccC.append(winAcc)
     
-    # Plot the beh accuracy of NF, and of C
-    plt.figure(random.randint(50,140)) 
-    plt.plot(windowAccNF,color='red')
-    plt.plot(windowAccC,color='blue')
+    if stable == False:
+        # Shown windowed 3 mean alpha with additional mean across 10
+        alphaSHOWNRollingMean_a = alphaSHOWNRollingMean.as_matrix()
+        alphaSHOWNRollingMean_l = [sublist[0] for sublist in alphaSHOWNRollingMean_a]
+    if stable == True: 
+        alphaSHOWNRollingMean_a = (alphaSHOWNRollingMean.as_matrix()).flatten()
         
+        e_mock = np.arange((8+n_it*8)*50)
+        nf_blocks_idx = np.concatenate([e_mock[600+n*400:800+n*400] for n in range(n_it)]) # Neurofeedback blocks 
+        
+        alphaSHOWNRollingMean_l = np.full(len(e_mock), np.nan) #np.zeros((len(e_mock)))
+        alphaSHOWNRollingMean_l[nf_blocks_idx] = alphaSHOWNRollingMean_a
+    
+    # Plot the beh accuracy of NF, and of C and alpha
+    plt.figure(random.randint(50,140)) 
+    plt.plot(windowAccNF,color='red',label='NF')
+    plt.plot(windowAccC,color='blue',label='C')
+    plt.plot(alphaSHOWNRollingMean_l,color='black', label='alpha, additional avg (window 10)')
+    # plt.plot(alphameanSHOWN,color='green',label='Shown alpha, avg window 3')
+    plt.legend()
+    
     windowAccNF_a = np.asarray(windowAccNF)
     windowAccC_a = np.asarray(windowAccC)
-    alphaRollingMean_a = alphaRollingMean.as_matrix()
-    alphaRollingMean_l = [sublist[0] for sublist in alphaRollingMean_a]
 
     # Check for simple correlations
-    np.corrcoef(alphaRollingMean_l,windowAccNF_a)
-    np.corrcoef(alphaRollingMean_l,windowAccC_a)
-    
-    corval = np.correlate(alphaRollingMean_l,windowAccNF_a,"valid")
-    corval2 = np.correlate(alphaRollingMean_l,windowAccC_a,"same")
-    
-    np.correlate(windowAccNF_a,windowAccC_a)
-
+    np.corrcoef(alphaSHOWNRollingMean_l,windowAccNF_a)
+    np.corrcoef(alphaSHOWNRollingMean_l,windowAccC_a)
         
     #  After calculating the cross-correlation between the two signals, the maximum (or minimum if the signals are negatively correlated) 
     # of the cross-correlation function indicates the point in time where the signals are best aligned; i.e.,
-    # the time delay between the two signals is determined by or argmax of the cross-correlation
+    # the time delay between the two signals is determined by argmax of the cross-correlation
     # lag between signals is given by the argmax of the cross-correlation
     # lag = np.argmax(correlate(alphaRollingMean_l,windowAccNF_a))
     # c_sig = np.roll(windowAccNF_a, shift=int(np.ceil(lag)))
     
-    plt.figure(random.randint(53,100))
-    plt.plot(alphaRollingMean_l,color='black')
-    plt.plot(windowAccNF_a,color='red')
+    # Corr with means substracted
+    # corr = np.correlate(alphameanSHOWN - np.mean(alphameanSHOWN), 
+    #                 windowAccNF_a - np.mean(windowAccNF_a),
+    #                 mode='full')
     
-    corr = np.correlate(alphaRollingMean_l - np.mean(alphaRollingMean_l), 
+    # Corr normalized. First autocorrelation for testing. Gives a corr coef of 1
+    # corr2 = np.correlate(alphameanSHOWN - np.mean(alphameanSHOWN), 
+    #                 alphameanSHOWN - np.mean(alphameanSHOWN),
+    #                 mode='full')/(len(alphameanSHOWN) * np.std(alphameanSHOWN) * np.std(alphameanSHOWN))
+    # NF corr
+    corrNF = np.correlate(alphaSHOWNRollingMean_l - np.mean(alphaSHOWNRollingMean_l), 
+                    windowAccNF_a - np.mean(windowAccNF_a),
+                    mode='full')/(len(alphaSHOWNRollingMean_l) * np.std(alphaSHOWNRollingMean_l) * np.std(windowAccNF_a))
+    
+    corrNF_nonstand = np.correlate(alphameanSHOWN - np.mean(alphameanSHOWN), 
                     windowAccNF_a - np.mean(windowAccNF_a),
                     mode='full')
     
-    plt.figure(random.randint(53,100))
-    plt.plot(corr)
+    # C corr
+    corrC = np.correlate(alphaSHOWNRollingMean_l - np.mean(alphaSHOWNRollingMean_l), 
+                    windowAccC_a - np.mean(windowAccC_a),
+                    mode='full')/(len(alphaSHOWNRollingMean_l) * np.std(alphaSHOWNRollingMean_l) * np.std(windowAccC_a))
+    
+    # plt.figure(random.randint(53,100))
+    # plt.plot(corrNF)
     
     # uncorrelated shifts will be 0?
     
-    lag = corr.argmax() - (len(alphaRollingMean_l) - 1)
-    
-    # Using matplotlib functions
-    fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True)
-    ax1.xcorr(alphaRollingMean_l,windowAccNF_a, usevlines=True, maxlags=50, normed=True, lw=2)
-    ax1.grid(True)
-    ax1.axhline(0, color='black', lw=2)
-    
-    ax2.acorr(alphaRollingMean_l, usevlines=True, normed=True, maxlags=50, lw=2)
-    ax2.grid(True)
-    ax2.axhline(0, color='black', lw=2)
-    
-    plt.show()
-    
-    lags, c, line, b = plt.xcorr(alphaRollingMean_l,windowAccNF_a, maxlags=50, normed=True)
+    lagNF = corrNF.argmax() - (len(alphaSHOWNRollingMean_l) - 1)
+    lagNF_ns = corrNF_nonstand.argmax() - (len(alphaSHOWNRollingMean_l) - 1)
 
+    lagC = corrC.argmax() - (len(alphaSHOWNRollingMean_l) - 1)
+
+    # Find the correlation coefficient:
+    corr_coefNF = corrNF[(corrNF.argmax())]
+    corr_coefC = corrC[(corrC.argmax())]
+
+    return lagNF, lagC, corr_coefNF, corr_coefC, alphaSHOWNRollingMean_l, windowAccNF_a, windowAccC_a
     
     
                 
-def rolling_window(a, window, meanalpha=False):
+def makeRollingWindows(a, window, meanalpha=False):
     '''
-    If meanalpha=True
+    If meanalpha = True, only computes the windows (does not do anything with the edges)
+    
     '''
     
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+
     if meanalpha == True:
-            
-        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
-        strides = a.strides + (a.strides[-1],)
-        
+        stride_array2 = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+        edge_windows=[]
+    
+    if meanalpha == False:
+        # If I want to add identical edge windows in the start
+        # startAppend = window - 1
         stride_array = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    
-    if meanalpha== False:
-        startAppend = window - 1
+        # stride_0 = stride_array[0]
+        # stride_array2 = np.vstack(([stride_0]*startAppend,stride_array))
         
-        stride_0 = stride_array[0]
-        
-        full_strideArray = np.vstack(([stride_0]*startAppend,stride_array))
+        lacking_windows = len(a) - shape[0]
     
-    return stride_array# , full_strideArray
+        edge_windows = []
+        for n_lack in range(lacking_windows):
+            print(n_lack)
+            w = a[0:n_lack+1]
+            edge_windows.append(w)
+            
+        stride_array2 = stride_array  
+
+    return edge_windows,stride_array2
      
-    
+
 def computeWindowStats(windowLst):
     # sensitivity = TP/(TP+FN)
     # specificity = TN/(TN+FP)
@@ -877,33 +889,56 @@ def computeWindowStats(windowLst):
     
     return accuracy
     
-#%% Draft for rolling windows
-saveLst = []    
-def rollingFunc(x):
-    print(x)
-    saveLst.append(x)
-    return (x.sum())
-
-# Save stuff    
-alphaOutput_rolling.apply(rollingFunc)    
-
-def rollingFunc2(x):
-    print(x)
-    return(x.sum())
-    # saveLst.append(x)
-    # return (x.sum())       
+#%% Compute statsTimepoint for pairs
+lagPairs = np.zeros((11,2))
+coefPairs = np.zeros((11,2))
 
 
-# Can use this as an apply function 
-# apply(lambda x:x[0] if x[0] > 10 else np.nan)
+for idx,subjID in enumerate(subjID_NF):
+    if subjID == '11':
+        pass
+    else:
+        lagNF, lagC, corr_coefNF, corr_coefC, nr, nr2, nr3 = computeStatsTimepoint(subjID)
+        lagPairs[idx] = lagNF, lagC
+        coefPairs[idx] = corr_coefNF, corr_coefC
+        
+#%% Extract the shown alpha and beh acc for each pair, and make averaged plot
+alphas_all = []
+NFacc_all = []
+Cacc_all = []
 
-# Moving windows, pointResponse
-# pointResponseNF_pd = pd.DataFrame(data=pointResponseNF)
-# pointResponseNF_rolling = pointResponseNF_pd.rolling(window=10, min_periods=1)
-# pointRollingCount = pointResponseNF_rolling.sum()
-# print(pointRollingCount.head(15))
+for idx,subjID in enumerate(subjID_NF):
+    if subjID == '11':
+        pass
+    else:
+        nr, nr2, nr3, nr4, alphashown, NFacc, Cacc = computeStatsTimepoint(subjID,stable=True)
+        alphas_all.append(alphashown)
+        NFacc_all.append(NFacc)
+        Cacc_all.append(Cacc)
 
+plt.figure(100)
+plt.plot(np.mean(alphas_all,axis=0),color='black')
+plt.plot(np.mean(NFacc_all,axis=0),color='red')        
+plt.plot(np.mean(Cacc_all,axis=0),color='blue')     
 
+# The correlations do not make a lot of sense, bc we just check which time series is averaged to be most "close"...
+
+# np.corrcoef(np.mean(alphas_all,axis=0)[nf_blocks_idx],np.mean(NFacc_all,axis=0)[nf_blocks_idx])   
+# np.corrcoef(np.mean(alphas_all,axis=0)[nf_blocks_idx],np.mean(Cacc_all,axis=0)[nf_blocks_idx])
+
+# corrC = np.correlate(np.mean(alphas_all,axis=0)[nf_blocks_idx] - np.mean(np.mean(alphas_all,axis=0)[nf_blocks_idx]), 
+#         np.mean(Cacc_all,axis=0)[nf_blocks_idx] - np.mean(np.mean(Cacc_all,axis=0)[nf_blocks_idx]),
+#         mode='full')/(1000 * np.std(np.mean(alphas_all,axis=0)[nf_blocks_idx]) * np.std(np.mean(Cacc_all,axis=0)[nf_blocks_idx]))
+    
+
+# lagNF = corrNF.argmax() - (len(alphaSHOWNRollingMean_l) - 1)
+
+# lagC = corrC.argmax() - (len(alphaSHOWNRollingMean_l) - 1)
+
+# # Find the correlation coefficient:
+# corr_coefNF = corrC[(corrC.argmax())]
+
+    
 
 #%% Check correlation between NF matched alpha subject and that particular subject
         
@@ -911,12 +946,14 @@ def rollingFunc2(x):
 
 alphaCorrs = []
 alpha_all = [] # List with all subjects' alpha lists. The decoded ones. Not the ones shown! 
+alpha_nf = []
 for idx, entry in enumerate(matchedAlpha):
     alphaCorr = np.corrcoef(matchedAlpha[idx][0],matchedAlpha[idx][1]) # NF vs control
     d_match['Match_'+str(NF_group[idx])+'_'+str(C_group[idx])] = alphaCorr[0][1]
     alphaCorrs.append(alphaCorr[0][1])
     alpha_all.append(matchedAlpha[idx][0])
     alpha_all.append(matchedAlpha[idx][1])
+    alpha_nf.append(matchedAlpha[idx][0])
 
 np.mean(alphaCorrs)
 
@@ -939,7 +976,8 @@ for number in np.arange(0,1000,50):
 
 # plt.hist(alpha_sub13)
 
-# ALPHA PLOT OBS NOT OVER A MOVING 3 AVERAGE
+# ALPHA PLOT OBS NOT OVER A MOVING 3 AVERAGE. This is also for all subjects, i.e. it is not the ones shown. 
+# it is the decoded alphas across all subjects. non averaged.
 # Average across all subjects' alpha values:
 alpha_all_shownlst = alpha_all_shown.tolist()
 
@@ -955,14 +993,37 @@ plt.axvline(0.84,color='black',linewidth=0.5)
 plt.axvline(0.98,color='black',linewidth=0.5)
 plt.title('Feedback (alpha) values for all participants')
 
-# Moving window 3 averaging added
+# FOR NF
+plt.figure(4)
+plt.hist(alpha_nf,color=['black']*11,bins=11)
+plt.xticks(np.arange(0.1,1.1,0.1),['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1'])
+plt.xlabel('Feedback (mixture proportion of attended category)')
+plt.ylabel('Count (number of trials)')
+plt.axvline(0.17,color='black',linewidth=0.5)
+plt.axvline(0.27,color='black',linewidth=0.5)
+plt.axvline(0.5,color='black',linewidth=0.5)
+plt.axvline(0.84,color='black',linewidth=0.5)
+plt.axvline(0.98,color='black',linewidth=0.5)
+plt.title('Feedback (alpha) values for NF (i.e. shown)')
+
+# Moving window 3 averaging added. Only NF alphas shown!!!
 alpha_all_shown_window = []
 
-for subjID in subjID_all:
+for subjID in subjID_NF:
     s = computeShownAlpha(subjID)
-    s
+    alpha_all_shown_window.append(s)
 
-
+plt.figure(5)
+plt.hist(alpha_all_shown_window,color=['black']*11,bins=11)
+plt.xticks(np.arange(0.1,1.1,0.1),['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1'])
+plt.xlabel('Feedback (mixture proportion of attended category)')
+plt.ylabel('Count (number of trials)')
+plt.axvline(0.17,color='black',linewidth=0.5)
+plt.axvline(0.27,color='black',linewidth=0.5)
+plt.axvline(0.5,color='black',linewidth=0.5)
+plt.axvline(0.84,color='black',linewidth=0.5)
+plt.axvline(0.98,color='black',linewidth=0.5)
+plt.title('Feedback (alpha) values for NF (i.e. shown, with moving avg)')
 
 #%% Alpha correlation, shown ones
 
@@ -1294,8 +1355,8 @@ with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
 with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
     subEEG = (pickle.load(fin))[0]
 # Load catFile
-catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
-domCats, shownCats = extractCat(catFile)
+# catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_2.csv'
+# domCats, shownCats = extractCat(catFile)
 
 clfOutput = subEEG['CLFO_test']              
 alphaOutput = subEEG['ALPHA_test']        
@@ -1308,7 +1369,7 @@ plt.plot(alphaOutput[500:550])
 alphaWINDOWlst = []
 
 for i in np.arange(0,1000,50):
-    a = rolling_window(alphaOutput[i:i+50],3,meanalpha=True)
+    edges, a = makeRollingWindows(alphaOutput[i:i+50],3,meanalpha=True)
     alphaWINDOWlst.append(a)
 
 alphaMEANlst = []
@@ -1361,7 +1422,7 @@ plt.yticks(np.arange(-1,2,1),[str(item) for item in np.arange(-1,2,1)])
 # Mean alpha plot (or it could be the real alpha...)
 plt.figure(random.randint(0,100))
 plt.plot(chosen_meanalpha,color='black')
-plt.ylabel('Mixture proportion of attended category \n (meaned over a running window of 3 trials)')
+plt.ylabel('Mixture proportion of attended category') # meaned over a running window of 3 trials)
 plt.xlabel('Trial number')
 plt.xticks(np.arange(0,60,10),[str(item) for item in np.arange(0,60,10)])
 plt.yticks(np.arange(0,1.5,0.5),[str(item) for item in np.arange(0,1.5,0.5)])
