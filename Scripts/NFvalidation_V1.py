@@ -75,7 +75,7 @@ def extractVal2(wkey):
     subsNF = []
     subsC = []
     
-    for key, value in d2_all.items():
+    for key, value in d_all2.items():
         subsNF_result = []
         subsC_result = []
         
@@ -1434,6 +1434,17 @@ plt.plot(chosen_clfoutput)
 plt.plot(chosen_alpha)
 plt.plot(chosen_meanalpha,color='red')
 
+
+#%% Extract mean alphaVals for NF subjects, in order to plot their actual seen values
+
+subsAll_alphas, subsNF_alphas, subsC_alphas = extractVal2('ALPHA_test')
+
+subsNF_meanAlphas = []
+for alphalst in subsNF_alphas:
+    alphamean = np.mean(alphalst)
+    subsNF_meanAlphas.append(alphamean)
+
+np.save(scriptsDir+'subsNF_meanAlphas.npy',subsNF_meanAlphas)
 
 
 

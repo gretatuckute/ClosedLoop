@@ -1554,7 +1554,7 @@ plt.ylabel('Change in response time from day 1 to 3\n Positive values indicate i
 np.corrcoef(subsAll_RT_acc,diff)
 
 #%%
-def improvStimuli(wanted_measure,actual_stim=False):
+def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
     ''' Computes how task difficulty correlates with learning '''
     
     subsNF_RT_acc = np.load(scriptsDir+'subsNF_RT_acc.npy').flatten()
@@ -1563,10 +1563,16 @@ def improvStimuli(wanted_measure,actual_stim=False):
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
     
-    diffNF = (np.asarray(NF_d1) - np.asarray(NF_d3))
-    diffC = (np.asarray(C_d1) - np.asarray(C_d3))
+    if wanted_measure == 'rt':
+        diffNF = (np.asarray(NF_d1) - np.asarray(NF_d3))
+        diffC = (np.asarray(C_d1) - np.asarray(C_d3))
+        diff = (np.asarray(all_d1) - np.asarray(all_d3))
+    else:
+        diffNF = (np.asarray(NF_d3) - np.asarray(NF_d1))
+        diffC = (np.asarray(C_d3) - np.asarray(C_d1))
+        diff = (np.asarray(all_d3) - np.asarray(all_d1))
     
-    if actual_stim == True:
+    if actual_stim == True and rt_acc == True: # RT accuracy
         # For all subjects
         # diff = (np.asarray(all_d3) - np.asarray(all_d1))
         # lm.fit(np.reshape(subsAll_RT_acc,[-1,1]),np.reshape(diff,[-1,1]))
@@ -1594,6 +1600,43 @@ def improvStimuli(wanted_measure,actual_stim=False):
         plt.plot(np.reshape(subsC_RT_acc,[-1,1]), lm.predict(np.reshape(subsC_RT_acc,[-1,1])),linewidth=1,color='dodgerblue')
         plt.title('RT decoding accuracy vs. improvement')
         plt.grid(color='gainsboro',linewidth=0.5)
+        
+    if actual_stim == True and LORO == True: # correlates LORO with improvement, actual values.
+        
+        subsNF_LORO = np.load(scriptsDir+'subsNF_LORO_09May.npy').flatten()
+        subsC_LORO = np.load(scriptsDir+'subsC_LORO_09May.npy').flatten()
+        
+        subsAll_LORO = np.load(scriptsDir+'subsAll_LORO_09May.npy').flatten()
+        
+        r_all = np.corrcoef(subsAll_LORO,diff)
+        print('Correlation coefficient, all: ',round(r_all[0][1],3))
+
+        fig,ax = plt.subplots()
+        plt.xlabel('Mean offline decoding accuracy during stable blocks')
+        # NF
+        lm.fit(np.reshape((subsNF_LORO),[-1,1]),np.reshape((diffNF),[-1,1]))
+        plt.scatter((subsNF_LORO.tolist()),(diffNF.tolist()),color='tomato',label='NF')
+        plt.plot(np.reshape(subsNF_LORO,[-1,1]), lm.predict(np.reshape(subsNF_LORO,[-1,1])),linewidth=1,color='tomato')
+
+        r_val_NF = np.corrcoef(subsNF_LORO,diffNF)
+        print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
+        
+        # for i, txt in enumerate(subjID_NF_a):
+        #     ax.annotate(txt, (np.reshape(subsNF_LORO,[-1,1])[i], (np.reshape(diffNF,[-1,1])[i])))
+        
+        # C
+        lm.fit(np.reshape((subsC_LORO),[-1,1]),np.reshape((diffC),[-1,1]))
+        plt.scatter((subsC_LORO.tolist()),(diffC.tolist()),color='dodgerblue',label='Control')
+        plt.plot(np.reshape(subsC_LORO,[-1,1]), lm.predict(np.reshape(subsC_LORO,[-1,1])),linewidth=1,color='dodgerblue')
+
+        plt.ylabel(r'$\Delta$ response time (s) (day 1 to 3)')
+        plt.title(r'$\Delta$ Response time vs. stable blocks decoding accuracy')
+        plt.grid(color='gainsboro',linewidth=0.5)
+        plt.legend()
+        
+        r_val_C = np.corrcoef(subsC_LORO,diffC)
+        print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
+        
         
     if actual_stim == False:
         ''' For controls, add the value that they were actually exposed to, i.e. matched NF participant'''
@@ -1666,3 +1709,10 @@ improvStimuli('sen',actual_stim=False)
 # improvStimuli('sen',actual_stim=True)  
 improvStimuli('acc',actual_stim=False)  
 improvStimuli('rt',actual_stim=False)  
+
+#%% LORO vs delta beh
+improvStimuli('sen',actual_stim=True,LORO=True)
+improvStimuli('acc',actual_stim=True,LORO=True)
+improvStimuli('rt',actual_stim=True,LORO=True)
+
+

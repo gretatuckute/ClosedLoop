@@ -23,6 +23,8 @@ subjIDs = data.subjID.tolist()
 control = data.control.tolist()
 age = data.age.tolist()
 attention = data.attention.tolist()
+cross = data.cross.tolist()
+
 
 
 sub_fb = [7,8,26,27,30,11,13,14,16,19,22]
@@ -34,13 +36,18 @@ c_control = []
 fb_attention = []
 c_attention = []
 
+fb_cross = []
+c_cross = []
+
 for idx,sub in enumerate(subjIDs):
     if sub in sub_fb:
         fb_control.append(control[idx])
         fb_attention.append(attention[idx])
+        fb_cross.append(cross[idx])
     else:
         c_control.append(control[idx])
         c_attention.append(attention[idx])
+        c_cross.append(cross[idx])
 
 stats.ttest_ind(fb_control,c_control)
 
