@@ -6,15 +6,18 @@ Created on Thu May 16 16:29:34 2019
 """
 from PIL import Image
 
-background = Image.open('face2181.jpg', mode='r')
-foreground = Image.open('scene624.jpg')
+docDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Documents\\'
+
+
+background = Image.open(docDir+'face3627.jpg', mode='r')
+foreground = Image.open(docDir+'scene3268.jpg')
     
 # FOR SAVING
-fusedImage = Image.blend(background,foreground, .20)
+fusedImage = Image.blend(foreground,background, .5)
 
 fusedImage.show()
 
-fusedImage.save('aswop20.jpg')
+fusedImage.save(docDir+'e7.jpg')
 
 background.close()
 foreground.close()

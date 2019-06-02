@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-This script is based on inv_18apr.py, and investigates the new EEG pipeline, 
+This script is based on inv_09May.py, and investigates the new EEG pipeline, 
 using 450 samples for 19 subjects, and 550 samples for the first 3 subjects. 
-The .pckl files are from 18th of April, and the script used is offline_analysis_FUNC.py,
-together with the parallelisation script for cluster-use.
+The .pckl files are from 9th of May, and the script used is offline_analysis_FUNC_v1.py.
 
 @author: Greta
 """
@@ -17,81 +16,28 @@ import os
 import numpy as np
 import mne
 
+scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
+os.chdir(scriptsDir)
 
-#%% Plot styles
-plt.style.use('seaborn-notebook')
-
-matplotlib.rc('font', **font)
-
-matplotlib.rcParams['mathtext.fontset'] = 'custom'
-matplotlib.rcParams['font.family'] = 'sans-serif'
-matplotlib.rcParams['mathtext.rm'] = 'Bitstream Vera Sans'
-matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
-matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
-matplotlib.rcParams['legend.frameon'] = True
-matplotlib.rcParams['grid.alpha'] = 0.3
-
-#%% Variables
-
-subjID_NF = ['07','08','11','13','14','16','19','22','26','27','30']
-subjID_C = ['15','17','18','21','23','24','25','31','32','33','34']
-
-# For plots, comparing NF and C
-color = ['tomato']*11 + ['dodgerblue']*11
-color_uncor = ['brown']*11 + ['navy']*11
-sub_axis = subjID_NF + subjID_C
-sub_axis_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
-subjID_all = ['07','08','11','13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
-
-EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
-
-#%% New pipeline: offline_analysis_FUNC, 18 April
-os.chdir('P:\\closed_loop_data\\offline_analysis_pckl\\')
-
-d_all = {}
-
-# Append all subject dictionaries to an overall dict, d_all
-subs550 = ['07','08','11']
-subs450 = ['13','14','15','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
-
-for subj in subs550:
-    with open('18April_550_subj_'+subj+'.pkl', "rb") as fin:
-         d_all[subj] = (pickle.load(fin))[0]
-
-for subj in subs450:
-    with open('18April_subj_'+subj+'.pkl', "rb") as fin:
-         d_all[subj] = (pickle.load(fin))[0] 
+from variables import *
 
 #%% Pipeline with updated LORO and ouput alpha and clf output values
 
-d_all2 = {}
+# d_all2 = {}
 
-for subj in sub_axis_all:
-    with open(EEGDir + '09May_subj_'+subj+'.pkl', "rb") as fin:
-         d_all2[subj] = (pickle.load(fin))[0]
+# for subj in subjID_all:
+#     with open(EEGDir+'09May_subj_'+subj+'.pkl', "rb") as fin:
+#          d_all2[subj] = (pickle.load(fin))[0]
 
-#%% Test difference between old and new LORO CV
-subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('LORO_stable_acc_corr')         
-subsAll2, subsNF2, subsC2, meanAll2, meanNF2, meanC2 = extractVal('LORO_stable_acc_corr')         
+# fname = 'd_all2.pkl'         
+# with open(npyDir+fname, 'wb') as fout:
+#      pickle.dump(d_all2, fout)
 
-#%% Check GROUP assignments (checked 23 April - OK)
-dictfilt = lambda x, y: dict([ (i,x[i]) for i in x if i in set(y) ])
-GROUP_keys = ('ALPHA_correlation','GROUP')
-
-allSubs_GROUP = []
-for key, value in d_all.items():
-    result = dictfilt(value, GROUP_keys)
-    print(key,result)
-    g = list(result.values())    
-    allSubs_GROUP.append(g)
-
-#%% Extract values from EEG dict, d_all
-
+#%% ######## FUNCTIONS ########
 def extractVal(wanted_key):
     '''
-    Remember to change from d_all to d_all2 (if using analyses from 09May)
+    Extract values from EEG dict, d_all, or d_all2 (if using analyses from 09May)
     '''
-    
     subsAll = []
     subsNF = []
     subsC = []
@@ -119,115 +65,135 @@ def extractVal(wanted_key):
     meanNF = np.mean(subsNF)
     meanC = np.mean(subsC)
 
+    subsNF = [item for sublist in subsNF for item in sublist]
+    subsC = [item for sublist in subsC for item in sublist]
+
     return subsAll, subsNF, subsC, meanAll, meanNF, meanC
 
-#%%
+def extractMNE(wanted_key):
+    subsAll = []
+    for key, value in d_all2.items():
+        for k, v in value.items():        
+            if k == wanted_key:                
+                subsAll.append(v)
+    return subsAll
+
+
+def extractEvokeds(epochsArray):
+    '''Function that outputs evokeds
+    '''
+    evokeds = [epochsArray[name].average() for name in ('scene','face')]
+    return evokeds, evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
+
+#%% Extract RT acc, corr and non-corr
 subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')
 subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_uncor = extractVal('RT_test_acc_uncorr')
 
-# Save subsAll for beh comparsion
-np.save(scriptsDir+'subsC_RT_acc.npy',subsC)
-
 #%% RT pipeline analysis. RT decoding accuracy corrected.
-
 plt.figure(5)
 plt.scatter(np.arange(0,len(subsNF),1),subsNF,color='tomato') # NF subjects
 plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC,color='dodgerblue') # C subjects
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
 plt.xlabel('Subject ID')
 plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy (NF blocks)')
+plt.title('Real-time decoding accuracy')
 NF_mean = [meanNF]*len(subsNF)
 C_mean = [meanC]*len(subsC)
 
-plt.plot(np.arange(0,len(subsNF)),NF_mean, label='Mean NF group',color='tomato')
-plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='Mean Control group',color='dodgerblue')
+plt.plot(np.arange(0,len(subsNF)),NF_mean, label='Mean NF',color='tomato')
+plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='Mean control',color='dodgerblue')
 plt.legend()
+plt.grid(color='gainsboro',linewidth=0.5)
 
 # Barplot
-plt.figure(6)
-plt.bar(0, meanNF,color=(0,0,0,0),edgecolor='tomato',width=0.1)
-plt.bar(0.2, meanC,color=(0,0,0,0),edgecolor='dodgerblue',width=0.1)
-plt.ylabel('RT decoding accuracy (NF blocks)')
-plt.xticks([0,0.2],['NF group','Control group'])
-plt.ylim([0.5,0.73])
+# plt.figure(6)
+# plt.bar(0, meanNF,color=(0,0,0,0),edgecolor='tomato',width=0.1)
+# plt.bar(0.2, meanC,color=(0,0,0,0),edgecolor='dodgerblue',width=0.1)
+# plt.ylabel('RT decoding accuracy (NF blocks)')
+# plt.xticks([0,0.2],['NF group','Control group'])
+# plt.ylim([0.5,0.73])
 
-plt.scatter(np.zeros((len(subsNF))),subsNF,color='tomato')
-plt.scatter(np.full(len(subsC),0.2),subsC,color='dodgerblue')
+# plt.scatter(np.zeros((len(subsNF))),subsNF,color='tomato')
+# plt.scatter(np.full(len(subsC),0.2),subsC,color='dodgerblue')
 
-#%% Plot RT accuracies cor vs uncor
-
-plt.figure(7)
-plt.scatter(np.arange(0,len(subsNF),1),subsNF,color='tomato') # NF
-plt.scatter(np.arange(0,len(subsNF_uncor),1),subsNF_uncor,color='brown') # NF
-
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC,color='dodgerblue') # C
-plt.scatter(np.arange(len(subsC_uncor),len(subsAll_uncor),1),subsC_uncor,color='navy') # C
-
-plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
-plt.xlabel('Subject ID')
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+plt.bar(np.arange(0,len(subsNF),1),(subsNF),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(len(subsC),len(subsAll),1),subsC,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xlabel('Participants')
 plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy (NF blocks)\n Classifier bias corrected vs uncorrected')
-
+plt.title('Real-time decoding accuracy')
 NF_mean = [meanNF]*len(subsNF)
 C_mean = [meanC]*len(subsC)
+plt.ylim(0.40,0.72)
+
+plt.hlines(NF_mean,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(C_mean,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
+plt.legend(loc='lower left')
+
+
+#%% Plot RT accuracies cor vs uncor
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+plt.scatter(np.arange(0,len(subsNF),1),(subsNF),color='tomato',zorder=3,label='NF corrected') # NF subjects
+plt.scatter(np.arange(0,len(subsNF),1),(subsNF_uncor),color='brown',zorder=3,label='NF uncorrected') # NF subjects
+
+plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC,color='dodgerblue',zorder=3,label='Control corrected') # C subjects
+plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_uncor,color='navy',zorder=3,label='Control uncorrected') # C subjects
+
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xlabel('Participants')
+plt.ylabel('Decoding accuracy')
+plt.title('Real-time decoding accuracy \nClassifier bias corrected vs. uncorrected')
 
 NF_mean_uncor = [meanNF_uncor]*len(subsNF)
 C_mean_uncor = [meanC_uncor]*len(subsC)
 
-plt.plot(np.arange(0,len(subsNF)),NF_mean, color='tomato',label='Bias corrected')
-plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean,color='dodgerblue',label='Bias corrected')
+plt.hlines(NF_mean,-0.5,len(subsNF)-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(NF_mean_uncor,-0.5,len(subsNF)-0.5,color='brown',zorder=4,linestyles='dashed',linewidth=2)
 
-plt.plot(np.arange(0,len(subsNF)),NF_mean_uncor, color='brown',label='Bias uncorrected')
-plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean_uncor, color='navy',label='Bias uncorrected')
-plt.legend()
+plt.hlines(C_mean,len(subsNF)-0.5,len(subsAll)-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(C_mean_uncor,len(subsNF)-0.5,len(subsAll)-0.5,color='navy',zorder=4,linestyles='dashed',linewidth=2)
 
-#%% Plot all face vs scene accuracies for RT (corrected)
+plt.ylim(0.45,0.73)
+plt.legend(loc='lower left')
 
+#%% Plot all face vs scene accuracies for RT (corrected) - could make this for LOBO, or for LORO (need to run another iteration of the script to save the face/scene accs)
 subsAll_s, subsNF_s, subsC_s, meanAll_s, meanNF_s, meanC_s = extractVal('RT_scene_acc')
 subsAll_f, subsNF_f, subsC_f, meanAll_f, meanNF_f, meanC_f = extractVal('RT_face_acc')
 
-# Continuous subject ID x-axis
-plt.figure(8)
-plt.scatter(np.arange(0,len(subsAll_s),1),subsAll_s,color='seagreen')#,label='Bias corrected')
-plt.scatter(np.arange(0,len(subsAll_f),1),subsAll_f,color='hotpink')#,label='Bias uncorrected')
-plt.xticks(np.arange(0,len(subsAll),1),sub_axis_all) 
-plt.xlabel('Subject ID')
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+plt.scatter(np.arange(0,len(subsNF_f),1),(subsNF_f),color='tomato',zorder=3,label='Face') # NF subjects
+plt.scatter(np.arange(0,len(subsNF_s),1),(subsNF_s),color='dodgerblue',zorder=3,label='Scene') # NF subjects
+
+plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_f,color='tomato',zorder=3) # C subjects
+plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_s,color='dodgerblue',zorder=3) # C subjects
+
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xlabel('Participants')
 plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy (NF blocks)\n Scene vs face decoding accuracy')
+plt.title('Real-time decoding accuracy \nFace vs. scene')
 
 s_mean = [meanAll_s]*len(subsAll)
 f_mean = [meanAll_f]*len(subsAll)
 
-plt.plot(np.arange(0,len(subsAll_s)),s_mean,color='seagreen',label='Scene decoding accuracy')
-plt.plot(np.arange(0,len(subsAll_f)),f_mean,color='hotpink',label='Face decoding accuracy')
-plt.legend()
+plt.hlines(f_mean,-0.5,len(subsAll)-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(s_mean,-0.5,len(subsAll)-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 
-# subject ID x-axis based on NF and C
-plt.figure(9)
-# Scene
-plt.scatter(np.arange(0,len(subsNF_s),1),subsNF_s,color='seagreen',marker='^')#,label='NF group') # NF subjects
-plt.scatter(np.arange(len(subsC_s),len(subsAll_s),1),subsC_s,color='seagreen')#,label='Control group') # C subjects
-# Face
-plt.scatter(np.arange(0,len(subsNF_f),1),subsNF_f,color='hotpink',marker='^') # NF subjects
-plt.scatter(np.arange(len(subsC_f),len(subsAll_f),1),subsC_f,color='hotpink') # C subjects
+plt.ylim(0.45,0.8)
+plt.legend(loc='lower left')
 
-plt.xticks(np.arange(0,len(subsAll),1),sub_axis) # SUBAXIS
-plt.xlabel('Subject ID')
-plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy (NF blocks)\n Scene vs face decoding accuracy')
-
-plt.plot(np.arange(0,len(subsAll_s)),s_mean ,color='seagreen',label='Scene decoding accuracy')
-plt.plot(np.arange(0,len(subsAll_f)),f_mean, color='hotpink',label='Face decoding accuracy')
-plt.legend()
-
-#%% Overall per RT run accuracy, corrected
+#%% Overall per RT run accuracy, corrected - colored based on NF and C 
 subsAll_run, subsNF_run, subsC_run, meanAll_run, meanNF_run, meanC_run = extractVal('RT_test_acc_corr_run')
 
-# cmap = plt.get_cmap('hsv')
-# colors = [cmap(i) for i in np.linspace(0, 1, 22)]
+cmReds=cm.get_cmap("Reds")
+cmBlues=cm.get_cmap("Blues")
 
-colorAll = sns.color_palette("Set2",22)
+normNF = matplotlib.colors.Normalize(vmin=np.min(subsNF_RT_acc), vmax=np.max(subsNF_RT_acc))
+normC = matplotlib.colors.Normalize(vmin=np.min(subsC_RT_acc), vmax=np.max(subsC_RT_acc))
 
 # Individual runs, mean
 run1=np.mean(np.asarray([subsAll_run[f][0] for f in range(len(subsAll_run))]))
@@ -238,106 +204,68 @@ run5=np.mean(np.asarray([subsAll_run[f][4] for f in range(len(subsAll_run))]))
 
 run_means = [run1]+[run2]+[run3]+[run4]+[run5] # Reality check: Same as np.mean(subsAll)
 
-plt.figure(10)
-for c,entry in enumerate(subsAll_run):
-    #plt.plot(np.arange(1,6),subsAll_run[c],color=colorAll[c],linewidth=0.3)
-    plt.scatter(np.arange(1,6),subsAll_run[c],color=colorAll[c])
-plt.plot(np.arange(1,6),run_means,linestyle='-',color='black',label='Mean accuracy per run',linewidth=2)
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+
+# NF
+for count,entry in enumerate(subsNF_run):
+    plt.plot(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(subsNF_RT_acc[count])),linewidth=0.5,zorder=3)
+    plt.scatter(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(subsNF_RT_acc[count])),zorder=3)
+# C
+for count,entry in enumerate(subsC_run):
+    plt.plot(np.arange(1,6),subsC_run[count],c=cmBlues(normC(subsC_RT_acc[count])),linewidth=0.5,zorder=2)
+    plt.scatter(np.arange(1,6),subsC_run[count],c=cmBlues(normC(subsC_RT_acc[count])),zorder=2)
+
+plt.plot(np.arange(1,6),run_means,linestyle='dashed',color='black',label='Mean accuracy per run',linewidth=2,zorder=3)
 plt.xticks(np.arange(1,6),['1','2','3','4','5']) 
-plt.xlabel('NF run number')
+plt.xlabel('Run number')
 plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy for each NF run')
+# plt.title('Real-time decoding accuracy per run')
 plt.legend()
+plt.ylim(0.4,0.8)
 
 #%% Plot offline train LORO accuracies, bias corrected, stable
 subsAll_LORO, subsNF_LORO, subsC_LORO, meanAll_LORO, meanNF_LORO, meanC_LORO = extractVal('LORO_stable_acc_corr')
 
-# np.save('subsAll_LORO_09May.npy',subsAll_LORO)
-# np.save('subsNF_LORO_09May.npy',subsNF_LORO)
-# np.save('subsC_LORO_09May.npy',subsC_LORO)
-
-plt.figure(11)
-plt.scatter(np.arange(0,len(subsNF_LORO),1),subsNF_LORO,color='tomato') # NF subjects
-plt.scatter(np.arange(len(subsC_LORO),len(subsAll_LORO),1),subsC_LORO,color='dodgerblue') # C subjects
-
-plt.xticks(np.arange(0,len(subsAll_LORO),1),sub_axis)
-plt.xlabel('Subject ID')
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+plt.bar(np.arange(0,len(subsNF_LORO),1),(subsNF_LORO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(len(subsC_LORO),len(subsAll),1),subsC_LORO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xlabel('Participants')
 plt.ylabel('Decoding accuracy')
-
+plt.title('Classifier accuracy \nLeave-one-run-out cross-validation') #########
 NF_mean_LORO = [meanNF_LORO]*len(subsNF)
 C_mean_LORO = [meanC_LORO]*len(subsC)
-plt.title('Offline decoding accuracy (stable blocks)\n Leave one run out cross-validation',fontsize=13)
+plt.ylim(0.35,0.85)
 
-plt.plot(np.arange(0,len(subsNF_LORO)),NF_mean_LORO, label='NF group', color='tomato')
-plt.plot(np.arange(len(subsNF_LORO),len(subsAll_LORO)),C_mean_LORO, label='Control group', color='dodgerblue')
-plt.legend()
-
+plt.hlines(NF_mean_LORO,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(C_mean_LORO,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
+plt.legend(loc='lower left')
 
 #%% Plot offline train LOBO accuracies, corrected, stable
 subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = extractVal('LOBO_stable_train_acc_corr')
 
-# np.save('subsNF_LOBO.npy',subsNF_LOBO)
-# np.save('subsC_LOBO.npy',subsC_LOBO)
-
-
-plt.figure(12)
-plt.scatter(np.arange(0,len(subsNF_LOBO),1),subsNF_LOBO,color='tomato') # NF subjects
-plt.scatter(np.arange(len(subsC_LOBO),len(subsAll_LOBO),1),subsC_LOBO,color='dodgerblue') # C subjects
-plt.xticks(np.arange(0,len(subsAll_LOBO),1),sub_axis)
-plt.xlabel('Subject ID')
+fig,ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+plt.bar(np.arange(0,len(subsNF_LOBO),1),(subsNF_LOBO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(len(subsC_LOBO),len(subsAll),1),subsC_LOBO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xlabel('Participants')
 plt.ylabel('Decoding accuracy')
+plt.title('Classifier accuracy \nLeave-one-block-out cross-validation') #########
+NF_mean_LOBO = [meanNF_LOBO]*len(subsNF)
+C_mean_LOBO = [meanC_LOBO]*len(subsC)
+plt.ylim(0.35,0.85)
 
-NF_mean_LOBO = [meanNF_LOBO]*len(subsNF_LOBO)
-C_mean_LOBO = [meanC_LOBO]*len(subsC_LOBO)
-plt.title('Leave one block out')
-
-plt.title('Offline decoding accuracy (stable blocks)\n Leave one block out cross-validation')
-
-plt.plot(np.arange(0,len(subsNF_LOBO)),NF_mean_LOBO, label='NF group', color='tomato')
-plt.plot(np.arange(len(subsNF_LOBO),len(subsAll_LOBO)),C_mean_LOBO, label='Control group', color='dodgerblue')
-plt.legend()
+plt.hlines(NF_mean_LOBO,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(C_mean_LOBO,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
+plt.legend(loc='lower left')
 
 #%% ######### MNE ############
-
-#%% Function that outputs evokeds
-def extractMNE(wanted_key):
-    subsAll = []
-    # subsNF = []
-    # subsC = []
-    
-    for key, value in d_all2.items():
-        # subsNF_result = []
-        # subsC_result = []
-        
-        for k, v in value.items():        
-            if k == wanted_key:                
-                subsAll.append(v)
-                
-                # if key in subjID_NF:
-                #     subsNF_result.append(v)
-                # if key in subjID_C:
-                #     subsC_result.append(v)
-        
-        # if len(subsNF_result) == 1:
-        #     subsNF.append(subsNF_result)
-            
-        # if len(subsC_result) == 1:
-        #     subsC.append(subsC_result)
-    
-    # meanAll = np.mean(subsAll)
-    # meanNF = np.mean(subsNF)
-    # meanC = np.mean(subsC)
-
-    return subsAll
-
-
-def extractEvokeds(epochsArray):
-    evokeds = [epochsArray[name].average() for name in ('scene','face')]
-    return evokeds, evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
-
-
 #%% Extract evoked responses (averaged)
-    
 MNEstable_all = extractMNE('MNE_stable_blocks_SSP')
 y_stable_all = extractMNE('MNE_y_stable_blocks')
 
@@ -367,7 +295,6 @@ for sub in MNEstable_all:
         c += 1
 
 #%% Check whether MNE category labeling corresponds
-        
 face_avg_all = []
 scene_avg_all = []
 c = 0
@@ -410,9 +337,7 @@ mne.viz.plot_compare_evokeds(e_dict,picks=[7],colors=['r','b'],\
                              truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
                              show_sensors=True,show_legend=True,truncate_yaxis=False,ci=False)
       
-    
-#%% 
-# Plotting evoked responses for 1 subject, individually
+#%% Plotting evoked responses for 1 subject, individually
 MNEstable_all[17]['face'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 MNEstable_all[0]['scene'].average().plot(spatial_colors=True, time_unit='s',picks=[7])
 
@@ -420,9 +345,6 @@ mne.viz.plot_compare_evokeds(MNEscene_all[:9],picks=[6,7,12,13,22]) # Plotting a
 mne.viz.plot_compare_evokeds(MNEface_all[:2],picks=[6,7,12,13,22]) # Plotting all the individual evoked arrays (up to 10)
 
 # If using 01, 02, Oz, PO3 and PO4. 6,7,12,13,22. These values are not z-scored. Standardize when extracting in offline_analysis.
-
-# from mne.decoding import Scaler
-# scale_test=Scaler(scalings='mean').fit_transform(MNEstable_all[0][2].get_data())
 
 #%% 
 colorAll = sns.color_palette("Set2",44)
@@ -497,14 +419,12 @@ MNEevoked_face.plot(picks=[6,7,12,13,22])
 MNEevoked_scene.plot(picks=[6,7,12,13,22])
 
 #%% Sort epochs based on categories
-
 MNEepochs_all = []
 for idx,subj in enumerate(MNEstable_all):
     sorted_epochsarray = [MNEstable_all[idx][name] for name in ('scene','face')]
     MNEepochs_all.append(sorted_epochsarray)
 
 #%% Plot evoked averages for individual subjects with CI
-
 for idx,subj in enumerate(MNEstable_all[:2]):
     single_sub = MNEstable_all[idx].get_data()
    
@@ -522,7 +442,7 @@ for idx,subj in enumerate(MNEstable_all[:2]):
     e_dict_single['Scene'] = evoked_array_c0
     e_dict_single['Face'] = evoked_array_c1
 
-    fig =mne.viz.plot_compare_evokeds(e_dict_single,picks=[6,7,12,13,22],colors=['r','b'],\
+    fig = mne.viz.plot_compare_evokeds(e_dict_single,picks=[6,7,12,13,22],colors=['r','b'],\
         truncate_xaxis=False,title='Face vs scene ERP \n Subject ' + str(subjID_all[idx]),\
         show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
 
@@ -548,9 +468,6 @@ mne.viz.plot_compare_evokeds(evoked_array2[:10],picks=[7]) # Plotting all the in
 # Testing the best way to plot individual evoked arrays
 evoked_array2[0].plot(picks=[7])
 
-
-
-
 # Creating a dict of lists: Condition 0 and condition 1 with evoked arrays.
 evoked_array_c0 = []
 evoked_array_c1 = []
@@ -568,7 +485,6 @@ e_dict['1'] = evoked_array_c1
 # Could create these e_dicts for several people, and plot the means. Or create an e_dict
 # with the evokeds for each person, and make the "overall" mean with individual evoked means across subjects.
 
-mne.viz.plot_compare_evokeds(e_dict,picks=[7])
 
 #%% Scene vs face ERP (evoked grand average), meaned across all participants. No CI.
 
@@ -581,12 +497,6 @@ mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
                              truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
                              show_sensors=True,show_legend=True,truncate_yaxis=False) #cmap='viridis'
 
-
-#%% Currently not relevant
-
-# Noise covariance plot - not really sure what to make of this (yet)
-# noise_cov = mne.compute_covariance(stable_blocksSSP_plot)
-# fig = mne.viz.plot_cov(noise_cov, stable_blocksSSP_plot.info) 
 
 #%%
 # Make animation

@@ -25,13 +25,13 @@ scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
 from responseTime_func import extractCat, findRTsBlocks
 from variables import *
+from beh_FUNCv2 import extractStatsBlockDay2
 
-#%%
-d_all2 = {}
+#%% Create d_match
+d_match = {}
 
-for subj in subjID_all:
-    with open(EEGDir+'09May_subj_'+subj+'.pkl', "rb") as fin:
-         d_all2[subj] = (pickle.load(fin))[0]
+for i in range(len(NF_group)):
+    d_match[NF_group[i]] = C_group[i]
 
 #%%
 def extractVal2(wkey):
@@ -63,150 +63,13 @@ def extractVal2(wkey):
     
     return subsAll, subsNF, subsC
 
-#%% Analyze RT session block-wise
-
-def extractStatsBlockDay2(wkey):
-    '''
-    
-    '''
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
-    w_idx = wanted_measure_lst.index(wkey)
-   
-    subsAll = []
-    subsNF = []
-    subsC = []
-    
-    for key, value in statsBlockDay2_all.items():
-        result = value[:,w_idx]
-        # print(result.shape)
-        subsAll.append(result)
-        
-        if key in subjID_NF:
-            subsNF.append(result)
-        if key in subjID_C:
-            subsC.append(result) 
-    
-    return subsAll, subsNF, subsC
-
-def computeStats(subjID):
-    '''Computes stats based on days (statsDay) and blocks for each day (both statsBlock: day 1, 3, 4, 5 and statsBlock_day2)
-    '''
-    # 150-1000 ms analysis
-    # with open(saveDir+'//V3_150_1000//BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-    #     sub = (pickle.load(fin))[0]
-    
-    with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-        sub = (pickle.load(fin))[0]
-    
-    statsDay = np.zeros((5,9))
-    statsBlock = np.zeros((4,16,6))
-    statsBlock_day2 = np.zeros((48,6))
-    
-    idx_c = 0
-    
-    for idx, expDay in enumerate(['1','2','3','4','5']):
-        
-        # Load catFile
-        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
-        
-        if subjID == '11' and expDay == '2':
-            responseTimes = [np.nan]
-            nKeypress = np.nan
-        else:
-            responseTimes = sub['responseTimes_day'+expDay]
-            nKeypress = sub['TOTAL_keypress_day'+expDay]
-        
-        if subjID == '11' and expDay == '2':
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-        else:
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
-    
-        # Compute stats (for visibility)
-        TP = NI_nlure
-        FP = NI_lure
-        TN = CI_lure
-        FN = I_nlure
-        
-        sensitivity = TP/(TP+FN)
-        specificity = TN/(TN+FP)
-        FPR = FP/(FP+TN)
-        accuracy = (TP+TN)/(TP+TN+FP+FN)
-#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
-        
-        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
-
-        # Block-wise
-        for block in range(1,int(len(responseTimes)/50)+1):
-            print(block)
-            
-            if subjID == '11' and expDay == '2': 
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-            else:
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
-            
-            sensitivity = TP/(TP+FN)
-            specificity = TN/(TN+FP)
-            FPR = FP/(FP+TN)
-            accuracy = (TP+TN)/(TP+TN+FP+FN)
-            
-            if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
-        
-            if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
-                
-        if expDay != '2':            
-            idx_c += 1
-
-    return statsDay, statsBlock, statsBlock_day2
-
-#%% Extract stats for day 2 for all subjs
-
 #%%
-
-
-#%% Extract stats for all subjects
-statsBlockDay2_all = {}
-
-for idx,subjID in enumerate(subjID_all):
-    statsDay, statsBlock, statsBlock_day2 = computeStats(subjID)
-    
-    statsBlockDay2_all[subjID] = statsBlock_day2 
-
-
-#%%
-
 def blockAlpha():
     '''
     Extracts alpha, accuracy and clf output for NF and C groups individually.
     '''
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
-    
-    # # Test RT accuracy for reality check
-    # for idx, item in enumerate(subsAll_clf):
-    #     # above_a = len(np.where((np.array(item)>0.5))[0])/len(item)
-    #     above_clfo = len(np.where((np.array(item)>0))[0])/len(item)
-    #     print(subjID_all[idx],above_clfo)
-    
-    # Alpha and clf output and alpha accuracy per block. For all subjects
-    # a_per_block = np.zeros((22,n_it*4)) # Subjects as rows, and blocks as columns
-    # acc_per_block = np.zeros((22,n_it*4))
-    # clfo_per_block = np.zeros((22,n_it*4))
-    
-    
-    # for idx, item in enumerate(subsAll_a):
-    #     k = 0
-    #     for b in range(n_it*4):
-    #         a_per_block[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
-    #         acc_per_block[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
-    #         k += 50
-    
-    # for idx, item in enumerate(subsAll_clf):
-    #     k = 0
-    #     for b in range(n_it*4):
-    #         clfo_per_block[idx,b] = (np.mean(item[k:k+50])) 
-    #         k += 50
     
     a_per_block_NF = np.zeros((11,n_it*4)) # Subjects as rows, and blocks as columns
     a_per_block_C = np.zeros((11,n_it*4))
@@ -278,7 +141,6 @@ def getAvgBeh(wanted_measure):
     
     return behBlockNF_avg, behBlockC_avg
     
-
 def plotAlphaVSbeh():
     '''
     Plots alpha (or acc or clf output) meaned for NF and C, respectively, vs. chosen behavioral measure.
@@ -286,7 +148,6 @@ def plotAlphaVSbeh():
     '''
     # Get averaged behavioral measures for each group
     senBlockNF_avg, senBlockC_avg = getAvgBeh('sen')
-    specBlockNF_avg, specBlockC_avg = getAvgBeh('spec')
     accBlockNF_avg, accBlockC_avg = getAvgBeh('acc')
     rtBlockNF_avg, rtBlockC_avg = getAvgBeh('rt')
 
@@ -306,7 +167,6 @@ def plotAlphaVSbeh():
     clfoBlockC_avg = np.mean(clfo_per_block_C,axis=0)
     
     zscore(alphaBlockNF_avg)
-    
     
     # Plot NF
     plt.figure(random.randint(0,100))
@@ -435,15 +295,11 @@ def plotMatchedAlphavsBeh(pair,wanted_measure,zscored=False):
         plt.legend()
         plt.title('Behavioral accuracy per block for NF subject and matched control: '+str(subject_pair))
 
-    # Reality check
-    # han = matchedAccBlock[7][0] # Must be the NF person of d_match index 7, i.e. subj 22
-    # np.mean(han) # Matches with the RT accuracy for subj 22 in d_all2
-    
     return matchedAlpha, matchedAlphaBlock, matchedBeh
     
 def blockMatchedAlpha():
     '''
-    Returns alpha, accuracy and clf output er block for all subjects.
+    Returns alpha, accuracy and clf output per block for all subjects.
     
     '''
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
@@ -472,60 +328,58 @@ def blockMatchedAlpha():
             
     return a_per_block_all, acc_per_block_all, clfo_per_block_all
             
-      
-#%% Create d_match
-
-d_match = {}
-
-for i in range(len(NF_group)):
-    d_match[NF_group[i]] = C_group[i]
     
 #%% Analyze block-wise matched pairs
-    
-# Plot alpha vs behavioral correlation value
-# plt.figure(101)
-# plt.scatter(matchedAlphaBlock[7][0],matchedBeh[7][1])
+
+# Create a list of shown alphas per matched pair (i.e. the alphas for NF subject, with 0.5 initialization block)
+# matchedAlpha_test contains the NF alpha value as first list, and control alpha as the second list
+
+shownAlphaPair = [sublist[0] for sublist in matchedAlpha]
+shownAlphaPairBlock = []
+
+for sublist in shownAlphaPair:
+    tempLst = []
+    for number in np.arange(0,1000,50):
+        sublist[number] = 0.5
+        sublist[number+1] = 0.5
+        sublist[number+2] = 0.5
+        blockMean = np.mean(sublist)
+        tempLst.append(blockMean)
+    shownAlphaPairBlock.append(tempLst)
 
 # Simple correlations for all pairs
-matchedAlpha, matchedAlphaBlock, matchedBeh_sen = plotMatchedAlphavsBeh(pair=7,wanted_measure='sen',zscored=1)
-matchedAlpha, matchedAlphaBlock, matchedBeh_spec = plotMatchedAlphavsBeh(pair=10,wanted_measure='spec',zscored=1)
-matchedAlpha, matchedAlphaBlock, matchedBeh_acc = plotMatchedAlphavsBeh(pair=10,wanted_measure='acc',zscored=False)
-matchedAlpha, matchedAlphaBlock, matchedBeh_rt = plotMatchedAlphavsBeh(pair=7,wanted_measure='rt',zscored=1)
+# matchedAlpha, matchedAlphaBlock, matchedBeh_er = plotMatchedAlphavsBeh(pair=7,wanted_measure='er')
+matchedAlpha, matchedAlphaBlock, matchedBeh_a = plotMatchedAlphavsBeh(pair=7,wanted_measure='a')
+matchedAlpha, matchedAlphaBlock, matchedBeh_arer = plotMatchedAlphavsBeh(pair=7,wanted_measure='arer')
+matchedAlpha, matchedAlphaBlock, matchedBeh_rt = plotMatchedAlphavsBeh(pair=7,wanted_measure='rt')
 
-corrs_sen = np.zeros((11,2))
-corrs_spec = np.zeros((11,2))
-corrs_acc = np.zeros((11,2))
+corrs_er = np.zeros((11,2))
+corrs_a = np.zeros((11,2))
+corrs_arer = np.zeros((11,2))
 corrs_rt = np.zeros((11,2))
-
-stats.ttest_rel(corrs_sen[:,0],corrs_sen[:,1],nan_policy='omit')
-stats.ttest_rel(corrs_acc[:,0],corrs_acc[:,1],nan_policy='omit')
-stats.ttest_rel(corrs_spec[:,0],corrs_spec[:,1],nan_policy='omit')
-stats.ttest_rel(corrs_rt[:,0],corrs_rt[:,1],nan_policy='omit')
-
-
 
 for idx in range(0,11):
     if idx == 2:
-        corrs_sen[idx] = np.nan, np.nan
-        corrs_spec[idx] = np.nan, np.nan
-        corrs_acc[idx] = np.nan, np.nan
+        corrs_er[idx] = np.nan, np.nan
+        corrs_a[idx] = np.nan, np.nan
+        corrs_arer[idx] = np.nan, np.nan
         corrs_rt[idx] = np.nan, np.nan
     else:
-        corr_NF_sen = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_sen[idx][0])
-        corr_C_sen = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_sen[idx][1])
+        # corr_NF_er = np.corrcoef(shownAlphaPair[idx],matchedBeh_er[idx][0])
+        # corr_C_er = np.corrcoef(shownAlphaPair[idx],matchedBeh_er[idx][1])
         
-        corr_NF_spec = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_spec[idx][0])
-        corr_C_spec = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_spec[idx][1])
+        corr_NF_a = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_a[idx][0])
+        corr_C_a = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_a[idx][1])
         
-        corr_NF_acc = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_acc[idx][0])
-        corr_C_acc = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_acc[idx][1])
+        corr_NF_arer = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_arer[idx][0])
+        corr_C_arer = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_arer[idx][1])
         
-        corr_NF_rt = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_rt[idx][0])
-        corr_C_rt = np.corrcoef(matchedAlpha_test[idx][0],matchedBeh_rt[idx][1])
+        corr_NF_rt = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_rt[idx][0])
+        corr_C_rt = np.corrcoef(shownAlphaPairBlock[idx],matchedBeh_rt[idx][1])
         
-        corrs_sen[idx] = corr_NF_sen[0][1],corr_C_sen[0][1]
-        corrs_spec[idx] = corr_NF_spec[0][1],corr_C_spec[0][1]
-        corrs_acc[idx] = corr_NF_acc[0][1],corr_C_acc[0][1]
+        # corrs_er[idx] = corr_NF_er[0][1],corr_C_er[0][1]
+        corrs_a[idx] = corr_NF_a[0][1],corr_C_a[0][1]
+        corrs_arer[idx] = corr_NF_arer[0][1],corr_C_arer[0][1]
         corrs_rt[idx] = corr_NF_rt[0][1],corr_C_rt[0][1]
 
 print(np.round(corrs_sen,decimals=3))
@@ -534,26 +388,9 @@ print(np.round(corrs_spec,decimals=3))
 print(np.round(corrs_acc,decimals=3))
 print(np.round(corrs_rt,decimals=3))
 
-#%% ################# CCA ######################
-
-# 1. I want to extract alpha, acc and clf output for each subject, for each NF session
-# 2. I need behavioral measures, i.e. TP, FN, FP, TN for each time point
-
-# Create a list of shown alphas per matched pair (i.e. the alphas for NF subject, with 0.5 initialization block)
-# matchedAlpha_test contains the NF alpha value as first list, and control alpha as the second list
-
-shownAlphaPair = [sublist[0] for sublist in matchedAlpha]
-
-for sublist in shownAlphaPair:
-    for number in np.arange(0,1000,50):
-        sublist[number] = 0.5
-        sublist[number+1] = 0.5
-        sublist[number+2] = 0.5
-
-
-
 #%% Function for extraction behavioral measure for each time point
-
+os.chdir(scriptsDir)
+from responseTime_func import extractCat
 
 def extractPointResponse(subjID,stable=False):
     '''Extract the response for every single time point
@@ -711,7 +548,7 @@ def computeStatsTimepoint(subjID,stable=False):
     plt.figure(random.randint(50,140)) 
     plt.plot(windowAccNF,color='red',label='NF')
     plt.plot(windowAccC,color='blue',label='C')
-    plt.plot(alphaSHOWNRollingMean_l,color='black', label='alpha, additional avg (window 10)')
+    plt.plot(alphaSHOWNRollingMean_l,color='black', label='Shown mixture proportion') # alpha, additional avg (window 10)
     # plt.plot(alphameanSHOWN,color='green',label='Shown alpha, avg window 3')
     plt.legend()
     
@@ -719,25 +556,9 @@ def computeStatsTimepoint(subjID,stable=False):
     windowAccC_a = np.asarray(windowAccC)
 
     # Check for simple correlations
-    np.corrcoef(alphaSHOWNRollingMean_l,windowAccNF_a)
-    np.corrcoef(alphaSHOWNRollingMean_l,windowAccC_a)
+    simplecor_NF = np.corrcoef(alphaSHOWNRollingMean_l,windowAccNF_a)
+    simplecor_C = np.corrcoef(alphaSHOWNRollingMean_l,windowAccC_a)
         
-    #  After calculating the cross-correlation between the two signals, the maximum (or minimum if the signals are negatively correlated) 
-    # of the cross-correlation function indicates the point in time where the signals are best aligned; i.e.,
-    # the time delay between the two signals is determined by argmax of the cross-correlation
-    # lag between signals is given by the argmax of the cross-correlation
-    # lag = np.argmax(correlate(alphaRollingMean_l,windowAccNF_a))
-    # c_sig = np.roll(windowAccNF_a, shift=int(np.ceil(lag)))
-    
-    # Corr with means substracted
-    # corr = np.correlate(alphameanSHOWN - np.mean(alphameanSHOWN), 
-    #                 windowAccNF_a - np.mean(windowAccNF_a),
-    #                 mode='full')
-    
-    # Corr normalized. First autocorrelation for testing. Gives a corr coef of 1
-    # corr2 = np.correlate(alphameanSHOWN - np.mean(alphameanSHOWN), 
-    #                 alphameanSHOWN - np.mean(alphameanSHOWN),
-    #                 mode='full')/(len(alphameanSHOWN) * np.std(alphameanSHOWN) * np.std(alphameanSHOWN))
     # NF corr
     corrNF = np.correlate(alphaSHOWNRollingMean_l - np.mean(alphaSHOWNRollingMean_l), 
                     windowAccNF_a - np.mean(windowAccNF_a),
@@ -766,10 +587,9 @@ def computeStatsTimepoint(subjID,stable=False):
     corr_coefNF = corrNF[(corrNF.argmax())]
     corr_coefC = corrC[(corrC.argmax())]
 
-    return lagNF, lagC, corr_coefNF, corr_coefC, alphaSHOWNRollingMean_l, windowAccNF_a, windowAccC_a
+    return lagNF, lagC, corr_coefNF, corr_coefC, simplecor_NF[0][1], simplecor_C[0][1]
     
-    
-                
+         
 def makeRollingWindows(a, window, meanalpha=False):
     '''
     If meanalpha = True, only computes the windows (does not do anything with the edges)
@@ -804,9 +624,6 @@ def makeRollingWindows(a, window, meanalpha=False):
      
 
 def computeWindowStats(windowLst):
-    # sensitivity = TP/(TP+FN)
-    # specificity = TN/(TN+FP)
-    # FPR = FP/(FP+TN)
     
     unique, counts = np.unique(windowLst, return_counts=True)
     unique_d = dict(zip(unique, counts))
@@ -841,22 +658,35 @@ def computeWindowStats(windowLst):
     except NameError:
         FP = 0
     
-    accuracy = (TP+TN)/(TP+TN+FP+FN)
+    # H = TP/len(windowLst)
+    # FA = FP/len(windowLst)
     
+    # try:
+    #     A = 1/2 + (((H-FA)*(1+H-FA))/((4*H)*(1-FA)))
+    # except:
+    #     print('zero')
+    #     A = 1
+    # ARER = A/(1-A)
+    
+    accuracy = ((TP+TN)/(TP+TN+FP+FN))
+    # accuracy = ((TP+TN)/(TP+TN+FP+FN))/(1-((TP+TN)/(TP+TN+FP+FN)))
     return accuracy
     
 #%% Compute statsTimepoint for pairs
 lagPairs = np.zeros((11,2))
 coefPairs = np.zeros((11,2))
+simplecoefPairs = np.zeros((11,2))
 
 
 for idx,subjID in enumerate(subjID_NF):
     if subjID == '11':
         pass
     else:
-        lagNF, lagC, corr_coefNF, corr_coefC, nr, nr2, nr3 = computeStatsTimepoint(subjID)
+        lagNF, lagC, corr_coefNF, corr_coefC, simplecor_NF, simplecor_C = computeStatsTimepoint(subjID)
         lagPairs[idx] = lagNF, lagC
         coefPairs[idx] = corr_coefNF, corr_coefC
+        simplecoefPairs[idx] = simplecor_NF, simplecor_C
+
         
 #%% Extract the shown alpha and beh acc for each pair, and make averaged plot
 alphas_all = []
@@ -922,15 +752,6 @@ for number in np.arange(0,1000,50):
     alpha_all_shown[:,number+1] = 0.5
     alpha_all_shown[:,number+2] = 0.5
     
-# Correlation between alpha and classifier output in general
-# alpha_sub13=matchedAlpha[3][0]
-
-# a=d_all2['13']
-# clfo_sub13=a['CLFO_test']
-
-# np.corrcoef(alpha_sub13,clfo_sub13)
-
-# plt.hist(alpha_sub13)
 
 # ALPHA PLOT OBS NOT OVER A MOVING 3 AVERAGE. This is also for all subjects, i.e. it is not the ones shown. 
 # it is the decoded alphas across all subjects. non averaged.
@@ -972,14 +793,22 @@ for subjID in subjID_NF:
 plt.figure(5)
 plt.hist(alpha_all_shown_window,color=['black']*11,bins=11)
 plt.xticks(np.arange(0.1,1.1,0.1),['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1'])
-plt.xlabel('Feedback (mixture proportion of attended category)')
+plt.xlabel('Mixture proportion (alpha) of attended category')
 plt.ylabel('Count (number of trials)')
 plt.axvline(0.17,color='black',linewidth=0.5)
 plt.axvline(0.27,color='black',linewidth=0.5)
 plt.axvline(0.5,color='black',linewidth=0.5)
 plt.axvline(0.84,color='black',linewidth=0.5)
 plt.axvline(0.98,color='black',linewidth=0.5)
-plt.title('Feedback (alpha) values for NF (i.e. shown, with moving avg)')
+plt.text(x=0,y=311,s='Classifier output',horizontalalignment='center',fontsize=10)
+plt.text(x=0.17,y=311,s='-1',horizontalalignment='center',fontsize=10)
+plt.text(x=0.27,y=311,s='-0.5',horizontalalignment='center',fontsize=10)
+plt.text(x=0.5,y=311,s='0',horizontalalignment='center',fontsize=10)
+plt.text(x=0.84,y=311,s='0.5',horizontalalignment='center',fontsize=10)
+plt.text(x=0.98,y=311,s='1',horizontalalignment='center',fontsize=10)
+# plt.tight_layout(pad=3.3, w_pad=0, h_pad=0)
+plt.tight_layout(pad=3)
+plt.title('Shown mixture proportion values across participants\n')
 
 #%% Alpha correlation, shown ones
 

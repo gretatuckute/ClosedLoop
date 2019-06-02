@@ -2,6 +2,8 @@
 """
 Created on Fri May 24 19:23:28 2019
 
+V2 implements a new computeStats function including errorrate, RER, A' and thus the indexes of statsDay etc. are changed.
+
 @author: Greta
 """
 import pickle
@@ -40,7 +42,6 @@ def extractSurroundingRTs(subjID):
     
     return np.asarray(CR1), np.asarray(CR3), np.asarray(FR1), np.asarray(FR3), np.asarray(CR13m), np.asarray(FR13m)
 
-
 def computeStats(subjID):
     '''
     Adds A' 
@@ -50,9 +51,9 @@ def computeStats(subjID):
     with open(saveDir + 'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
         sub = (pickle.load(fin))[0]
     
-    statsDay = np.zeros((5,9))
-    statsBlock = np.zeros((4,16,6))
-    statsBlock_day2 = np.zeros((48,6))
+    statsDay = np.zeros((5,8))
+    statsBlock = np.zeros((4,16,7))
+    statsBlock_day2 = np.zeros((48,7))
     
     idx_c = 0
     
@@ -72,19 +73,50 @@ def computeStats(subjID):
             CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
     
         # Compute stats (for visibility)
-        TP = NI_nlure
-        FP = NI_lure
+        TP = NI_nlure # Hit rate
+        FP = NI_lure # False alarm
         TN = CI_lure
         FN = I_nlure
+        
+        if expDay == '2':
+            H = TP/2160
+            FA = FP/240
+            
+        else:
+            H = TP/720
+            FA = FP/80
+        
+        # plt.figure(8)
+        # plt.scatter(FA,0.85,color='black',label='(FA,H)')
+        # plt.ylim(0,1)
+        # plt.xlim(0,1)
+        # plt.xticks(np.arange(0,1.1,0.1))
+        # plt.yticks(np.arange(0,1.1,0.1))
+        # plt.xlabel('False alarm rate (FA)')
+        # plt.ylabel('Hit rate (H)')
+        # plt.plot([0,FA],[0,0.85],'k-',color='black')
+        # plt.plot([1,FA],[1,0.85],'k-',color='black')
+        # plt.text(0.05,0.6,s='$A_C$')
+        # plt.text(0.28,0.9,s='$A_L$')
+        # plt.text(0.5,0.5,s='$I$')
+        # plt.text(0.25,0.8,s='(FA,H)')
+        # plt.title('A\' behavioral measure')
+        # plt.grid(color='gainsboro',linewidth=0.5)
+        # plt.savefig('aprime.png',dpi=300)
         
         sensitivity = TP/(TP+FN)
         specificity = TN/(TN+FP)
         FPR = FP/(FP+TN)
         accuracy = (TP+TN)/(TP+TN+FP+FN)
         
-        A
+        errorrate = 1-accuracy
+        RER = accuracy/(1-accuracy)
         
-        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, errorrate, A, RT_mean
+        A = 1/2 + (((H-FA)*(1+H-FA))/((4*H)*(1-FA)))
+        
+        ARER = A/(1-A)
+        
+        statsDay[idx,:] = sensitivity, FPR, accuracy, errorrate, RER, A, ARER, RT_mean
 
         # Block-wise
         for block in range(1,int(len(responseTimes)/50)+1):
@@ -100,71 +132,26 @@ def computeStats(subjID):
             FPR = FP/(FP+TN)
             accuracy = (TP+TN)/(TP+TN+FP+FN)
             
-            if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
+            H = TP/50
+            FA = FP/50
         
-            if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
-                
-        if expDay != '2':            
-            idx_c += 1
-
-    return statsDay, statsBlock, statsBlock_day2
-
-def computeAprime(subjID):
-    '''Computes stats based on days (statsDay) and blocks for each day (both statsBlock: day 1, 3, 4, 5 and statsBlock_day2)
-    '''
-    
-    with open(saveDir + 'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-        sub = (pickle.load(fin))[0]
-    
-    statsDay = np.zeros((5,9))
-    statsBlock = np.zeros((4,16,6))
-    statsBlock_day2 = np.zeros((48,6))
-    
-    idx_c = 0
-    
-    for idx, expDay in enumerate(['1','2','3','4','5']):
-        
-        # Load catFile
-        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
-        
-        if subjID == '11' and expDay == '2':
-            responseTimes = [np.nan]
-        else:
-            responseTimes = sub['responseTimes_day'+expDay]
-        
-        if subjID == '11' and expDay == '2':
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-        else:
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
-    
-        # Compute stats (for visibility)
-        TP = NI_nlure
-        FP = NI_lure
-        
-        
-        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
-
-        # Block-wise
-        for block in range(1,int(len(responseTimes)/50)+1):
-            print(block)
-            
-            if subjID == '11' and expDay == '2': 
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-            else:
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
-            
             sensitivity = TP/(TP+FN)
             specificity = TN/(TN+FP)
             FPR = FP/(FP+TN)
             accuracy = (TP+TN)/(TP+TN+FP+FN)
             
+            errorrate = 1-accuracy
+            
+            A = 1/2 + (((H-FA)*(1+H-FA))/((4*H)*(1-FA)))
+            
+            ARER = A/(1-A)
+            
+            
             if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
+                statsBlock_day2[block-1,:] = sensitivity, FPR, accuracy, errorrate, A, ARER, RT_mean
         
             if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
+                statsBlock[idx_c,block-1,:] = sensitivity, FPR, accuracy, errorrate, A, ARER, RT_mean
                 
         if expDay != '2':            
             idx_c += 1
@@ -184,26 +171,26 @@ def computeAprime(subjID):
 #     statsBlock_all[subjID] = statsBlock
 #     statsBlockDay2_all[subjID] = statsBlock_day2
     
-# fname = 'statsDay_all.pkl'
-# fname1 = 'statsBlock_all.pkl'
-# fname2 = 'statsBlockDay2_all.pkl'
+# fname = 'statsDay_all_200_1200.pkl'
+# fname1 = 'statsBlock_all_200_1200.pkl'
+# fname2 = 'statsBlockDay2_all_200_1200.pkl'
 
 # with open(npyDir+fname, 'wb') as fout:
-#     pickle.dump(statsDay_all, fout)
+#     pickle.dump(statsDay_all1, fout)
     
 # with open(npyDir+fname1, 'wb') as fout:
-#     pickle.dump(statsBlock_all, fout)
+#     pickle.dump(statsBlock_all1, fout)
 
 # with open(npyDir+fname2, 'wb') as fout:
-#     pickle.dump(statsBlockDay2_all, fout)
+#     pickle.dump(statsBlockDay2_all1, fout)
 
 #%% Functions for extracting stats values from statsDay_all, statsBlock_all and statsBlockDay2_all
     
 def extractStatsDay(day_idx,wanted_measure):
-    #sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
+    # sensitivity, FPR, accuracy, errorrate, RER, A, ARER, RT_mean
     day_idx = day_idx-1
     
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt_lure','rt_nlure','rt','nkeypress','nan']
+    wanted_measure_lst = ['sen','fpr','acc','er','rer','a','arer','rt']
     w_idx = wanted_measure_lst.index(wanted_measure)
     
     subsAll = []
@@ -224,8 +211,7 @@ def extractStatsDay(day_idx,wanted_measure):
     return np.asarray(subsAll), np.asarray(subsNF), np.asarray(subsC)
 
 def extractDividedStats(wanted_measure):
-    #sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN    
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
+    wanted_measure_lst = ['sen','fpr','acc','er','rer','a','arer','rt']
     w_idx = wanted_measure_lst.index(wanted_measure)
     
     subsAll = []
@@ -280,7 +266,7 @@ def extractStatsBlock(day,wanted_measure):
     if day == 5:
         day_idx = 3
     
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
+    wanted_measure_lst = ['sen','fpr','acc','er','a','arer','rt']
     w_idx = wanted_measure_lst.index(wanted_measure)
    
     subsAll = []
@@ -303,7 +289,7 @@ def extractStatsBlockDay2(wkey):
     '''
     
     '''
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
+    wanted_measure_lst = ['sen','fpr','acc','er','a','arer','rt']
     w_idx = wanted_measure_lst.index(wkey)
    
     subsAll = []
@@ -323,7 +309,7 @@ def extractStatsBlockDay2(wkey):
     return subsAll, subsNF, subsC
 
 #%%
-def make4Bars(wanted_measure,title,ylabel,part2=False,RER=False):
+def make4Bars(wanted_measure,title,ylabel,part2=False):
     '''
     Comparing day 1 and 3, NF and controls, using the statsDay_all structure and extract function.
     
@@ -339,40 +325,14 @@ def make4Bars(wanted_measure,title,ylabel,part2=False,RER=False):
         print('C mean day 3, part2: ',round(np.mean(C_d3),3))
         
     if part2 == False:
+        all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+        all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
         
-        if RER == False:        
-            all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
-            all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
+        print('NF mean day 1: ',round(np.mean(NF_d1),3))
+        print('NF mean day 3: ',round(np.mean(NF_d3),3))
+        print('C mean day 1: ',round(np.mean(C_d1),3))
+        print('C mean day 3: ',round(np.mean(C_d3),3))
             
-            if wanted_measure == 'acc':
-                all_d1 = 1-all_d1
-                NF_d1 = 1-NF_d1
-                C_d1 = 1-C_d1
-                
-                all_d3 = 1-all_d3
-                NF_d3 = 1-NF_d3
-                C_d3 = 1-C_d3
-                
-            print('NF mean day 1: ',round(np.mean(NF_d1),3))
-            print('NF mean day 3: ',round(np.mean(NF_d3),3))
-            print('C mean day 1: ',round(np.mean(C_d1),3))
-            print('C mean day 3: ',round(np.mean(C_d3),3))
-            
-        if RER == True:
-            all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
-            all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
-            
-            NF_d1 = NF_d1/(1-np.asarray(NF_d1))
-            NF_d3 = NF_d3/(1-np.asarray(NF_d3))
-            
-            C_d1 = C_d1/(1-np.asarray(C_d1))
-            C_d3 = C_d3/(1-np.asarray(C_d3))
-            
-            print('NF mean day 1: ',round(np.mean(NF_d1),3))
-            print('NF mean day 3: ',round(np.mean(NF_d3),3))
-            print('C mean day 1: ',round(np.mean(C_d1),3))
-            print('C mean day 3: ',round(np.mean(C_d3),3))
-    
     y_min = np.min([np.min(NF_d1),np.min(NF_d3),np.min(C_d1),np.min(C_d3)])
     y_max = np.max([np.max(NF_d1),np.max(NF_d3),np.max(C_d1),np.max(C_d3)])
     
@@ -380,18 +340,25 @@ def make4Bars(wanted_measure,title,ylabel,part2=False,RER=False):
     plt.figure(random.randint(0,100))
     plt.ylabel(ylabel)
    
-    if RER == False:
+    if wanted_measure != 'rer' or wanted_measure != 'arer':
         plt.ylim([y_min-0.01,y_max+0.01])
         
-    if RER == True:
+    if wanted_measure == 'rer' or wanted_measure == 'arer':
         plt.ylim([y_min-5,y_max+5])
+        
+    if wanted_measure == 'rt':
+        plt.ylim([y_min-0.02,y_max+0.02])
+
     
     if part2 == True:
-        plt.xticks([1,2,3,4],['NF day 1, part 2','NF day 3, part 2', 'Control day 1, part 2', 'Control day 3, part 2'])
+        plt.xticks([1,2,3,4],['Pre-training, part 2','NF day 3, part 2', 'Control day 1, part 2', 'Control day 3, part 2'])
         
     if part2 == False:
-        plt.xticks([1,2,3,4],['NF day 1','NF day 3', 'Control day 1', 'Control day 3'])
-        
+        plt.xticks([1,2,3,4],['Day 1','Day 3', 'Day 1', 'Day 3'])
+    
+    plt.text(1.5, y_min - 0.056, s=r'\textbf{Neurofeedback}', fontweight='bold',horizontalalignment='center')
+    plt.text(3.5, y_min - 0.056, s=r'\textbf{Control}', fontweight='bold',horizontalalignment='center') #0.022 er, rer: 13.8, a 0.029, rt 0.056
+    
     plt.title(title)
     
     plt.bar(1,np.mean(NF_d1),color=(0,0,0,0),edgecolor='tomato')
@@ -440,16 +407,11 @@ def make4Bars(wanted_measure,title,ylabel,part2=False,RER=False):
     return plt, t_fb, t_c, all_d1
 
 
-def make2Bars(wanted_measure,title,ylabel,RER=False):
+def make2Bars(wanted_measure,title,ylabel):
     '''
     Comparing day 2, NF and controls, using the statsDay_all structure and extract function.    
     '''
     all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
-    
-    if RER == True:
-        all_d2 = all_d2/(1-np.asarray(all_d2))
-        NF_d2 = NF_d2/(1-np.asarray(NF_d2))
-        C_d2 = C_d2/(1-np.asarray(C_d2))
     
     print('NF mean day 2: ',round(np.nanmean(NF_d2),3))
     print('C mean day 2: ',round(np.mean(C_d2),3))
@@ -568,28 +530,15 @@ def plotResponseTimes(expDay):
     plt.tight_layout()
     # plt.savefig('rt_alld2.eps', bbox_inches = "tight")
     
-def matchedSubjects(wanted_measure,title,RER=False):
+def matchedSubjects(wanted_measure,title):
 
     # Extract values for day 1 and 3
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
     
-    if RER == False:
-        if wanted_measure == 'acc':
-            all_d1 = 1-all_d1
-            all_d3 = 1-all_d3
-        
-            diff = np.asarray(all_d1) - np.asarray(all_d3)
-            
-        else:
-            diff = np.asarray(all_d3) - np.asarray(all_d1)
-            
-    if RER == True:
-        all_d1 = all_d1/(1-np.asarray(all_d1))
-        all_d3 = all_d3/(1-np.asarray(all_d3))
-        
-        diff = (np.asarray(all_d3) - np.asarray(all_d1))
-
+    diff = np.asarray(all_d3) - np.asarray(all_d1)
+    y_max = np.max(diff)
+    
     NF_group_match = []
     C_group_match = []
 
@@ -607,46 +556,36 @@ def matchedSubjects(wanted_measure,title,RER=False):
     
     NF = [item[1] for item in NF_group_match]
     C = [item[1] for item in C_group_match_re]
-    
-    # Remove pair 26-34
-    # del NF[8] 
-    # del C[8]
-    
-    print(stats.ttest_rel(NF,C))
 
-    plt.figure(random.randint(0,100))
-    plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 3, NF group')
-    plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 3, control group')
+    print(stats.ttest_rel(NF,C))
+    t = stats.ttest_rel(NF,C)[1]
     
-    plt.scatter(np.full(11,1),NF,color='tomato')
-    plt.scatter(np.full(11,2),C,color='dodgerblue')
+    plt.subplots()
+    plt.text(x=1.5,y=y_max,s='p='+str(round(t,3)),horizontalalignment='center')
+
+    plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 3, NF group',zorder=3)
+    plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 3, control group',zorder=3)
+    
+    plt.scatter(np.full(11,1),NF,color='tomato',zorder=3)
+    plt.scatter(np.full(11,2),C,color='dodgerblue',zorder=3)
     
     for i in range(11):
-        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF)[i],(C)[i]],color='gray')
+        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF)[i],(C)[i]],color='gray',zorder=3)
         
-    plt.xticks([1,2],['NF group','Control group'])
+    plt.xticks([1,2],[r'\textbf{Neurofeedback}',r'\textbf{Control}'])
     plt.ylabel(r'$\Delta$ relative error rate reduction (day 1 to 3)')
     plt.title(title)
-    plt.grid(color='gainsboro',linewidth=0.5)
-    plt.hlines(y=0,xmin=0.5,xmax=2.5)
+    plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
+    plt.hlines(y=0,xmin=0.5,xmax=2.5,zorder=3)
     
     
-def NFimprovement(wanted_measure,RER=False):
+def NFimprovement(wanted_measure):
 
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
     
     NF_d1 = np.delete(NF_d1,2)
     NF_d2 = np.delete(NF_d2,2)
-    
-    if RER == True:
-        NF_d1 = NF_d1/(1-np.asarray(NF_d1))
-        NF_d2 = NF_d2/(1-np.asarray(NF_d2))
-        
-        C_d1 = C_d1/(1-np.asarray(C_d1))
-        C_d2 = C_d2/(1-np.asarray(C_d2))
-
-
     
     print('NF mean day 1 and 2: ',round(np.mean(NF_d1),3),round(np.mean(NF_d2),3))
     print('Control mean day 1 and 2: ',round(np.mean(C_d1),3),round(np.mean(C_d2),3))
@@ -666,7 +605,7 @@ def NFimprovement(wanted_measure,RER=False):
         print('T-test between control group day 1 and 2\n T-statistic = '+str(round(t_C[0],3))
               +'\n P-value = '+str(round(t_C[1],3)))
         
-def matchedSubjects2(wanted_measure,title,RER=False,NFblocks=False):
+def matchedSubjects2(wanted_measure,title,NFblocks=False):
     '''
     Matched pairs, looks at the difference between day 1 and day 2 (overall behavioral measure for that day)
     If NFblocks == True, the day2 stats is only based on NF (or stable?) blocks
@@ -689,23 +628,11 @@ def matchedSubjects2(wanted_measure,title,RER=False,NFblocks=False):
     all_d1 = np.delete(all_d1,[2,5])
     all_d2 = np.delete(all_d2,[2,5])
     
-    # Add RER and error rate
-    if RER == False:
-        if wanted_measure == 'acc':
-            all_d1 = 1-all_d1
-            all_d2 = 1-all_d2
-        
-            diff = np.asarray(all_d2) - np.asarray(all_d1) # Change this? to be consistent..
+    all_d1 = 1-all_d1
+    all_d2 = 1-all_d2
+
+    diff = np.asarray(all_d2) - np.asarray(all_d1) # Change this? to be consistent..
             
-        else:
-            diff = np.asarray(all_d2) - np.asarray(all_d1)
-            
-    if RER == True:
-        all_d1 = all_d1/(1-np.asarray(all_d1))
-        all_d2 = all_d2/(1-np.asarray(all_d2))
-        
-        diff = (np.asarray(all_d2) - np.asarray(all_d1))
-    
     # Uncomment for analysis with NF blocks only
     # if NFblocks == False:        
     #     # Delete subj 11 and 15
@@ -769,7 +696,7 @@ def matchedSubjects2(wanted_measure,title,RER=False,NFblocks=False):
     
     return diff, diff_21
 
-def computeDividedCorr(wanted_measure,RER=False):
+def computeDividedCorr(wanted_measure):
     ''' RT accuracy vs all day 2, NF day 2 or stable day 2
     '''
     # Load RT acc
@@ -790,34 +717,6 @@ def computeDividedCorr(wanted_measure,RER=False):
     subsNF = np.delete(subsNF,2)
     subsNF_NFBlocks = np.delete(subsNF_NFBlocks,2)
     subsNF_stableBlocks = np.delete(subsNF_stableBlocks,2)
-    
-    if RER == False and wanted_measure == 'acc':
-        subsAll = 1-subsAll
-        subsAll_NFBlocks = 1-subsAll_NFBlocks
-        subsAll_stableBlocks = 1-subsAll_stableBlocks
-        
-        subsNF = 1-subsNF
-        subsNF_NFBlocks = 1-subsNF_NFBlocks
-        subsNF_stableBlocks = 1-subsNF_stableBlocks
-        
-        subsC = 1-np.asarray(subsC)
-        subsC_NFBlocks = 1-np.asarray(subsC_NFBlocks)
-        subsC_stableBlocks = 1-np.asarray(subsC_stableBlocks)
-        
-    if RER == True:
-        subsAll = subsAll/(1-subsAll)
-        subsAll_NFBlocks = subsAll_NFBlocks/(1-subsAll_NFBlocks)
-        subsAll_stableBlocks = subsAll_stableBlocks/(1-subsAll_stableBlocks)
-        
-        subsNF = subsNF/(1-subsNF)
-        subsNF_NFBlocks = subsNF_NFBlocks/(1-subsNF_NFBlocks)
-        subsNF_stableBlocks = subsNF_stableBlocks/(1-subsNF_stableBlocks)
-        
-        subsC = subsC/(1-np.asarray(subsC))
-        subsC_NFBlocks = subsC_NFBlocks/(1-np.asarray(subsC_NFBlocks))
-        subsC_stableBlocks = subsC_stableBlocks/(1-np.asarray(subsC_stableBlocks))
-        
-        
         
     # All subs
     print('All subs, all blocks corr: ', round((np.corrcoef(subsAll,subsAll_RT_acc1))[0][1],3))
@@ -834,7 +733,7 @@ def computeDividedCorr(wanted_measure,RER=False):
     print('C subs, NF blocks corr: ', round((np.corrcoef(subsC_NFBlocks,subsC_RT_acc))[0][1],3))
     print('C subs, stable blocks corr: ', round((np.corrcoef(subsC_stableBlocks,subsC_RT_acc))[0][1],3))
 
-def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False,RER=False):
+def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False):
     '''Uses LORO and LOBO'''
     
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
@@ -851,12 +750,8 @@ def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False,RER=False):
         subsC_LORO_a = np.array(subsC_LOBO).flatten()
         subsNF_LORO_a = np.array(subsNF_LOBO).flatten()
     
-    if RER==False:
-        C_d1_a = np.array(C_d1)
-        NF_d1_a = np.array(NF_d1)
-    if RER==True:
-        C_d1_a = C_d1/(1-C_d1)
-        NF_d1_a = NF_d1/(1-NF_d1)
+    C_d1_a = np.array(C_d1)
+    NF_d1_a = np.array(NF_d1)
     
     subjID_C_a = np.array(subjID_C)
     subjID_NF_a = np.array(subjID_NF)

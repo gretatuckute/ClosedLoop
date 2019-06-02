@@ -25,13 +25,7 @@ scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
 from responseTime_func import extractCat, findRTsBlocks
 from variables import *
-
-#%%
-d_all2 = {}
-
-for subj in subjID_all:
-    with open(EEGDir+'09May_subj_'+subj+'.pkl', "rb") as fin:
-         d_all2[subj] = (pickle.load(fin))[0]
+from beh_FUNCv2 import extractStatsBlockDay2
 
 #%%
 def extractVal2(wkey):
@@ -63,150 +57,13 @@ def extractVal2(wkey):
     
     return subsAll, subsNF, subsC
 
-#%% Analyze RT session block-wise
-
-def extractStatsBlockDay2(wkey):
-    '''
-    
-    '''
-    wanted_measure_lst = ['sen','spec','fpr','acc','rt','nan']
-    w_idx = wanted_measure_lst.index(wkey)
-   
-    subsAll = []
-    subsNF = []
-    subsC = []
-    
-    for key, value in statsBlockDay2_all.items():
-        result = value[:,w_idx]
-        # print(result.shape)
-        subsAll.append(result)
-        
-        if key in subjID_NF:
-            subsNF.append(result)
-        if key in subjID_C:
-            subsC.append(result) 
-    
-    return subsAll, subsNF, subsC
-
-def computeStats(subjID):
-    '''Computes stats based on days (statsDay) and blocks for each day (both statsBlock: day 1, 3, 4, 5 and statsBlock_day2)
-    '''
-    # 150-1000 ms analysis
-    # with open(saveDir+'//V3_150_1000//BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-    #     sub = (pickle.load(fin))[0]
-    
-    with open(saveDir+'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
-        sub = (pickle.load(fin))[0]
-    
-    statsDay = np.zeros((5,9))
-    statsBlock = np.zeros((4,16,6))
-    statsBlock_day2 = np.zeros((48,6))
-    
-    idx_c = 0
-    
-    for idx, expDay in enumerate(['1','2','3','4','5']):
-        
-        # Load catFile
-        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
-        
-        if subjID == '11' and expDay == '2':
-            responseTimes = [np.nan]
-            nKeypress = np.nan
-        else:
-            responseTimes = sub['responseTimes_day'+expDay]
-            nKeypress = sub['TOTAL_keypress_day'+expDay]
-        
-        if subjID == '11' and expDay == '2':
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-        else:
-            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
-    
-        # Compute stats (for visibility)
-        TP = NI_nlure
-        FP = NI_lure
-        TN = CI_lure
-        FN = I_nlure
-        
-        sensitivity = TP/(TP+FN)
-        specificity = TN/(TN+FP)
-        FPR = FP/(FP+TN)
-        accuracy = (TP+TN)/(TP+TN+FP+FN)
-#        accuracy_all = (TP+TN)/nKeypress # Out of all the keypresses that day
-        
-        statsDay[idx,:] = sensitivity, specificity, FPR, accuracy, lure_RT_mean, nonlure_RT_mean, RT_mean, nKeypress, nNaN
-
-        # Block-wise
-        for block in range(1,int(len(responseTimes)/50)+1):
-            print(block)
-            
-            if subjID == '11' and expDay == '2': 
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
-            else:
-                TN, FP, FN, TP, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=block)
-            
-            sensitivity = TP/(TP+FN)
-            specificity = TN/(TN+FP)
-            FPR = FP/(FP+TN)
-            accuracy = (TP+TN)/(TP+TN+FP+FN)
-            
-            if expDay == '2':
-                statsBlock_day2[block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
-        
-            if expDay != '2':
-                statsBlock[idx_c,block-1,:] = sensitivity, specificity, FPR, accuracy, RT_mean, nNaN
-                
-        if expDay != '2':            
-            idx_c += 1
-
-    return statsDay, statsBlock, statsBlock_day2
-
-#%% Extract stats for day 2 for all subjs
-
 #%%
-
-
-#%% Extract stats for all subjects
-statsBlockDay2_all = {}
-
-for idx,subjID in enumerate(subjID_all):
-    statsDay, statsBlock, statsBlock_day2 = computeStats(subjID)
-    
-    statsBlockDay2_all[subjID] = statsBlock_day2 
-
-
-#%%
-
 def blockAlpha():
     '''
     Extracts alpha, accuracy and clf output for NF and C groups individually.
     '''
     subsAll_a, subsNF_a, subsC_a = extractVal2('ALPHA_test')
     subsAll_clf, subsNF_clf, subsC_clf = extractVal2('CLFO_test')
-    
-    # # Test RT accuracy for reality check
-    # for idx, item in enumerate(subsAll_clf):
-    #     # above_a = len(np.where((np.array(item)>0.5))[0])/len(item)
-    #     above_clfo = len(np.where((np.array(item)>0))[0])/len(item)
-    #     print(subjID_all[idx],above_clfo)
-    
-    # Alpha and clf output and alpha accuracy per block. For all subjects
-    # a_per_block = np.zeros((22,n_it*4)) # Subjects as rows, and blocks as columns
-    # acc_per_block = np.zeros((22,n_it*4))
-    # clfo_per_block = np.zeros((22,n_it*4))
-    
-    
-    # for idx, item in enumerate(subsAll_a):
-    #     k = 0
-    #     for b in range(n_it*4):
-    #         a_per_block[idx,b] = (np.mean(item[k:k+50])) # Mean alpha per block
-    #         acc_per_block[idx,b] = len(np.where((np.array(item[k:k+50])>0.5))[0])/50
-    #         k += 50
-    
-    # for idx, item in enumerate(subsAll_clf):
-    #     k = 0
-    #     for b in range(n_it*4):
-    #         clfo_per_block[idx,b] = (np.mean(item[k:k+50])) 
-    #         k += 50
     
     a_per_block_NF = np.zeros((11,n_it*4)) # Subjects as rows, and blocks as columns
     a_per_block_C = np.zeros((11,n_it*4))
@@ -278,7 +135,6 @@ def getAvgBeh(wanted_measure):
     
     return behBlockNF_avg, behBlockC_avg
     
-
 def plotAlphaVSbeh():
     '''
     Plots alpha (or acc or clf output) meaned for NF and C, respectively, vs. chosen behavioral measure.
@@ -474,7 +330,6 @@ def blockMatchedAlpha():
             
       
 #%% Create d_match
-
 d_match = {}
 
 for i in range(len(NF_group)):
@@ -553,7 +408,8 @@ for sublist in shownAlphaPair:
 
 
 #%% Function for extraction behavioral measure for each time point
-
+os.chdir(scriptsDir)
+from responseTime_func import extractCat
 
 def extractPointResponse(subjID,stable=False):
     '''Extract the response for every single time point
