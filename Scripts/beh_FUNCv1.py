@@ -1154,6 +1154,8 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         
 #%% Make 3 day plot
 def threeDay(wanted_measure):
+    '''Controls are colored based on their matched NF participants decoding acc '''
+    
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
@@ -1185,7 +1187,7 @@ def threeDay(wanted_measure):
     
 
     plt.plot([(np.full(11,1))[2],(np.full(11,3))[2]],\
-                  [(NF_d1)[2],(NF_d3)[2]],c=cmNFget(normNF(subsNF_RT_acc[2])),linewidth=3)
+                  [(NF_d1)[2],(NF_d3)[2]],c=cmReds(normNF(subsNF_RT_acc[2])),linewidth=3)
     
     
     # Make colorbar for controls
@@ -1255,9 +1257,9 @@ def threeDay(wanted_measure):
             
     plt.title('Behavioral accuracy day 1, 2 and 3 for control group')
     
-    plt.scatter(np.full(11,1),C_re1,c=subsNF_RT_acc,cmap=cmNF,s=60)
-    plt.scatter(np.full(11,2),C_re2,c=subsNF_RT_acc,cmap=cmNF,s=60)
-    plt.scatter(np.full(11,3),C_re3,c=subsNF_RT_acc,cmap=cmNF,s=60)
+    plt.scatter(np.full(11,1),C_re1,c=subsNF_RT_acc,cmap='Reds',s=60)
+    plt.scatter(np.full(11,2),C_re2,c=subsNF_RT_acc,cmap='Reds',s=60)
+    plt.scatter(np.full(11,3),C_re3,c=subsNF_RT_acc,cmap='Reds',s=60)
     cbar = plt.colorbar()
     cbar.set_label('Real-time decoding accuracy of matched participant')
     plt.ylabel('Behavioral accuracy')
@@ -1265,4 +1267,5 @@ def threeDay(wanted_measure):
     
     for i in range(11):
         plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
-                  [(C_re1)[i],(C_re2)[i],(C_re3)[i]],c=cmNFget(normNF(subsNF_RT_acc[i])),linewidth=3)#c=cm.hot(i/11))
+                  [(C_re1)[i],(C_re2)[i],(C_re3)[i]],c=cmReds(normNF(subsNF_RT_acc[i])),linewidth=3)#c=cm.hot(i/11))
+        

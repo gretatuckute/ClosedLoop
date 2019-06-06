@@ -10,10 +10,15 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pickle
 
+#%%
+matplotlib.rcParams['figure.constrained_layout.use'] = True
+matplotlib.rcParams['figure.constrained_layout.use'] = False
+
 #%% Directories
 saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
 # saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_200_1200\\'
 
+figDir = 'C:\\Users\\Greta\\Desktop\\closed_loop\\RESULTS\\EEG\\'
 EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 npyDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Documents\\npy\\'
@@ -25,6 +30,9 @@ subjID_C = ['15','17','18','21','23','24','25','31','32','33','34']
 
 # Subj 11 and 15 removed
 subjID_20 = ['07','08','13','14','16','17','18','19','21','22','23','24','25','26','27','30','31','32','33','34']
+
+# For reorganizing
+idxLst = [2,0,1,4,9,3,6,10,7,5,8]
 
 # For matching
 NF_group = ['07','08','11','13','14','16','19','22','26','27','30']

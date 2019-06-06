@@ -66,9 +66,16 @@ ticks = ['-3','-2','-1','lure','1','2','3']
 
 # Both days
 plt.figure(1)
-plt.errorbar(np.arange(0,7),CR13m,yerr=CR13_yerr,color='green', label='CR')
-plt.errorbar(np.arange(0,7),FR13m,yerr=FR13_yerr,color='red', label='FA')
-plt.title('Response times surrounding lure trials') # 
+(_, caps, _) = plt.errorbar(np.arange(0,7),CR13m,yerr=CR13_yerr,color='green', capsize=8)
+for cap in caps:
+    cap.set_markeredgewidth(1)
+(_, caps, _) = plt.errorbar(np.arange(0,7),FR13m,yerr=FR13_yerr,color='red', capsize=8)
+for cap in caps:
+    cap.set_markeredgewidth(1)
+    
+plt.plot(np.arange(0,7),CR13m,color='green', label='CR')
+plt.plot(np.arange(0,7),FR13m,color='red', label='FA')
+# plt.title('Response times surrounding lure trials') # 
 plt.xticks(np.arange(0,7,1),ticks)
 plt.xlabel('Trials from lure')
 plt.ylabel('Response time (s)')
@@ -96,21 +103,25 @@ plt.xlabel('Trials from lure')
 plt.ylabel('RT (s)')
 
 #%% # Plots comparing day 1 and 3
-pl, t_fb, t_c, sen_all_d1 = make4Bars('sen','Sensitivity: Pre- to post-training','Sensitivity')
 pl, t_fb, t_c, acc_all_d1 = make4Bars('er','Error rate: Pre- to post-training','Error rate')
 pl, t_fb, t_c, acc_all_d1 = make4Bars('rer','Relative error rate reduction: Pre- to post-training','Relative error rate reduction')
 pl, t_fb, t_c, acc_all_d1 = make4Bars('a','A\': Pre- to post-training','A\'')
-pl, t_fb, t_c, acc_all_d1 = make4Bars('arer','Relative A\'','Relative A\' reduction')
-
 pl, t_fb, t_c, all_d1 = make4Bars('rt','Response time: Pre- to post-training','Response time (s)')
 
 #%% Make matched pairs
 matchedSubjects('er',r'$\Delta$ Error rate - matched participants')
 matchedSubjects('rer',r'$\Delta$ Relative error rate reduction - matched participants')
 matchedSubjects('a',r"$\Delta$ A' - matched participants")
-matchedSubjects('arer',r'$\Delta$ Relative A\' reduction - matched participants')
 matchedSubjects('rt',r'$\Delta$ Response time - matched participants')
 
+#%% Extract H and FA
+H_all1, H_NF1, H_C1 = extractHandFA(1,'H')
+H_all3, H_NF3, H_C3 = extractHandFA(3,'H')
+
+FA_all1, FA_NF1, FA_C1 = extractHandFA(1,'FA')
+FA_all3, FA_NF3, FA_C3 = extractHandFA(3,'FA')
+
+makeHandFA(3)
 
 #%% Compare day 4 and 5
 pl, t_fb, t_c, all_d1 = make4Bars('sen','Sensitivity','Response sensitivity',part2=True)
@@ -119,18 +130,15 @@ pl, t_fb, t_c, all_d1 = make4Bars('rt','Response time','Response time ',part2=Tr
 pl, t_fb, t_c, all_d1 = make4Bars('arer','Response time','Response time ',part2=True)
 
 #%%  Investigate day 2, using make2Bars and StatsDayAll (NOT block-wise)
-pl, t, sen_all_d2 = make2Bars('sen','Sensitivity day 2','Sensitivity')#,RER=True) 
-pl, t, acc_all_d2 = make2Bars('a','Accuracy day 2','Accuracy') 
-pl, t, fpr_all_d2 = make2Bars('fpr','FPR day 2','FPR') 
+pl, t, sen_all_d2 = make2Bars('er','Sensitivity day 2','Sensitivity')#,RER=True) 
+pl, t, acc_all_d2 = make2Bars('rer','Accuracy day 2','Accuracy') 
+pl, t, fpr_all_d2 = make2Bars('a','FPR day 2','FPR') 
 pl, t, rt_all_d2 = make2Bars('rt','RT day 2','RT') 
 pl, t, nkeypress_all_d2 = make2Bars('nkeypress','Number of total keypresses','Number keypresses') 
 
 #%% ########## BLOCK-WISE ANALYSIS #############
-behBlock(1,'sen','Sensitivity across blocks, pre-training session','Sensitivity')
-behBlock(3,'sen','Sensitivity across blocks, post-training session','Sensitivity')
-
-behBlock(1,'a','Specificity across blocks, all participants, day 1','Specificity')
-behBlock(3,'spec','Specificity across blocks, all participants, day 3','Specificity')
+behBlock(1,'a',"A' across blocks, all participants, day 1","A'")
+behBlock(3,'a','Specificity across blocks, all participants, day 3','Specificity')
 
 behBlock(1,'acc','Behavioral accuracy across blocks, pre-training session','Behavioral accuracy')
 behBlock(3,'acc','Behavioral accuracy across blocks, post-training session','Behavioral accuracy')
@@ -162,10 +170,11 @@ NFimprovement('acc',RER=True)
 NFimprovement('rt')
 
 #%% Matched day 2 - day 1 change
-diff_d12_sen, diff_d12_sen_21 = matchedSubjects2('sen',r'$\Delta$ Sensitivity - matched participants',NFblocks=False)
+diff_d12_er, diff_d12_er_21 = matchedSubjects2('er',r'$\Delta$ Error rate - matched participants day 1 2')
+diff_d12_rer, diff_d12_rer_21 = matchedSubjects2('rer',r'$\Delta$ Relative error rate reduction - matched participants day 1 2')
+diff_d12_a, diff_d12_a_21 = matchedSubjects2('a',r"$\Delta$ A' - matched participants day 1 2")
+diff_d12_a, diff_d12_arer_21 = matchedSubjects2('arer',r"$\Delta$ Relative A' - matched participants day 1 2 ")
 
-diff_d12_acc, diff_d12_acc_21 = matchedSubjects2('acc',r'$\Delta$ Error rate - matched participants',RER=False)
-diff_d12_acc, diff_d12_acc_21 = matchedSubjects2('acc',r'$\Delta$ Relative error rate reduction - matched participants',RER=True)
 
 diff_d12_rt, diff_d12_rt_21 = matchedSubjects2('rt',r'$\Delta$ Response time - matched participants')
 
@@ -184,29 +193,17 @@ subs21_LORO = np.delete(subs21_LORO,2)
 #%% Is good decoding accuracy correlated with a good day 2 behavioral response?
 # Omit 11 
 
-# Sensitivity
-sen_all_d2_c = np.copy(sen_all_d2)
-sen_all_d2_c = sen_all_d2_c[~np.isnan(sen_all_d2_c)]
-
-# Specificity
-spec_all_d2_c = np.copy(spec_all_d2)
-spec_all_d2_c = spec_all_d2_c[~np.isnan(spec_all_d2_c)]
-
-# Accuracy
-acc_all_d2_c = np.copy(acc_all_d2)
-acc_all_d2_c = acc_all_d2_c[~np.isnan(acc_all_d2_c)]
-
-# RT
-rt_all_d2_c = np.copy(rt_all_d2)
-rt_all_d2_c = rt_all_d2_c[~np.isnan(rt_all_d2_c)]
-
 #%% Day 2 vs. RT decoding acc
-sen_all_d2, sen_NF_d2, sen_C_d2 = extractStatsDay(2,'sen')
 acc_all_d2, acc_NF_d2, acc_C_d2 = extractStatsDay(2,'acc')
+er_all_d2, er_NF_d2, er_C_d2 = extractStatsDay(2,'er')
+rer_all_d2, rer_NF_d2, rer_C_d2 = extractStatsDay(2,'rer')
+a_all_d2, a_NF_d2, a_C_d2 = extractStatsDay(2,'a')
 rt_all_d2, rt_NF_d2, rt_C_d2 = extractStatsDay(2,'rt')
 
-sen_NF_d2 = np.delete(sen_NF_d2,2)
 acc_NF_d2 = np.delete(acc_NF_d2,2)
+er_NF_d2 = np.delete(er_NF_d2,2)
+rer_NF_d2 = np.delete(rer_NF_d2,2)
+a_NF_d2 = np.delete(a_NF_d2,2)
 rt_NF_d2 = np.delete(rt_NF_d2,2)
 
 # Sensitivity
@@ -311,7 +308,14 @@ plt.scatter(rt_all_d2_c,spec_all_d2_c)
 stats.linregress(rt_all_d2_c,spec_all_d2_c)
 
 #%% BEH vs BEH day 1 
-np.corrcoef(rt_all_d1,sen_all_d1)
+acc_all_d1, acc_NF_d1, acc_C_d1 = extractStatsDay(1,'acc')
+er_all_d1, er_NF_d1, er_C_d1 = extractStatsDay(1,'er')
+rer_all_d1, rer_NF_d1, rer_C_d1 = extractStatsDay(1,'rer')
+a_all_d1, a_NF_d1, a_C_d1 = extractStatsDay(1,'a')
+rt_all_d1, rt_NF_d1, rt_C_d1 = extractStatsDay(1,'rt')
+
+# Error rate
+np.corrcoef(rt_all_d1,rer_all_d1)
 
 np.corrcoef(rt_NF_d1,sen_NF_d1)
 np.corrcoef(rt_C_d1,sen_C_d1)
@@ -325,10 +329,10 @@ plt.xlabel('Response time (ms)')
 plt.title('Response time day 1 vs. accuracy day 1, N=22')
 plt.plot(np.reshape(rt_all_d1,[-1,1]), lm.predict(np.reshape(rt_all_d1,[-1,1])),linewidth=0.8,color='black')
 
-# Acc
-np.corrcoef(rt_all_d1,acc_all_d1)
-np.corrcoef(rt_NF_d1,acc_NF_d1)
-np.corrcoef(rt_C_d1,acc_C_d1)
+# A
+np.corrcoef(rt_all_d1,a_all_d1)
+np.corrcoef(rt_NF_d1,a_NF_d1)
+np.corrcoef(rt_C_d1,a_C_d1)
 
 #%% Day 3
 sen_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'sen')
@@ -393,12 +397,12 @@ np.corrcoef(subsAll_LORO,rt_all_d1)
 
 #%% Divided into groups
 # Create behavioral day 1 vs offline decoding accuracy plots
-behVSdecode('sen','Sensitivity',LOBO=False,masking=False)
-behVSdecode('acc','Accuracy',LOBO=False,masking=False)
-behVSdecode('acc','Accuracy',LOBO=False,masking=False,RER=True)
-behVSdecode('spec','Specificity',LOBO=False,masking=False)
-behVSdecode('spec','Specificity',LOBO=False,masking='15')
-behVSdecode('rt','Response time',LOBO=False,masking=False)
+behVSdecode('acc','Accuracy',LOBO=False)
+behVSdecode('er','Error rate',LOBO=False)
+behVSdecode('rer','Error rate',LOBO=False)
+behVSdecode('a',"A'",LOBO=False)
+
+behVSdecode('rt','Response time',LOBO=False)
 
 behVSdecode('sen','Sensitivity',LOBO=True,masking=False)
 behVSdecode('spec','Specificity',LOBO=True,masking=False)
@@ -406,7 +410,7 @@ behVSdecode('acc','Accuracy',LOBO=True,masking=False)
 behVSdecode('rt','Response time',LOBO=True,masking=False)
 
 #%% Create behavioral day 2 vs offline decoding accuracy plots
-behDay2VSdecode('sen','Sensitivity',LOBO=False)
+behDay2VSdecode('a','Sensitivity',LOBO=False)
 behDay2VSdecode('acc','Behavioral accuracy',LOBO=False)
 behDay2VSdecode('rt','Response time (ms)',LOBO=False)
 
@@ -446,33 +450,24 @@ plt.ylabel('Change in response time from day 1 to 3\n Positive values indicate i
 np.corrcoef(subsAll_RT_acc,diff)
 
 #%% Make improvement plots     
-improvStimuli('sen',actual_stim=False)  
-# improvStimuli('sen',actual_stim=True)  
+improvStimuli('a',actual_stim=False)  
+improvStimuli('arer',actual_stim=False)  
+improvStimuli('er',actual_stim=False)  
+
+improvStimuli('rer',actual_stim=False)  
 improvStimuli('acc',actual_stim=False)  
-improvStimuli('rt',actual_stim=False)  
+
 
 #%% LORO vs delta beh
-improvStimuli('sen',actual_stim=True,LORO=True)
-improvStimuli('acc',actual_stim=True,LORO=True)
+improvStimuli('a',actual_stim=True,LORO=True)
+improvStimuli('er',actual_stim=True,LORO=True)
+improvStimuli('rer',actual_stim=True,LORO=True)
+
 improvStimuli('rt',actual_stim=True,LORO=True)
 
 
-#%% ANOVA
-import statsmodels.api as sm
-
-all_d1, NF_d1, C_d1 = extractStatsDay(1,'acc')
-all_d3, NF_d3, C_d3 = extractStatsDay(3,'acc')
-
-
-
-
-
-
-
-
-
-
-
+#%% Three day plots
+threeDay('a')
 
 
 

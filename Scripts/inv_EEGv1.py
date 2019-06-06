@@ -368,8 +368,86 @@ MNEstable_all[0].average().plot_topomap(proj=False)
 MNEevoked_scene = mne.grand_average(MNEscene_all)
 MNEevoked_face = mne.grand_average(MNEface_all)
 
-MNEevoked_scene.plot_joint()
-MNEevoked_face.plot_joint()
+#%% Stats
+ch_idx = [6,7,12,13,22]
+
+scene_5chs = np.zeros((22,90))
+dat_5chs = np.zeros((22,5,90))
+for idx,evokedentry in enumerate(MNEscene_all):
+    dat = evokedentry._data
+    dat5chs = dat[ch_idx]
+    dat_5chs[idx] = dat5chs
+    dat5chs_mean = np.mean(dat5chs,axis=0)
+    print(dat5chs_mean.shape)
+    scene_5chs[idx] = dat5chs_mean
+    
+face_5chs = np.zeros((22,90))
+dat_5chs_face = np.zeros((22,5,90))
+for idx,evokedentry in enumerate(MNEface_all):
+    dat = evokedentry._data
+    dat5chs = dat[ch_idx]
+    dat_5chs_face[idx] = dat5chs
+    dat5chs_mean = np.mean(dat5chs,axis=0)
+    face_5chs[idx] = dat5chs_mean
+
+p_vals = []
+for el in range(0,90):
+    t = stats.ttest_rel(scene_5chs[:,el],face_5chs[:,el])
+    p_vals.append(t[1])
+
+plt.figure(50)
+plt.scatter(np.arange(0,90),p_vals)
+# plt.xticks(np.arange(0,95,5),[str(item) for item in np.arange(-100,850,50)])
+
+sig_p = []
+for p in p_vals:
+    if p < 0.05:
+        sig_p.append(p)
+    else:
+        sig_p.append(np.nan)
+
+log_pvals = -(np.log10(p_vals))
+
+cor_alpha = 0.05/90
+cor_alphalog = -(np.log10(cor_alpha))
+
+ax,fig = plt.subplots()
+plt.plot(log_pvals)
+plt.xlabel('Samples')
+plt.ylabel('-log(p)')
+plt.hlines(cor_alphalog,0,90,color='red')
+
+import statsmodels.stats.multitest as sm
+bools, p_adj, x, x2 = sm.multipletests(p_vals,method='bonferroni')
+
+# Use MNE cluster permutation
+X_input = [face_5chs,scene_5chs]
+X_3Dinput = [dat_5chs,dat_5chs_face]
+
+Fobs, clusters, clusters_pval, H0 = mne.stats.permutation_cluster_test(X_3Dinput)
+Fobs1, clusters1, clusters_pval1, H01 = mne.stats.permutation_cluster_test(X_input,n_permutations=10)
+
+plt.plot(clusters1)
+
+
+#%%
+# Get evoked
+scene_evoked_allSubs = MNEevoked_scene._data
+face_evoked_allSubs = MNEevoked_face._data
+
+# Means
+scene_evoked_mean = np.mean(scene_evoked_allSubs,axis=0)
+face_evoked_mean = np.mean(face_evoked_allSubs,axis=0)
+
+# Plot joint
+ts_args = {}
+ts_args['truncate_yaxis'] = False
+
+fig1 = MNEevoked_scene.plot_joint(title=None)
+fig1.savefig(figDir+'sceneERP.pdf',bbox_inches = "tight")
+
+fig2 = MNEevoked_face.plot_joint(title=None)
+fig2.savefig(figDir+'faceERP.pdf',bbox_inches = "tight")
 
 # If manually adding a sensor plot
 MNEevoked_scene.plot_sensors(show_names=True)
@@ -398,6 +476,14 @@ e_dict['Face'] = [item[1] for item in MNEevoked_all]
 mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
                              truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
                              show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
+
+mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
+                             truncate_xaxis=False,title=' ',\
+                             show_sensors=True,show_legend=True,truncate_yaxis=False,ci=True)
+
+
+mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22])
+
 
 # Plot for individual subjects, based on category, e.g. face here
 dict_face = e_dict['Face']

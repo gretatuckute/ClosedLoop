@@ -1140,7 +1140,7 @@ def preFRandCR(subjID):
             except:
                 post3_CR.append(np.nan)
     
-    return np.nanmean(pre3_FR), np.nanmean(pre3_CR)
+    return np.nanmean(pre1_FR), np.nanmean(pre1_CR)
 
 #%%           
 preFR_NF = []

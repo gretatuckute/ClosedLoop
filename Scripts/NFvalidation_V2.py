@@ -899,13 +899,8 @@ def preFRandCR(subjID):
             
     with open(EEGDir + '09May_subj_' + subjID + '.pkl', "rb") as fin:
         subEEG = (pickle.load(fin))[0]
-        
-    # 08May is from the HPC cluster
-        
+                
     clf_output = subEEG['CLFO_test']
-        
-    # with open(EEGDir + '18April_subj_' + subjID + '.pkl', "rb") as fin:
-    #     subEEGold = (pickle.load(fin))[0]
     
     lureLst_c = np.copy(lureLst2)
     e_mock = np.arange((8+n_it*8)*block_len)
@@ -969,7 +964,7 @@ def preFRandCR(subjID):
             except:
                 post3_CR.append(np.nan)
     
-    return np.nanmean(pre3_FR), np.nanmean(pre3_CR)
+    return np.nanmean(post3_FR), np.nanmean(post3_CR)
 
 #%%           
 preFR_NF = []
@@ -1039,16 +1034,29 @@ sem_CR_C = np.std(preCR_C_a)/np.sqrt(11)
 
 
 #%% Plot
+
+# 3 averaged
+t_nf = stats.ttest_rel(preFR_NF_a,preCR_NF_a,nan_policy='omit')
+s_nf = str(round(t_nf[1],3)) + ' *'
+t_c = stats.ttest_rel(preFR_C_a,preCR_C_a,nan_policy='omit')
+s_c = str(round(t_c[1],3))
+
 plt.figure(random.randint(0,100))
 plt.ylabel('Mean classifier output 3 trials before lure')
-plt.xticks([1,2,3,4],['NF, FA','NF, CR','Control, FA','Control, CR'])# 'Control day 1, part 2', 'Control day 3, part 2'])
+plt.xticks([1,2,3,4],['False alarm','Correct rejection','False alarm','Correct rejection'])# 'Control day 1, part 2', 'Control day 3, part 2'])
 plt.title('Behavioral performance linked to neurofeedback')
 
 plt.scatter(np.full(10,1),preFR_NF_a,color='tomato')
 plt.scatter(np.full(10,2),preCR_NF_a,color='tomato')
 plt.scatter(np.full(11,3),preFR_C_a,color='dodgerblue')
 plt.scatter(np.full(11,4),preCR_C_a,color='dodgerblue')
+plt.text(1.5, -0.17, s=r'\textbf{Neurofeedback}', fontweight='bold',horizontalalignment='center')
+plt.text(3.5, -0.17, s=r'\textbf{Control}', fontweight='bold',horizontalalignment='center')
 plt.grid(color='gainsboro',linewidth=0.5)
+plt.ylim(-0.1,0.47)
+plt.text(x=1.5,y=0.43,s='p='+s_nf,horizontalalignment='center')
+plt.text(x=3.5,y=0.43,s='p='+s_c,horizontalalignment='center')
+
 
 for i in range(10):
     plt.plot([(np.full(10,1))[i],(np.full(10,2))[i]], [(preFR_NF_a)[i],(preCR_NF_a)[i]],color='tomato')
@@ -1073,23 +1081,10 @@ for cap in caps:
 for cap in caps:
     cap.set_markeredgewidth(2)
     
-    
-    
-
-
-
-
 
 #%%
-
-
-
 print(stats.ttest_ind(preFR_NF,preCR_NF,nan_policy='omit'))
 print(stats.ttest_ind(preFR_C,preCR_C,nan_policy='omit'))
-
-# 3 averaged
-print(stats.ttest_rel(preFR_NF_a,preCR_NF_a,nan_policy='omit'))
-print(stats.ttest_ind(preFR_C_a,preCR_C_a,nan_policy='omit'))
 
 #%% Plot with subject annotation
 subjID_NF_a = np.array(subjID_NF)

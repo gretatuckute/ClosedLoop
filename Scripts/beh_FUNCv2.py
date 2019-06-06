@@ -158,6 +158,49 @@ def computeStats(subjID):
 
     return statsDay, statsBlock, statsBlock_day2
 
+def computeHitandFA(subjID):
+    '''
+    Computes hit and FA based on days (statsDay) 
+    '''
+    
+    with open(saveDir + 'BehV3_subjID_' + subjID + '.pkl', "rb") as fin:
+        sub = (pickle.load(fin))[0]
+    
+    statsDay = np.zeros((5,2))
+        
+    for idx, expDay in enumerate(['1','2','3','4','5']):
+        
+        # Load catFile
+        catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_'+expDay+'.csv'
+        
+        if subjID == '11' and expDay == '2':
+            responseTimes = [np.nan]
+        else:
+            responseTimes = sub['responseTimes_day'+expDay]
+        
+        if subjID == '11' and expDay == '2':
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = [np.nan]*8
+        else:
+            CI_lure, NI_lure, I_nlure, NI_nlure, lure_RT_mean, nonlure_RT_mean, RT_mean, nNaN = findRTsBlocks(catFile,responseTimes,block=False)
+    
+        # Compute stats (for visibility)
+        TP = NI_nlure # Hit rate
+        FP = NI_lure # False alarm
+        TN = CI_lure
+        FN = I_nlure
+        
+        if expDay == '2':
+            H = TP/2160
+            FA = FP/240
+            
+        else:
+            H = TP/720
+            FA = FP/80
+        
+        statsDay[idx,:] = H, FA
+
+    return statsDay
+
 #%% Extract stats dict for all, and save (28 May)
 # statsDay_all = {} 
 # statsBlock_all = {}
@@ -184,6 +227,17 @@ def computeStats(subjID):
 # with open(npyDir+fname2, 'wb') as fout:
 #     pickle.dump(statsBlockDay2_all1, fout)
 
+#%% Extract hits and FAs
+
+HandFA_all = {} 
+
+# Extract stats for all subjects
+for idx,subjID in enumerate(subjID_all):
+    statsDay = computeHitandFA(subjID)
+    
+    HandFA_all[subjID] = statsDay    
+
+
 #%% Functions for extracting stats values from statsDay_all, statsBlock_all and statsBlockDay2_all
     
 def extractStatsDay(day_idx,wanted_measure):
@@ -201,6 +255,27 @@ def extractStatsDay(day_idx,wanted_measure):
 #        print(value.shape)
         result = value[day_idx,w_idx]
 #        print(result.shape)
+        subsAll.append(result)
+        
+        if key in subjID_NF:
+            subsNF.append(result)
+        if key in subjID_C:
+            subsC.append(result) 
+    
+    return np.asarray(subsAll), np.asarray(subsNF), np.asarray(subsC)
+
+def extractHandFA(day_idx,wanted_measure):
+    day_idx = day_idx-1
+    
+    wanted_measure_lst = ['H','FA']
+    w_idx = wanted_measure_lst.index(wanted_measure)
+    
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in HandFA_all.items():
+        result = value[day_idx,w_idx]
         subsAll.append(result)
         
         if key in subjID_NF:
@@ -337,7 +412,7 @@ def make4Bars(wanted_measure,title,ylabel,part2=False):
     y_max = np.max([np.max(NF_d1),np.max(NF_d3),np.max(C_d1),np.max(C_d3)])
     
     # Connect lines
-    plt.figure(random.randint(0,100))
+    fig,ax = plt.subplots()
     plt.ylabel(ylabel)
    
     if wanted_measure != 'rer' or wanted_measure != 'arer':
@@ -356,25 +431,25 @@ def make4Bars(wanted_measure,title,ylabel,part2=False):
     if part2 == False:
         plt.xticks([1,2,3,4],['Day 1','Day 3', 'Day 1', 'Day 3'])
     
-    plt.text(1.5, y_min - 0.056, s=r'\textbf{Neurofeedback}', fontweight='bold',horizontalalignment='center')
-    plt.text(3.5, y_min - 0.056, s=r'\textbf{Control}', fontweight='bold',horizontalalignment='center') #0.022 er, rer: 13.8, a 0.029, rt 0.056
+    plt.text(1.5, y_min - 0.029, s=r'\textbf{Neurofeedback}', fontweight='bold',horizontalalignment='center')
+    plt.text(3.5, y_min - 0.029, s=r'\textbf{Control}', fontweight='bold',horizontalalignment='center') #0.022 er, rer: 13.8, a 0.029, rt 0.056
     
     plt.title(title)
     
-    plt.bar(1,np.mean(NF_d1),color=(0,0,0,0),edgecolor='tomato')
-    plt.bar(2,np.mean(NF_d3),color=(0,0,0,0),edgecolor='brown')
-    plt.bar(3,np.mean(C_d1),color=(0,0,0,0),edgecolor='dodgerblue')
-    plt.bar(4,np.mean(C_d3),color=(0,0,0,0),edgecolor='navy')
+    plt.bar(1,np.mean(NF_d1),color='white',edgecolor='tomato',zorder=2)
+    plt.bar(2,np.mean(NF_d3),color='white',edgecolor='brown',zorder=2)
+    plt.bar(3,np.mean(C_d1),color='white',edgecolor='dodgerblue',zorder=2)
+    plt.bar(4,np.mean(C_d3),color='white',edgecolor='navy',zorder=2)
     
-    plt.scatter(np.full(11,1),NF_d1,color='tomato')
-    plt.scatter(np.full(11,2),NF_d3,color='brown')
-    plt.scatter(np.full(11,3),C_d1,color='dodgerblue')
-    plt.scatter(np.full(11,4),C_d3,color='navy')
-    plt.grid(color='gainsboro',linewidth=0.5)
+    plt.scatter(np.full(11,1),NF_d1,color='tomato',zorder=3)
+    plt.scatter(np.full(11,2),NF_d3,color='brown',zorder=3)
+    plt.scatter(np.full(11,3),C_d1,color='dodgerblue',zorder=3)
+    plt.scatter(np.full(11,4),C_d3,color='navy',zorder=3)
+    ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
     
     t_fb = stats.ttest_rel(NF_d1,NF_d3)
     t_c = stats.ttest_rel(C_d1,C_d3)
-    t_baseline = stats.ttest_ind(NF_d1,C_d1)
+    # t_baseline = stats.ttest_ind(NF_d1,C_d1)
     
     # Add significance
     if t_fb[1] < 0.05:
@@ -390,6 +465,8 @@ def make4Bars(wanted_measure,title,ylabel,part2=False):
     plt.text(x=1.5,y=y_max,s='p='+sNF,horizontalalignment='center')
     plt.text(x=3.5,y=y_max,s='p='+sC,horizontalalignment='center')
     
+    # fig.subplots_adjust(bottom=1, top=1, left=1, right=1)
+    
     for i in range(11):
         plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF_d1)[i],(NF_d3)[i]],color='gray')
         plt.plot([(np.full(11,3))[i],(np.full(11,4))[i]], [(C_d1)[i],(C_d3)[i]],color='gray')
@@ -397,12 +474,10 @@ def make4Bars(wanted_measure,title,ylabel,part2=False):
     if part2 == True:
         print('P-value between day 1 and 3, part 2, NF: ', round(t_fb[1],3))
         print('P-value between day 1 and 3, part 2, control: ', round(t_c[1],3))
-        print('P-value between NF and control group day 1 (baseline), part 2: ', round(t_baseline[1],3))
     
     if part2 == False:
         print('P-value between day 1 and 3, NF: ', round(t_fb[1],3))
         print('P-value between day 1 and 3, control: ', round(t_c[1],3))
-        print('P-value between NF and control group day 1 (baseline): ', round(t_baseline[1],3))
     
     return plt, t_fb, t_c, all_d1
 
@@ -437,10 +512,65 @@ def make2Bars(wanted_measure,title,ylabel):
     plt.scatter(np.full(11,2),C_d2,color='dodgerblue')
     
     # Omit one subject from C?
-    t = stats.ttest_ind(NF_d2,C_d2,nan_policy='omit')
+    newC = [y for x,y in sorted(zip(idxLst,C_d2))] # I.e. just sort behavioral measure based on this list. 
+
+    # Delete subj 15
+    newC = np.delete(newC,2)
+    
+    # Delete 11
+    newNF = np.delete(NF_d2,2)
+    
+    t = stats.ttest_rel(newNF,newC)
         
     return plt, t, all_d2
 
+#%%
+    
+def makeHandFA(day):
+    H_all, H_NF, H_C = extractHandFA(day,'H')
+    FA_all, FA_NF, FA_C = extractHandFA(day,'FA')
+    A_all, A_NF, A_C = extractStatsDay(day,'a')
+    er_all, er_NF, er_C = extractStatsDay(day,'er')
+
+    # Error bars
+    sem_H = np.std(H_all)/np.sqrt(22)
+    sem_FA = np.std(FA_all)/np.sqrt(22)
+    sem_A = np.std(A_all)/np.sqrt(22)
+    sem_er = np.std(er_all)/np.sqrt(22)
+
+    
+    fig,ax = plt.subplots()
+    plt.ylabel("Behavioral performance \nPost-training session") # pre-training
+    
+    plt.bar(1,np.mean(H_all),zorder=3,color='dodgerblue',width=0.4)
+    (_, caps, _) = plt.errorbar(1,np.mean(H_all),yerr=sem_H, capsize=4, color='black',elinewidth=1,barsabove=True,zorder=4)
+    for cap in caps:
+        cap.set_markeredgewidth(2)
+    
+    plt.bar(1.6,np.mean(FA_all),zorder=3,color='dodgerblue',width=0.4)
+    (_, caps, _) = plt.errorbar(1.6,np.mean(FA_all),yerr=sem_FA, capsize=4, color='black',elinewidth=1,barsabove=True,zorder=4)
+    for cap in caps:
+        cap.set_markeredgewidth(2)
+        
+    plt.bar(2.2,np.mean(A_all),zorder=3,color='tomato',width=0.4)
+    (_, caps, _) = plt.errorbar(2.2,np.mean(A_all),yerr=sem_A, capsize=4, color='black',elinewidth=1,barsabove=True,zorder=4)
+    for cap in caps:
+        cap.set_markeredgewidth(2)
+        
+    plt.bar(2.8,np.mean(er_all),zorder=3,color='tomato',width=0.4)
+    (_, caps, _) = plt.errorbar(2.8,np.mean(er_all),yerr=sem_er, capsize=4, color='black',elinewidth=1,barsabove=True,zorder=4)
+    for cap in caps:
+        cap.set_markeredgewidth(2)
+    
+    plt.xticks([1,1.6,2.2,2.8],['Hit rate','False alarm rate', "A'",'Error rate'])
+    ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+    
+    plt.ylim(0,1)
+
+    # plt.title(title)
+
+    
+    
 
 #%% ########## BLOCK-WISE ANALYSIS #############
 
@@ -461,17 +591,17 @@ def behBlock(day,wanted_measure,title,ylabel):
     cmBlues=cm.get_cmap("Blues")
     
     # Plot NF subjects
-    plt.figure(random.randint(0,100))
+    ax,fig=plt.subplots()
     for j in range(len(NF_d)):
         plt.plot(NF_d[j],c=cmReds(normNF(subsNF_RT_acc[j])),linewidth=1)
         
-    plt.plot(np.mean(NF_d,axis=0),label='Mean NF group',color='tomato',linewidth=2.5)
+    plt.plot(np.mean(NF_d,axis=0),label='Mean NF group',color='tomato',linewidth=2.5,zorder=3)
     
     # Plot C subjects
     for i in range(len(C_d)):
         plt.plot(C_d[i],c=cmBlues(normC(subsC_RT_acc[i])),linewidth=1)
         
-    plt.plot(np.mean(C_d,axis=0),label='Mean control group',color='dodgerblue',linewidth=2.5)
+    plt.plot(np.mean(C_d,axis=0),label='Mean control group',color='dodgerblue',linewidth=2.5,zorder=3)
     
     # plt.plot(np.mean(all_d,axis=0),label='Mean all participants',color='black',linewidth=2.0)
     plt.title(title)
@@ -479,7 +609,7 @@ def behBlock(day,wanted_measure,title,ylabel):
     plt.xlabel('Block number')
     plt.ylabel(ylabel)
     plt.legend()
-    plt.grid(color='gainsboro',linewidth=0.5)
+    ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
     
     t = stats.ttest_ind(NF_d,C_d)
     
@@ -560,25 +690,32 @@ def matchedSubjects(wanted_measure,title):
     print(stats.ttest_rel(NF,C))
     t = stats.ttest_rel(NF,C)[1]
     
+    
+    C1_sorted = [y for x,y in sorted(zip(idxLst,C_d1))] # I.e. just sort behavioral measure based on this list. 
+
+    t_base = stats.ttest_rel(NF_d1,C1_sorted)
+    print('P-value between NF and control group day 1 (baseline): ', round(t_base[1],3))
+
+    
     plt.subplots()
     plt.text(x=1.5,y=y_max,s='p='+str(round(t,3)),horizontalalignment='center')
 
-    plt.bar(1,np.mean(NF),color=(0,0,0,0),edgecolor='tomato',label='Mean change from day 1 to 3, NF group',zorder=3)
-    plt.bar(2,np.mean(C),color=(0,0,0,0),edgecolor='dodgerblue',label='Mean change from day 1 to 3, control group',zorder=3)
+    plt.bar(1,np.mean(NF),color='white',edgecolor='tomato',label='Mean change from day 1 to 3, NF group',zorder=3)
+    plt.bar(2,np.mean(C),color='white',edgecolor='dodgerblue',label='Mean change from day 1 to 3, control group',zorder=3)
     
-    plt.scatter(np.full(11,1),NF,color='tomato',zorder=3)
-    plt.scatter(np.full(11,2),C,color='dodgerblue',zorder=3)
+    plt.scatter(np.full(11,1),NF,color='tomato',zorder=4)
+    plt.scatter(np.full(11,2),C,color='dodgerblue',zorder=4)
     
     for i in range(11):
-        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF)[i],(C)[i]],color='gray',zorder=3)
+        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i]], [(NF)[i],(C)[i]],color='gray',zorder=4)
         
     plt.xticks([1,2],[r'\textbf{Neurofeedback}',r'\textbf{Control}'])
-    plt.ylabel(r'$\Delta$ relative error rate reduction (day 1 to 3)')
+    plt.ylabel(r"$\Delta$ A' (relative) (day 1 to 3)")
     plt.title(title)
     plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
-    plt.hlines(y=0,xmin=0.5,xmax=2.5,zorder=3)
+    plt.hlines(y=0,xmin=0.5,xmax=2.5,zorder=4)
     
-    
+  #%%  
 def NFimprovement(wanted_measure):
 
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
@@ -689,7 +826,7 @@ def matchedSubjects2(wanted_measure,title,NFblocks=False):
         plt.plot([(np.full(10,1))[i],(np.full(10,2))[i]], [(NF)[i],(C)[i]],color='gray')
         
     plt.xticks([1,2],['NF group','Control group'])
-    plt.ylabel(r'$\Delta$ relative error rate reduction (day 1 to 2)')
+    plt.ylabel(r"$\Delta$ Relative A' (day 1 to 2)")
     plt.grid(color='gainsboro',linewidth=0.5)
     plt.hlines(y=0,xmin=0.5,xmax=2.5)
     plt.title(title)
@@ -733,7 +870,7 @@ def computeDividedCorr(wanted_measure):
     print('C subs, NF blocks corr: ', round((np.corrcoef(subsC_NFBlocks,subsC_RT_acc))[0][1],3))
     print('C subs, stable blocks corr: ', round((np.corrcoef(subsC_stableBlocks,subsC_RT_acc))[0][1],3))
 
-def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False):
+def behVSdecode(wanted_measure,ylabel,LOBO=False):
     '''Uses LORO and LOBO'''
     
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
@@ -757,82 +894,39 @@ def behVSdecode(wanted_measure,ylabel,LOBO=False,masking=False):
     subjID_NF_a = np.array(subjID_NF)
 
     fig,ax = plt.subplots()
+      
+    # NF
+    lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
+    ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF',zorder=2)
+    ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=1,color='tomato',zorder=3)
+
+    r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
+    print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
     
-    if masking != False:
-        
-        # Match the unwanted subject
-        try:
-            m_idx = subjID_C.index(masking)
-        except:
-            m_idx = subjID_NF.index(masking)
-        
-        mask = np.ones([11],dtype=bool)
-        mask[m_idx] = 0 # Omit subj 18 in C
-                
-        # NF
-        lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
-        ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF')
-        ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=1,color='tomato')
+    # for i, txt in enumerate(subjID_NF_a):
+    #     ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
+    
+    # C
+    lm.fit(np.reshape((subsC_LORO_a),[-1,1]),np.reshape((C_d1_a),[-1,1]))
+    ax.scatter((subsC_LORO_a.tolist()),(C_d1_a.tolist()),color='dodgerblue',label='Control',zorder=2)
+    ax.plot(np.reshape(subsC_LORO_a,[-1,1]), lm.predict(np.reshape(subsC_LORO_a,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
 
-        r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
-        print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
-        
-        for i, txt in enumerate(subjID_NF_a):
-            ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
-        
-        # C
-        lm.fit(np.reshape((subsC_LORO_a[mask]),[-1,1]),np.reshape((C_d1_a[mask]),[-1,1]))
-        ax.scatter((subsC_LORO_a[mask].tolist()),(C_d1_a[mask].tolist()),color='dodgerblue',label='Control')
-        ax.plot(np.reshape(subsC_LORO_a[mask],[-1,1]), lm.predict(np.reshape(subsC_LORO_a[mask],[-1,1])),linewidth=1,color='dodgerblue')
-
-        r_val_C = np.corrcoef(subsC_LORO_a[mask].tolist(),(C_d1_a[mask].tolist()))
-        print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
-        
-        plt.ylabel(ylabel + ' day 1')
-        if LOBO == False:
-            plt.xlabel('Mean offline decoding accuracy during stable blocks')
-        if LOBO == True:
-            plt.xlabel('Leave one block out offline decoding accuracy')
-        plt.title('Sensitivity pre-training session (day 1)')
-        
-        # for i, txt in enumerate(subjID_C_a[mask]):
-        #     ax.annotate(txt, (np.reshape(subsC_LORO_a[mask],[-1,1])[i], (np.reshape(C_d1_a[mask],[-1,1])[i])))
-        
-        plt.legend()
-
-    if masking == False:        
-        # NF
-        lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
-        ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF')
-        ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=1,color='tomato')
-
-        r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
-        print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
-        
-        # for i, txt in enumerate(subjID_NF_a):
-        #     ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
-        
-        # C
-        lm.fit(np.reshape((subsC_LORO_a),[-1,1]),np.reshape((C_d1_a),[-1,1]))
-        ax.scatter((subsC_LORO_a.tolist()),(C_d1_a.tolist()),color='dodgerblue',label='Control')
-        ax.plot(np.reshape(subsC_LORO_a,[-1,1]), lm.predict(np.reshape(subsC_LORO_a,[-1,1])),linewidth=1,color='dodgerblue')
-
-        r_val_C = np.corrcoef(subsC_LORO_a.tolist(),(C_d1_a.tolist()))
-        print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
-        
-        plt.ylabel('Sensitivity pre-training session (day 1)')
-        if LOBO == False:
-            plt.xlabel('Mean offline decoding accuracy during stable blocks')
-        if LOBO == True:
-            plt.xlabel('Leave one block out offline decoding accuracy')
-        
-        plt.title('Stable blocks decoding accuracy vs. pre-training sensitivity')
-        plt.grid(color='gainsboro',linewidth=0.5)
-        
-        # for i, txt in enumerate(subjID_C_a):
-        #     ax.annotate(txt, (np.reshape(subsC_LORO_a,[-1,1])[i], (np.reshape(C_d1_a,[-1,1])[i])))
-        
-        plt.legend()
+    r_val_C = np.corrcoef(subsC_LORO_a.tolist(),(C_d1_a.tolist()))
+    print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
+    
+    plt.ylabel("A' pre-training session (day 1)")
+    if LOBO == False:
+        plt.xlabel('Mean offline decoding accuracy during stable blocks')
+    if LOBO == True:
+        plt.xlabel('Leave one block out offline decoding accuracy')
+    
+    # plt.title('Stable blocks decoding accuracy vs. pre-training sensitivity')
+    plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
+    
+    # for i, txt in enumerate(subjID_C_a):
+    #     ax.annotate(txt, (np.reshape(subsC_LORO_a,[-1,1])[i], (np.reshape(C_d1_a,[-1,1])[i])))
+    
+    plt.legend()
         
         
 def behDay2VSdecode(wanted_measure,ylabel,LOBO=False):
@@ -843,10 +937,10 @@ def behDay2VSdecode(wanted_measure,ylabel,LOBO=False):
     all_d2 = np.delete(all_d2, 2)
     NF_d2 = np.delete(NF_d2, 2)
 
-    subsNF_LORO = np.delete(subsNF_LORO, 2)
-    subsAll_LORO = np.delete(subsAll_LORO, 2)
+    subsNF_LORO1 = np.delete(subsNF_LORO, 2)
+    subsAll_LORO1 = np.delete(subsAll_LORO, 2)
     
-    subsNF_LOBO = np.delete(subsNF_LOBO, 2)
+    subsNF_LOBO1 = np.delete(subsNF_LOBO, 2)
     
     # For all subjects
     r_val_all = np.corrcoef(subsAll_LORO, all_d2)
@@ -854,10 +948,10 @@ def behDay2VSdecode(wanted_measure,ylabel,LOBO=False):
 
     # Create arrays
     if LOBO == False:
-        subsC_LORO_a = np.array(subsC_LORO).flatten()
+        subsC_LORO_a = np.array(subsC_LORO1).flatten()
         subsNF_LORO_a = np.array(subsNF_LORO).flatten()
     if LOBO == True:
-        subsC_LORO_a = np.array(subsC_LOBO).flatten()
+        subsC_LORO_a = np.array(subsC_LOBO1).flatten()
         subsNF_LORO_a = np.array(subsNF_LOBO).flatten()
     
     C_d2_a = np.array(C_d2)
@@ -929,12 +1023,12 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         # plt.plot(np.reshape(subsAll_RT_acc,[-1,1]), lm.predict(np.reshape(subsAll_RT_acc,[-1,1])),linewidth=1)
         # plt.ylabel('Change in sensitivity from day 1 to 3\n Positive values indicate improvement')
         # np.corrcoef(subsAll_RT_acc,diff)
-        plt.figure(random.randint(0,50))
+        fig,ax = plt.subplots()
         plt.xlabel('RT decoding acc')
         # NF
         lm.fit(np.reshape((subsNF_RT_acc),[-1,1]),np.reshape((diffNF),[-1,1]))
-        plt.scatter((subsNF_RT_acc.tolist()),(diffNF.tolist()),color='tomato',label='NF')
-        plt.plot(np.reshape(subsNF_RT_acc,[-1,1]), lm.predict(np.reshape(subsNF_RT_acc,[-1,1])),linewidth=1,color='tomato')
+        plt.scatter((subsNF_RT_acc.tolist()),(diffNF.tolist()),color='tomato',label='NF',zorder=2)
+        plt.plot(np.reshape(subsNF_RT_acc,[-1,1]), lm.predict(np.reshape(subsNF_RT_acc,[-1,1])),linewidth=1,color='tomato',zorder=3)
 
         r_val_NF = np.corrcoef(subsNF_RT_acc.tolist(),(diffNF.tolist()))
         print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
@@ -944,10 +1038,10 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         
         # C
         lm.fit(np.reshape((subsC_RT_acc),[-1,1]),np.reshape((diffC),[-1,1]))
-        plt.scatter((subsC_RT_acc.tolist()),(diffC.tolist()),color='dodgerblue',label='Control')
-        plt.plot(np.reshape(subsC_RT_acc,[-1,1]), lm.predict(np.reshape(subsC_RT_acc,[-1,1])),linewidth=1,color='dodgerblue')
+        plt.scatter((subsC_RT_acc.tolist()),(diffC.tolist()),color='dodgerblue',label='Control',zorder=2)
+        plt.plot(np.reshape(subsC_RT_acc,[-1,1]), lm.predict(np.reshape(subsC_RT_acc,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
         plt.title('RT decoding accuracy vs. improvement')
-        plt.grid(color='gainsboro',linewidth=0.5)
+        ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
         
     if actual_stim == True and LORO == True: # correlates LORO with improvement, actual values.
         
@@ -958,7 +1052,7 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         plt.xlabel('Mean offline decoding accuracy during stable blocks')
         # NF
         lm.fit(np.reshape((subsNF_LORO),[-1,1]),np.reshape((diffNF),[-1,1]))
-        plt.scatter((subsNF_LORO.tolist()),(diffNF.tolist()),color='tomato',label='NF')
+        plt.scatter((subsNF_LORO),(diffNF),color='tomato',label='NF')
         plt.plot(np.reshape(subsNF_LORO,[-1,1]), lm.predict(np.reshape(subsNF_LORO,[-1,1])),linewidth=1,color='tomato')
 
         r_val_NF = np.corrcoef(subsNF_LORO,diffNF)
@@ -969,11 +1063,11 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         
         # C
         lm.fit(np.reshape((subsC_LORO),[-1,1]),np.reshape((diffC),[-1,1]))
-        plt.scatter((subsC_LORO.tolist()),(diffC.tolist()),color='dodgerblue',label='Control')
+        plt.scatter((subsC_LORO),(diffC),color='dodgerblue',label='Control')
         plt.plot(np.reshape(subsC_LORO,[-1,1]), lm.predict(np.reshape(subsC_LORO,[-1,1])),linewidth=1,color='dodgerblue')
 
-        plt.ylabel(r'$\Delta$ response time (s) (day 1 to 3)')
-        plt.title(r'$\Delta$ Response time vs. stable blocks decoding accuracy')
+        plt.ylabel(r'$\Delta$ relative error rate reduction (day 1 to 3)')
+        # plt.title(r'$\Delta$ Response time vs. stable blocks decoding accuracy')
         plt.grid(color='gainsboro',linewidth=0.5)
         plt.legend()
         
@@ -999,24 +1093,24 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         # If using alphas instead 
         # subsNF_meanAlphas = np.load(scriptsDir+'subsNF_meanAlphas.npy')
 
-        plt.figure(random.randint(0,30))
+        fig,ax = plt.subplots()
         lm.fit(np.reshape((subsNF_meanAlphas),[-1,1]),np.reshape((diffNF),[-1,1]))
         # plt.scatter((subsNF_RT_acc.tolist()),(diffNF.tolist()),color='tomato',label='NF')
-        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='tomato')
+        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='tomato',zorder=3)
         
-        lm.fit(np.reshape((subsNF_meanAlphas),[-1,1]),np.reshape((diffCnewsort),[-1,1]))
-        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='dodgerblue')
+        lm2.fit(np.reshape((subsNF_meanAlphas),[-1,1]),np.reshape((diffCnewsort),[-1,1]))
+        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm2.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
 
-        plt.scatter((subsNF_meanAlphas),(diffNF),color='tomato',label='NF')
-        plt.scatter((subsNF_meanAlphas),(diffCnewsort),color='dodgerblue',label='Control')
-        plt.ylabel(r'$\Delta$ response time (s) (day 1 to 3)')
+        plt.scatter((subsNF_meanAlphas),(diffNF),color='tomato',label='NF',zorder=2)
+        plt.scatter((subsNF_meanAlphas),(diffCnewsort),color='dodgerblue',label='Control',zorder=2)
+        plt.ylabel(r"$\Delta$ A' (day 1 to 3)")
         plt.xlabel('Mean task-relevant image proportion (alpha)')
-        plt.title(r'$\Delta$ Response time vs. mean task-relevant image proportion')
-        plt.grid(color='gainsboro',linewidth=0.5)
-        plt.legend(framealpha=0.3)
+        # plt.title(r'$\Delta$ Response time vs. mean task-relevant image proportion')
+        plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
+        plt.legend()
         
         for i in range(11):
-            plt.plot([subsNF_meanAlphas[i],subsNF_meanAlphas[i]], [diffNF[i],diffCnewsort[i]],color='gray')
+            plt.plot([subsNF_meanAlphas[i],subsNF_meanAlphas[i]], [diffNF[i],diffCnewsort[i]],color='gray',zorder=2)
         
         r_C = np.corrcoef(subsNF_meanAlphas,diffCnewsort)
         r_NF = np.corrcoef(subsNF_meanAlphas,diffNF)
@@ -1161,3 +1255,66 @@ def threeDay(wanted_measure):
     for i in range(11):
         plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
                   [(C_re1)[i],(C_re2)[i],(C_re3)[i]],c=cmNFget(normNF(subsNF_RT_acc[i])),linewidth=3)#c=cm.hot(i/11))
+        
+        
+        
+#%%
+def threeDay2(wanted_measure):
+    '''
+    Control participants are colored based on their own RT decoding acc
+    '''
+    all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
+    all_d2, NF_d2, C_d2 = extractStatsDay(2,wanted_measure)
+    all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
+    
+    # Cmap for NF
+    normNF = matplotlib.colors.Normalize(vmin=np.min(subsNF_RT_acc), vmax=np.max(subsNF_RT_acc))
+    normC = matplotlib.colors.Normalize(vmin=np.min(subsC_RT_acc), vmax=np.max(subsC_RT_acc))
+    
+    cmReds=cm.get_cmap("Reds")
+    cmBlues=cm.get_cmap("Blues")
+
+    fig,ax = plt.subplots()
+    plt.xticks([1,2,3],['Pre-training (day 1)','EEG (day 2)', 'Post-training (day 3)'])
+    plt.ylabel("A'")        
+    # plt.title('Behavioral accuracy day 1, 2 and 3 for NF group')
+    plt.scatter(np.full(11,1),NF_d1,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    plt.scatter(np.full(11,2),NF_d2,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    plt.scatter(np.full(11,3),NF_d3,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    #cbar = plt.colorbar()
+    #cbar.set_label('Real-time decoding accuracy')
+
+    for i in range(11):
+        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
+                  [(NF_d1)[i],(NF_d2)[i],(NF_d3)[i]],c=cmReds(normNF(subsNF_RT_acc[i])),linewidth=3,zorder=3)
+        
+    ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+
+    
+
+    # plt.plot([(np.full(11,1))[2],(np.full(11,3))[2]],\
+    #               [(NF_d1)[2],(NF_d3)[2]],c=cmReds(normNF(subsNF_RT_acc[2])),linewidth=3)
+    
+    
+    # Make colorbar for controls
+    fig,ax = plt.subplots()
+    plt.xticks([1,2,3],['Pre-training (day 1)','EEG (day 2)', 'Post-training (day 3)'])
+    plt.ylabel("A'")             
+    # plt.title('Behavioral accuracy day 1, 2 and 3 for NF group')
+    plt.scatter(np.full(11,1),C_d1,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    plt.scatter(np.full(11,2),C_d2,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    plt.scatter(np.full(11,3),C_d3,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    #cbar = plt.colorbar()
+    cbar.set_label('Real-time decoding accuracy')
+    ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+    
+    for i in range(11):
+        plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
+                  [(C_d1)[i],(C_d2)[i],(C_d3)[i]],c=cmBlues(normC(subsC_RT_acc[i])),linewidth=3,zorder=3)#c=cm.hot(i/11))   
+    
+    
+    
+    
+    
+    
+   
