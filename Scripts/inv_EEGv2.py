@@ -4,6 +4,8 @@ This script is based on inv_09May.py, and investigates the new EEG pipeline,
 using 450 samples for 19 subjects, and 550 samples for the first 3 subjects. 
 The .pckl files are from 9th of May, and the script used is offline_analysis_FUNC_v1.py.
 
+v2 implements error rate.
+
 @author: Greta
 """
 
@@ -15,6 +17,7 @@ from sklearn.metrics import confusion_matrix
 import os
 import numpy as np
 import mne
+import matplotlib.cm as cm
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
@@ -68,7 +71,7 @@ def extractVal(wanted_key):
     subsNF = [item for sublist in subsNF for item in sublist]
     subsC = [item for sublist in subsC for item in sublist]
 
-    return subsAll, subsNF, subsC, meanAll, meanNF, meanC
+    return np.asarray(subsAll), np.asarray(subsNF), np.asarray(subsC), meanAll, meanNF, meanC
 
 def extractMNE(wanted_key):
     subsAll = []
@@ -91,12 +94,12 @@ subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_unc
 
 #%% RT pipeline analysis. RT decoding accuracy corrected.
 plt.figure(5)
-plt.scatter(np.arange(0,len(subsNF),1),subsNF,color='tomato') # NF subjects
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC,color='dodgerblue') # C subjects
+plt.scatter(np.arange(0,len(subsNF),1),1-subsNF,color='tomato') # NF subjects
+plt.scatter(np.arange(len(subsC),len(subsAll),1),1-subsC,color='dodgerblue') # C subjects
 plt.xticks(np.arange(0,len(subsAll),1),sub_axis)
 plt.xlabel('Subject ID')
-plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy')
+plt.ylabel('Decoding error rate')
+plt.title('Real-time decoding error rate')
 NF_mean = [meanNF]*len(subsNF)
 C_mean = [meanC]*len(subsC)
 
@@ -105,60 +108,51 @@ plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='Mean control',color=
 plt.legend()
 plt.grid(color='gainsboro',linewidth=0.5)
 
-# Barplot
-# plt.figure(6)
-# plt.bar(0, meanNF,color=(0,0,0,0),edgecolor='tomato',width=0.1)
-# plt.bar(0.2, meanC,color=(0,0,0,0),edgecolor='dodgerblue',width=0.1)
-# plt.ylabel('RT decoding accuracy (NF blocks)')
-# plt.xticks([0,0.2],['NF group','Control group'])
-# plt.ylim([0.5,0.73])
-
-# plt.scatter(np.zeros((len(subsNF))),subsNF,color='tomato')
-# plt.scatter(np.full(len(subsC),0.2),subsC,color='dodgerblue')
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,len(subsNF),1),(subsNF),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(len(subsC),len(subsAll),1),subsC,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.bar(np.arange(0,len(subsNF),1),(1-subsNF),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(len(subsC),len(subsAll),1),1-subsC,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
 plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
 plt.xlabel('Participants')
-plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy')
-NF_mean = [meanNF]*len(subsNF)
-C_mean = [meanC]*len(subsC)
-plt.ylim(0.40,0.72)
+plt.ylabel('Decoding error rate')
+plt.title('Real-time decoding error rate')
+NF_mean = np.asarray([meanNF]*11)
+C_mean = np.asarray([meanC]*11)
+plt.ylim(0.25,0.6)
 
-plt.hlines(NF_mean,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(C_mean,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-NF_mean,-0.5,11-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-C_mean,11-0.5,22-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
-plt.legend(loc='lower left')
+plt.legend(loc='upper right')
 
 
 #%% Plot RT accuracies cor vs uncor
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.scatter(np.arange(0,len(subsNF),1),(subsNF),color='tomato',zorder=3,label='NF corrected') # NF subjects
-plt.scatter(np.arange(0,len(subsNF),1),(subsNF_uncor),color='brown',zorder=3,label='NF uncorrected') # NF subjects
+plt.scatter(np.arange(0,11,1),(1-subsNF),color='tomato',zorder=3,label='NF corrected') # NF subjects
+plt.scatter(np.arange(0,11,1),(1-subsNF_uncor),color='brown',zorder=3,label='NF uncorrected') # NF subjects
 
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC,color='dodgerblue',zorder=3,label='Control corrected') # C subjects
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_uncor,color='navy',zorder=3,label='Control uncorrected') # C subjects
+plt.scatter(np.arange(11,22,1),1-subsC,color='dodgerblue',zorder=3,label='Control corrected') # C subjects
+plt.scatter(np.arange(11,22,1),1-subsC_uncor,color='navy',zorder=3,label='Control uncorrected') # C subjects
 
-plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
 plt.xlabel('Participants')
-plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy \nClassifier bias corrected vs. uncorrected')
+plt.ylabel('Decoding error rate')
+plt.title('Real-time decoding error rate \nClassifier bias corrected vs. uncorrected')
 
-NF_mean_uncor = [meanNF_uncor]*len(subsNF)
-C_mean_uncor = [meanC_uncor]*len(subsC)
+NF_mean_uncor = np.asarray([meanNF_uncor]*11)
+C_mean_uncor = np.asarray([meanC_uncor]*11)
 
-plt.hlines(NF_mean,-0.5,len(subsNF)-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(NF_mean_uncor,-0.5,len(subsNF)-0.5,color='brown',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-NF_mean,-0.5,11-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-NF_mean_uncor,-0.5,11-0.5,color='brown',zorder=4,linestyles='dashed',linewidth=2)
 
-plt.hlines(C_mean,len(subsNF)-0.5,len(subsAll)-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(C_mean_uncor,len(subsNF)-0.5,len(subsAll)-0.5,color='navy',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-C_mean,11-0.5,22-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-C_mean_uncor,11-0.5,22-0.5,color='navy',zorder=4,linestyles='dashed',linewidth=2)
+#plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
 
-plt.ylim(0.45,0.73)
-plt.legend(loc='lower left')
+plt.ylim(0.27,0.55)
+plt.legend(loc='upper right')
 
 #%% Plot all face vs scene accuracies for RT (corrected) - could make this for LOBO, or for LORO (need to run another iteration of the script to save the face/scene accs)
 subsAll_s, subsNF_s, subsC_s, meanAll_s, meanNF_s, meanC_s = extractVal('RT_scene_acc')
@@ -166,34 +160,39 @@ subsAll_f, subsNF_f, subsC_f, meanAll_f, meanNF_f, meanC_f = extractVal('RT_face
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.scatter(np.arange(0,len(subsNF_f),1),(subsNF_f),color='tomato',zorder=3,label='Face') # NF subjects
-plt.scatter(np.arange(0,len(subsNF_s),1),(subsNF_s),color='dodgerblue',zorder=3,label='Scene') # NF subjects
+plt.scatter(np.arange(0,11,1),(1-subsNF_f),color='tomato',zorder=3,label='Face') # NF subjects
+plt.scatter(np.arange(0,11,1),(1-subsNF_s),color='dodgerblue',zorder=3,label='Scene') # NF subjects
 
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_f,color='tomato',zorder=3) # C subjects
-plt.scatter(np.arange(len(subsC),len(subsAll),1),subsC_s,color='dodgerblue',zorder=3) # C subjects
+plt.scatter(np.arange(11,22,1),1-subsC_f,color='tomato',zorder=3) # C subjects
+plt.scatter(np.arange(11,22,1),1-subsC_s,color='dodgerblue',zorder=3) # C subjects
 
-plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
 plt.xlabel('Participants')
-plt.ylabel('Decoding accuracy')
-plt.title('Real-time decoding accuracy \nFace vs. scene')
+plt.ylabel('Decoding error rate')
+plt.title('Real-time decoding error rate \nFace vs. scene')
 
-s_mean = [meanAll_s]*len(subsAll)
-f_mean = [meanAll_f]*len(subsAll)
+s_mean = np.asarray([meanAll_s]*len(subsAll))
+f_mean = np.asarray([meanAll_f]*len(subsAll))
 
-plt.hlines(f_mean,-0.5,len(subsAll)-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(s_mean,-0.5,len(subsAll)-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-f_mean,-0.5,22-0.5,color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-s_mean,-0.5,22-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 
-plt.ylim(0.45,0.8)
-plt.legend(loc='lower left')
+plt.ylim(0.20,0.52)
+plt.legend(loc='upper right')
 
 #%% Overall per RT run accuracy, corrected - colored based on NF and C 
 subsAll_run, subsNF_run, subsC_run, meanAll_run, meanNF_run, meanC_run = extractVal('RT_test_acc_corr_run')
 
+subsAll_run = 1-subsAll_run
+subsNF_run = 1-subsNF_run
+subsC_run = 1-subsC_run
+
 cmReds=cm.get_cmap("Reds")
+cmReds1 = cmReds(np.linspace(0.5, 1, 100))
 cmBlues=cm.get_cmap("Blues")
 
-normNF = matplotlib.colors.Normalize(vmin=np.min(subsNF_RT_acc), vmax=np.max(subsNF_RT_acc))
-normC = matplotlib.colors.Normalize(vmin=np.min(subsC_RT_acc), vmax=np.max(subsC_RT_acc))
+normNF = matplotlib.colors.Normalize(vmin=np.min(1-subsNF_RT_acc), vmax=np.max(1-subsNF_RT_acc))
+normC = matplotlib.colors.Normalize(vmin=np.min(1-subsC_RT_acc), vmax=np.max(1-subsC_RT_acc))
 
 # Individual runs, mean
 run1=np.mean(np.asarray([subsAll_run[f][0] for f in range(len(subsAll_run))]))
@@ -209,60 +208,60 @@ ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
 
 # NF
 for count,entry in enumerate(subsNF_run):
-    plt.plot(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(subsNF_RT_acc[count])),linewidth=0.5,zorder=3)
-    plt.scatter(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(subsNF_RT_acc[count])),zorder=3)
+    plt.plot(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(1-subsNF_RT_acc[count])),linewidth=0.5,zorder=3)
+    plt.scatter(np.arange(1,6),subsNF_run[count],c=cmReds(normNF(1-subsNF_RT_acc[count])),zorder=3)
 # C
 for count,entry in enumerate(subsC_run):
-    plt.plot(np.arange(1,6),subsC_run[count],c=cmBlues(normC(subsC_RT_acc[count])),linewidth=0.5,zorder=2)
-    plt.scatter(np.arange(1,6),subsC_run[count],c=cmBlues(normC(subsC_RT_acc[count])),zorder=2)
+    plt.plot(np.arange(1,6),subsC_run[count],c=cmBlues(normC(1-subsC_RT_acc[count])),linewidth=0.5,zorder=2)
+    plt.scatter(np.arange(1,6),subsC_run[count],c=cmBlues(normC(1-subsC_RT_acc[count])),zorder=2)
 
-plt.plot(np.arange(1,6),run_means,linestyle='dashed',color='black',label='Mean accuracy per run',linewidth=2,zorder=3)
+plt.plot(np.arange(1,6),run_means,linestyle='dashed',color='black',label='Mean error rate per run',linewidth=2,zorder=3)
 plt.xticks(np.arange(1,6),['1','2','3','4','5']) 
 plt.xlabel('Run number')
-plt.ylabel('Decoding accuracy')
-# plt.title('Real-time decoding accuracy per run')
+plt.ylabel('Decoding error rate')
+plt.title('Real-time decoding error rate per run')
 plt.legend()
-plt.ylim(0.4,0.8)
+plt.ylim(0.20,0.6)
 
 #%% Plot offline train LORO accuracies, bias corrected, stable
 subsAll_LORO, subsNF_LORO, subsC_LORO, meanAll_LORO, meanNF_LORO, meanC_LORO = extractVal('LORO_stable_acc_corr')
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,len(subsNF_LORO),1),(subsNF_LORO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(len(subsC_LORO),len(subsAll),1),subsC_LORO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
-plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.bar(np.arange(0,11,1),(1-subsNF_LORO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(11,22,1),1-subsC_LORO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
 plt.xlabel('Participants')
-plt.ylabel('Decoding accuracy')
-plt.title('Classifier accuracy \nLeave-one-run-out cross-validation') #########
-NF_mean_LORO = [meanNF_LORO]*len(subsNF)
-C_mean_LORO = [meanC_LORO]*len(subsC)
-plt.ylim(0.35,0.85)
+plt.ylabel('Decoding error rate')
+plt.title('Classifier error rate \nLeave-one-run-out cross-validation') #########
+NF_mean_LORO = np.asarray([meanNF_LORO]*len(subsNF))
+C_mean_LORO = np.asarray([meanC_LORO]*len(subsC))
+plt.ylim(0.15,0.6)
 
-plt.hlines(NF_mean_LORO,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(C_mean_LORO,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-NF_mean_LORO,-0.5,11-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-C_mean_LORO,11-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
-plt.legend(loc='lower left')
+plt.legend(loc='upper right')
 
 #%% Plot offline train LOBO accuracies, corrected, stable
 subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = extractVal('LOBO_stable_train_acc_corr')
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,len(subsNF_LOBO),1),(subsNF_LOBO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(len(subsC_LOBO),len(subsAll),1),subsC_LOBO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
-plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.bar(np.arange(0,11,1),(1-subsNF_LOBO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
+plt.bar(np.arange(11,22,1),1-subsC_LOBO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
 plt.xlabel('Participants')
-plt.ylabel('Decoding accuracy')
-plt.title('Classifier accuracy \nLeave-one-block-out cross-validation') #########
-NF_mean_LOBO = [meanNF_LOBO]*len(subsNF)
-C_mean_LOBO = [meanC_LOBO]*len(subsC)
-plt.ylim(0.35,0.85)
+plt.ylabel('Decoding error rate')
+plt.title('Classifier error rate \nLeave-one-block-out cross-validation') #########
+NF_mean_LOBO = np.asarray([meanNF_LOBO]*len(subsNF))
+C_mean_LOBO = np.asarray([meanC_LOBO]*len(subsC))
+plt.ylim(0.15,0.6)
 
-plt.hlines(NF_mean_LOBO,-0.5,len(subsNF)-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
-plt.hlines(C_mean_LOBO,len(subsNF)-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-NF_mean_LOBO,-0.5,11-0.5,label='Mean NF',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+plt.hlines(1-C_mean_LOBO,11-0.5,22-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
-plt.legend(loc='lower left')
+plt.legend(loc='upper right')
 
 #%% ######### MNE ############
 #%% Extract evoked responses (averaged)

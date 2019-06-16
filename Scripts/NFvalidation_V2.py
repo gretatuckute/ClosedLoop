@@ -1247,4 +1247,68 @@ for alphalst in subsNF_alphas:
 np.save(scriptsDir+'subsNF_meanAlphas.npy',subsNF_meanAlphas)
 
 
+#%% Investigate when the prediction errors occur across all
+
+subsAll_p, subsNF_p, subsC_p = extractVal2('RT_correct_NFtest_pred')
+
+#Avg all
+pred_avg = np.mean(subsAll_p, axis=0)
+
+pred_avg_r = np.reshape(pred_avg, [20,50])
+block_pred = np.mean(pred_avg_r, axis = 0)
+
+#Avg NF
+pred_avg_NF = np.mean(subsNF_p, axis=0)
+
+pred_avg_r_NF = np.reshape(pred_avg_NF, [20,50])
+block_pred_NF = np.mean(pred_avg_r_NF, axis = 0)
+
+# C
+pred_avg_C = np.mean(subsC_p, axis=0)
+pred_avg_r_C = np.reshape(pred_avg_C, [20,50])
+block_pred_C = np.mean(pred_avg_r_C, axis = 0)
+
+plt.plot(block_pred_NF)
+plt.plot(block_pred_C)
+
+
+# Plot
+fig,ax = plt.subplots()
+
+plt.plot(np.arange(1,51),1-block_pred,zorder=2,color='tomato',label='All participants')
+plt.ylabel("Frequency of classifier prediction error") #Frequency of correct predictions
+plt.xlabel('Trial number')
+
+plt.title('Classifier prediction error within blocks')
+plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
+#plt.xlim(1,51)
+plt.xticks([1,10,20,30,40,50],['1','10','20','30','40','50'])
+plt.legend()
+# sem_p = np.std(subsAll_p,axis=0)/np.sqrt(22)
+# sem_p_r = np.reshape(sem_p,[20,50])
+
+# (_, caps, _) = plt.errorbar(np.arange(1,51),block_pred,yerr=sem_FR_C, capsize=8, color='black',elinewidth=2,barsabove=True)
+# for cap in caps:
+#     cap.set_markeredgewidth(2)
+
+
+
+#%% Analyzing coefs
+coef_avg = np.mean(coef_lst, axis=0)
+
+
+
+plt.matshow(coef_avg, cmap = 'RdBu')
+channel_vector = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
+time_vector = ['-100','0','100','200','300','400','500','600','700','800']
+plt.xlabel('Time (ms)')
+plt.xticks(np.arange(0,90,10),time_vector)
+plt.yticks(np.arange(23),channel_vector)
+plt.ylabel('Channel name ')
+plt.colorbar()
+
+
+
+
+
 

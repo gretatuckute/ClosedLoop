@@ -29,7 +29,7 @@ scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
 from variables import *
 from responseTime_func import findRTsBlocks
-from beh_FUNCv2 import *
+from beh_FUNCv3 import *
 
 #%% RTs surrounding lures
 surroundingRT_all = np.zeros((22,6),dtype=np.ndarray)
@@ -121,7 +121,7 @@ H_all3, H_NF3, H_C3 = extractHandFA(3,'H')
 FA_all1, FA_NF1, FA_C1 = extractHandFA(1,'FA')
 FA_all3, FA_NF3, FA_C3 = extractHandFA(3,'FA')
 
-makeHandFA(3)
+makeHandFA(1)
 
 #%% Compare day 4 and 5
 pl, t_fb, t_c, all_d1 = make4Bars('sen','Sensitivity','Response sensitivity',part2=True)
@@ -137,14 +137,14 @@ pl, t, rt_all_d2 = make2Bars('rt','RT day 2','RT')
 pl, t, nkeypress_all_d2 = make2Bars('nkeypress','Number of total keypresses','Number keypresses') 
 
 #%% ########## BLOCK-WISE ANALYSIS #############
-behBlock(1,'a',"A' across blocks, all participants, day 1","A'")
-behBlock(3,'a','Specificity across blocks, all participants, day 3','Specificity')
+behBlock(1,'a',"A' across blocks, pre-training session (day 1)","A'")
+behBlock(3,'a',"A' across blocks, post-training session (day 3)","A'")
 
-behBlock(1,'acc','Behavioral accuracy across blocks, pre-training session','Behavioral accuracy')
-behBlock(3,'acc','Behavioral accuracy across blocks, post-training session','Behavioral accuracy')
+behBlock(1,'er','Behavioral error rate across blocks, pre-training session','Behavioral error rate')
+behBlock(3,'er','Behavioral error rate across blocks, post-training session','Behavioral error rate')
 
-behBlock(1,'rt','Response time across blocks, pre-training session','Response time (ms)')
-behBlock(3,'rt','Response time across blocks, post-training session','Response time (ms)')
+behBlock(1,'rt','Response time across blocks, pre-training session','Response time (s)')
+behBlock(3,'rt','Response time across blocks, post-training session','Response time (s)')
 
 #%% Output responseTimes
 responseTimes_all = []
@@ -308,17 +308,16 @@ plt.scatter(rt_all_d2_c,spec_all_d2_c)
 stats.linregress(rt_all_d2_c,spec_all_d2_c)
 
 #%% BEH vs BEH day 1 
-acc_all_d1, acc_NF_d1, acc_C_d1 = extractStatsDay(1,'acc')
 er_all_d1, er_NF_d1, er_C_d1 = extractStatsDay(1,'er')
 rer_all_d1, rer_NF_d1, rer_C_d1 = extractStatsDay(1,'rer')
 a_all_d1, a_NF_d1, a_C_d1 = extractStatsDay(1,'a')
 rt_all_d1, rt_NF_d1, rt_C_d1 = extractStatsDay(1,'rt')
 
-# Error rate
+# RERR Error rate
 np.corrcoef(rt_all_d1,rer_all_d1)
 
-np.corrcoef(rt_NF_d1,sen_NF_d1)
-np.corrcoef(rt_C_d1,sen_C_d1)
+np.corrcoef(rt_NF_d1,rer_NF_d1)
+np.corrcoef(rt_C_d1,rer_C_d1)
 
 plt.figure(106)
 lm.fit(np.reshape(rt_all_d1,[-1,1]),np.reshape(sen_all_d1,[-1,1]))
@@ -335,21 +334,21 @@ np.corrcoef(rt_NF_d1,a_NF_d1)
 np.corrcoef(rt_C_d1,a_C_d1)
 
 #%% Day 3
-sen_all_d3, sen_NF_d3, sen_C_d3 = extractStatsDay(3,'sen')
-acc_all_d3, acc_NF_d3, acc_C_d3 = extractStatsDay(3,'acc')
+rer_all_d3, rer_NF_d3, rer_C_d3 = extractStatsDay(3,'rer')
+a_all_d3, a_NF_d3, a_C_d3 = extractStatsDay(3,'a')
 rt_all_d3, rt_NF_d3, rt_C_d3 = extractStatsDay(3,'rt')
 
-# sen
-np.corrcoef(rt_all_d3,sen_all_d3)
-np.corrcoef(rt_NF_d3,sen_NF_d3)
-np.corrcoef(rt_C_d3,sen_C_d3)
+# rer
+np.corrcoef(rt_all_d3,rer_all_d3)
+np.corrcoef(rt_NF_d3,rer_NF_d3)
+np.corrcoef(rt_C_d3,rer_C_d3)
 
 plt.scatter(rt_C_d3,sen_C_d3)
 
 # acc
-np.corrcoef(rt_all_d3,acc_all_d3)
-np.corrcoef(rt_NF_d3,acc_NF_d3)
-np.corrcoef(rt_C_d3,acc_C_d3)
+np.corrcoef(rt_all_d3,a_all_d3)
+np.corrcoef(rt_NF_d3,a_NF_d3)
+np.corrcoef(rt_C_d3,a_C_d3)
 #%% Is good decoding accuracy STABLE blocks correlated with a good day 1 behavioral response?
 sen_all_d1, sen_NF_d1, sen_C_d1 = extractStatsDay(1,'sen')
 spec_all_d1, spec_NF_d1, spec_C_d1 = extractStatsDay(1,'spec')
@@ -397,26 +396,17 @@ np.corrcoef(subsAll_LORO,rt_all_d1)
 
 #%% Divided into groups
 # Create behavioral day 1 vs offline decoding accuracy plots
-behVSdecode('acc','Accuracy',LOBO=False)
 behVSdecode('er','Error rate',LOBO=False)
 behVSdecode('rer','Error rate',LOBO=False)
 behVSdecode('a',"A'",LOBO=False)
 
 behVSdecode('rt','Response time',LOBO=False)
 
-behVSdecode('sen','Sensitivity',LOBO=True,masking=False)
-behVSdecode('spec','Specificity',LOBO=True,masking=False)
-behVSdecode('acc','Accuracy',LOBO=True,masking=False)
-behVSdecode('rt','Response time',LOBO=True,masking=False)
-
 #%% Create behavioral day 2 vs offline decoding accuracy plots
-behDay2VSdecode('a','Sensitivity',LOBO=False)
-behDay2VSdecode('acc','Behavioral accuracy',LOBO=False)
-behDay2VSdecode('rt','Response time (ms)',LOBO=False)
+behDay2VSdecode('a',"A'",LOBO=False)
+behDay2VSdecode('rer','RERR',LOBO=False)
+behDay2VSdecode('rt','Response time (s)',LOBO=False)
 
-behDay2VSdecode('sen','Sensitivity',LOBO=True)
-behDay2VSdecode('acc','Accuracy',LOBO=True)
-behDay2VSdecode('rt','Response time',LOBO=True)
 
 #%% Somewhere here: check whether good decoding acc corresponds with good day 1 to 3 improvement
 
@@ -451,8 +441,8 @@ np.corrcoef(subsAll_RT_acc,diff)
 
 #%% Make improvement plots     
 improvStimuli('a',actual_stim=False)  
-improvStimuli('arer',actual_stim=False)  
-improvStimuli('er',actual_stim=False)  
+improvStimuli('rer',actual_stim=False)  
+improvStimuli('rt',actual_stim=False)  
 
 improvStimuli('rer',actual_stim=False)  
 improvStimuli('acc',actual_stim=False)  

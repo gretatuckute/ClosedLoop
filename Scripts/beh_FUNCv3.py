@@ -4,6 +4,8 @@ Created on Fri May 24 19:23:28 2019
 
 V2 implements a new computeStats function including errorrate, RER, A' and thus the indexes of statsDay etc. are changed.
 
+V3 implements decoding error rate comparisons.
+
 @author: Greta
 """
 import pickle
@@ -540,7 +542,7 @@ def makeHandFA(day):
 
     
     fig,ax = plt.subplots()
-    plt.ylabel("Behavioral performance \nPost-training session") # pre-training
+    plt.ylabel("Behavioral performance") # pre-training
     
     plt.bar(1,np.mean(H_all),zorder=3,color='dodgerblue',width=0.4)
     (_, caps, _) = plt.errorbar(1,np.mean(H_all),yerr=sem_H, capsize=4, color='black',elinewidth=1,barsabove=True,zorder=4)
@@ -564,7 +566,7 @@ def makeHandFA(day):
     
     plt.xticks([1,1.6,2.2,2.8],['Hit rate','False alarm rate', "A'",'Error rate'])
     ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-    
+    plt.title('Pre-training session (day 3)')
     plt.ylim(0,1)
 
     # plt.title(title)
@@ -582,24 +584,24 @@ def behBlock(day,wanted_measure,title,ylabel):
     meanstd = np.std(all_d,axis=0)
     for idx,subj in enumerate(all_d):
         for blockno,val in enumerate(subj):
-            if val < mean1[blockno] - (3*meanstd[blockno]):
+            if val > mean1[blockno] + (3*meanstd[blockno]):
                 print('subjID: ', subjID_all[idx], 'Block no. ',blockno+1)
         
-    normNF = matplotlib.colors.Normalize(vmin=np.min(subsNF_RT_acc), vmax=np.max(subsNF_RT_acc))
-    normC = matplotlib.colors.Normalize(vmin=np.min(subsC_RT_acc), vmax=np.max(subsC_RT_acc))
+    normNF = matplotlib.colors.Normalize(vmin=np.min(1-subsNF_RT_acc), vmax=np.max(1-subsNF_RT_acc))
+    normC = matplotlib.colors.Normalize(vmin=np.min(1-subsC_RT_acc), vmax=np.max(1-subsC_RT_acc))
     cmReds=cm.get_cmap("Reds")
     cmBlues=cm.get_cmap("Blues")
     
     # Plot NF subjects
-    ax,fig=plt.subplots()
+    fig,ax=plt.subplots()
     for j in range(len(NF_d)):
-        plt.plot(NF_d[j],c=cmReds(normNF(subsNF_RT_acc[j])),linewidth=1)
+        plt.plot(NF_d[j],c=cmReds(normNF(1-subsNF_RT_acc[j])),linewidth=1)
         
     plt.plot(np.mean(NF_d,axis=0),label='Mean NF group',color='tomato',linewidth=2.5,zorder=3)
     
     # Plot C subjects
     for i in range(len(C_d)):
-        plt.plot(C_d[i],c=cmBlues(normC(subsC_RT_acc[i])),linewidth=1)
+        plt.plot(C_d[i],c=cmBlues(normC(1-subsC_RT_acc[i])),linewidth=1)
         
     plt.plot(np.mean(C_d,axis=0),label='Mean control group',color='dodgerblue',linewidth=2.5,zorder=3)
     
@@ -764,9 +766,6 @@ def matchedSubjects2(wanted_measure,title,NFblocks=False):
     # Delete subj 11 and 15
     all_d1 = np.delete(all_d1,[2,5])
     all_d2 = np.delete(all_d2,[2,5])
-    
-    all_d1 = 1-all_d1
-    all_d2 = 1-all_d2
 
     diff = np.asarray(all_d2) - np.asarray(all_d1) # Change this? to be consistent..
             
@@ -876,13 +875,13 @@ def behVSdecode(wanted_measure,ylabel,LOBO=False):
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     
     # For all subjects
-    r_val_all = np.corrcoef(subsAll_LORO, all_d1)
+    r_val_all = np.corrcoef(1-subsAll_LORO, all_d1)
     print('Correlation coefficient, all participants: ',r_val_all[0][1])
     
     # Create arrays
     if LOBO == False:
-        subsC_LORO_a = np.array(subsC_LORO).flatten()
-        subsNF_LORO_a = np.array(subsNF_LORO).flatten()
+        subsC_LORO_a = np.array(1-subsC_LORO).flatten()
+        subsNF_LORO_a = np.array(1-subsNF_LORO).flatten()
     if LOBO == True:
         subsC_LORO_a = np.array(subsC_LOBO).flatten()
         subsNF_LORO_a = np.array(subsNF_LOBO).flatten()
@@ -897,30 +896,30 @@ def behVSdecode(wanted_measure,ylabel,LOBO=False):
       
     # NF
     lm.fit(np.reshape((subsNF_LORO_a),[-1,1]),np.reshape((NF_d1_a),[-1,1]))
-    ax.scatter((subsNF_LORO_a.tolist()),(NF_d1_a.tolist()),color='tomato',label='NF',zorder=2)
-    ax.plot(np.reshape(subsNF_LORO_a,[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=1,color='tomato',zorder=3)
+    ax.scatter((subsNF_LORO_a).tolist(),(NF_d1_a.tolist()),color='tomato',label='NF',zorder=2)
+    ax.plot(np.reshape((subsNF_LORO_a),[-1,1]), lm.predict(np.reshape(subsNF_LORO_a,[-1,1])),linewidth=1,color='tomato',zorder=3)
 
-    r_val_NF = np.corrcoef(subsNF_LORO_a.tolist(),(NF_d1_a.tolist()))
+    r_val_NF = np.corrcoef((subsNF_LORO_a).tolist(),(NF_d1_a.tolist()))
     print('Correlation coefficient, NF group: ',round(r_val_NF[0][1],3))
     
     # for i, txt in enumerate(subjID_NF_a):
     #     ax.annotate(txt, (np.reshape(subsNF_LORO_a,[-1,1])[i], (np.reshape(NF_d1_a,[-1,1])[i])))
     
     # C
-    lm.fit(np.reshape((subsC_LORO_a),[-1,1]),np.reshape((C_d1_a),[-1,1]))
-    ax.scatter((subsC_LORO_a.tolist()),(C_d1_a.tolist()),color='dodgerblue',label='Control',zorder=2)
-    ax.plot(np.reshape(subsC_LORO_a,[-1,1]), lm.predict(np.reshape(subsC_LORO_a,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
+    lm.fit(np.reshape(((subsC_LORO_a)),[-1,1]),np.reshape((C_d1_a),[-1,1]))
+    ax.scatter(((subsC_LORO_a).tolist()),(C_d1_a.tolist()),color='dodgerblue',label='Control',zorder=2)
+    ax.plot(np.reshape((subsC_LORO_a),[-1,1]), lm.predict(np.reshape(subsC_LORO_a,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
 
-    r_val_C = np.corrcoef(subsC_LORO_a.tolist(),(C_d1_a.tolist()))
+    r_val_C = np.corrcoef((subsC_LORO_a).tolist(),(C_d1_a.tolist()))
     print('Correlation coefficient, control group: ',round(r_val_C[0][1],3))
     
-    plt.ylabel("A' pre-training session (day 1)")
+    plt.ylabel("Response time (s) pre-training session (day 1)")
     if LOBO == False:
-        plt.xlabel('Mean offline decoding accuracy during stable blocks')
+        plt.xlabel('Mean decoding error rate during stable blocks')
     if LOBO == True:
         plt.xlabel('Leave one block out offline decoding accuracy')
     
-    # plt.title('Stable blocks decoding accuracy vs. pre-training sensitivity')
+    plt.title("Decoding error rate vs. pre-training response time")
     plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
     
     # for i, txt in enumerate(subjID_C_a):
@@ -939,17 +938,15 @@ def behDay2VSdecode(wanted_measure,ylabel,LOBO=False):
 
     subsNF_LORO1 = np.delete(subsNF_LORO, 2)
     subsAll_LORO1 = np.delete(subsAll_LORO, 2)
-    
-    subsNF_LOBO1 = np.delete(subsNF_LOBO, 2)
-    
+        
     # For all subjects
-    r_val_all = np.corrcoef(subsAll_LORO, all_d2)
+    r_val_all = np.corrcoef(subsAll_LORO1, all_d2)
     print('Correlation coefficient, all participants: ',r_val_all[0][1])
 
     # Create arrays
     if LOBO == False:
-        subsC_LORO_a = np.array(subsC_LORO1).flatten()
-        subsNF_LORO_a = np.array(subsNF_LORO).flatten()
+        subsC_LORO_a = np.array(1-subsC_LORO).flatten()
+        subsNF_LORO_a = np.array(1-subsNF_LORO1).flatten()
     if LOBO == True:
         subsC_LORO_a = np.array(subsC_LOBO1).flatten()
         subsNF_LORO_a = np.array(subsNF_LOBO).flatten()
@@ -985,11 +982,11 @@ def behDay2VSdecode(wanted_measure,ylabel,LOBO=False):
     
     plt.ylabel(ylabel + ' EEG session (day 2)')
     if LOBO == False:
-        plt.xlabel('Mean offline decoding accuracy during stable blocks (LORO)')
+        plt.xlabel('Mean decoding error rate during stable blocks')
     if LOBO == True:
         plt.xlabel('Leave one block out offline decoding accuracy')
     
-    plt.title('Stable blocks decoding accuracy vs. EEG session response time')
+    plt.title("Decoding error rate vs. EEG session response time")
     plt.grid(color='gainsboro',linewidth=0.5)
 
     
@@ -1005,15 +1002,10 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
     all_d1, NF_d1, C_d1 = extractStatsDay(1,wanted_measure)
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
     
-    if wanted_measure == 'rt':
-        diffNF = (np.asarray(NF_d1) - np.asarray(NF_d3))
-        diffC = (np.asarray(C_d1) - np.asarray(C_d3))
-        diff = (np.asarray(all_d1) - np.asarray(all_d3))
-    else:
-        diffNF = (np.asarray(NF_d3) - np.asarray(NF_d1))
-        diffC = (np.asarray(C_d3) - np.asarray(C_d1))
-        diff = (np.asarray(all_d3) - np.asarray(all_d1))
-    
+    diffNF = (np.asarray(NF_d3) - np.asarray(NF_d1))
+    diffC = (np.asarray(C_d3) - np.asarray(C_d1))
+    diff = (np.asarray(all_d3) - np.asarray(all_d1))
+
     if actual_stim == True and rt_acc == True: # RT accuracy
         # For all subjects
         # diff = (np.asarray(all_d3) - np.asarray(all_d1))
@@ -1098,14 +1090,14 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         # plt.scatter((subsNF_RT_acc.tolist()),(diffNF.tolist()),color='tomato',label='NF')
         plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='tomato',zorder=3)
         
-        lm2.fit(np.reshape((subsNF_meanAlphas),[-1,1]),np.reshape((diffCnewsort),[-1,1]))
-        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm2.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
+        lm.fit(np.reshape((subsNF_meanAlphas),[-1,1]),np.reshape((diffCnewsort),[-1,1]))
+        plt.plot(np.reshape(subsNF_meanAlphas,[-1,1]), lm.predict(np.reshape(subsNF_meanAlphas,[-1,1])),linewidth=1,color='dodgerblue',zorder=3)
 
         plt.scatter((subsNF_meanAlphas),(diffNF),color='tomato',label='NF',zorder=2)
         plt.scatter((subsNF_meanAlphas),(diffCnewsort),color='dodgerblue',label='Control',zorder=2)
-        plt.ylabel(r"$\Delta$ A' (day 1 to 3)")
+        plt.ylabel(r"$\Delta$ Response time (s) (day 1 to 3)")
         plt.xlabel('Mean task-relevant image proportion (alpha)')
-        # plt.title(r'$\Delta$ Response time vs. mean task-relevant image proportion')
+        plt.title(r"Mean task-relevant image proportion vs. $\Delta$ response time")
         plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
         plt.legend()
         
@@ -1123,23 +1115,6 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         print('Corr coef of all participants: ',round(r_all[0][1],3))
         print('Corr coef of NF participants: ',round(r_NF[0][1],3))
         print('Corr coef of control participants: ',round(r_C[0][1],3))
-        
-        # Using decoding RT on x-axis, DOUBLE X AXIS LEGEND?
-        
-        # plt.figure(random.randint(0,30))
-        # plt.scatter((subsNF_RT_acc),(diffCnewsort),color='tomato',label='Control with NF stimuli')
-        # # plt.scatter((subsNF_RT_acc),(diffC),color='green',label='green')
-        # plt.scatter((subsNF_RT_acc),(diffNF),color='green',label='NF')
-        # plt.ylabel(r'$\Delta$ sensitivity (day 1 to 3)')
-        # plt.xlabel('Real-time decoding a')
-        
-        # np.corrcoef(subsNF_RT_acc,diffCnewsort)
-        
-        # allNewSort = subsNF_RT_acc.tolist() + subsNF_RT_acc.tolist()
-        # allDiffNewSort = diffNF.tolist() + diffCnewsort
-        
-        # np.corrcoef(allNewSort,allDiffNewSort)
-        
         
 #%% Make 3 day plot
 def threeDay(wanted_measure):
@@ -1268,8 +1243,8 @@ def threeDay2(wanted_measure):
     all_d3, NF_d3, C_d3 = extractStatsDay(3,wanted_measure)
     
     # Cmap for NF
-    normNF = matplotlib.colors.Normalize(vmin=np.min(subsNF_RT_acc), vmax=np.max(subsNF_RT_acc))
-    normC = matplotlib.colors.Normalize(vmin=np.min(subsC_RT_acc), vmax=np.max(subsC_RT_acc))
+    normNF = matplotlib.colors.Normalize(vmin=np.min(1-subsNF_RT_acc), vmax=np.max(1-subsNF_RT_acc))
+    normC = matplotlib.colors.Normalize(vmin=np.min(1-subsC_RT_acc), vmax=np.max(1-subsC_RT_acc))
     
     cmReds=cm.get_cmap("Reds")
     cmBlues=cm.get_cmap("Blues")
@@ -1277,20 +1252,19 @@ def threeDay2(wanted_measure):
     fig,ax = plt.subplots()
     plt.xticks([1,2,3],['Pre-training (day 1)','EEG (day 2)', 'Post-training (day 3)'])
     plt.ylabel("A'")        
-    # plt.title('Behavioral accuracy day 1, 2 and 3 for NF group')
-    plt.scatter(np.full(11,1),NF_d1,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
-    plt.scatter(np.full(11,2),NF_d2,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
-    plt.scatter(np.full(11,3),NF_d3,c=subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
-    #cbar = plt.colorbar()
-    #cbar.set_label('Real-time decoding accuracy')
+    plt.title("A' across day 1, 2 and 3 for NF group")
+    plt.scatter(np.full(11,1),NF_d1,c=1-subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    plt.scatter(np.full(11,2),NF_d2,c=1-subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    plt.scatter(np.full(11,3),NF_d3,c=1-subsNF_RT_acc,cmap='Reds',s=60,zorder=2)
+    cbar = plt.colorbar()
+    cbar.set_label('Real-time decoding error rate')
 
     for i in range(11):
         plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
-                  [(NF_d1)[i],(NF_d2)[i],(NF_d3)[i]],c=cmReds(normNF(subsNF_RT_acc[i])),linewidth=3,zorder=3)
+                  [(NF_d1)[i],(NF_d2)[i],(NF_d3)[i]],c=cmReds(normNF(1-subsNF_RT_acc[i])),linewidth=3,zorder=3)
         
     ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
 
-    
 
     # plt.plot([(np.full(11,1))[2],(np.full(11,3))[2]],\
     #               [(NF_d1)[2],(NF_d3)[2]],c=cmReds(normNF(subsNF_RT_acc[2])),linewidth=3)
@@ -1300,17 +1274,17 @@ def threeDay2(wanted_measure):
     fig,ax = plt.subplots()
     plt.xticks([1,2,3],['Pre-training (day 1)','EEG (day 2)', 'Post-training (day 3)'])
     plt.ylabel("A'")             
-    # plt.title('Behavioral accuracy day 1, 2 and 3 for NF group')
-    plt.scatter(np.full(11,1),C_d1,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
-    plt.scatter(np.full(11,2),C_d2,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
-    plt.scatter(np.full(11,3),C_d3,c=subsC_RT_acc,cmap='Blues',s=60,zorder=2)
-    #cbar = plt.colorbar()
-    cbar.set_label('Real-time decoding accuracy')
+    plt.title("A' across day 1, 2 and 3 for control group")
+    plt.scatter(np.full(11,1),C_d1,c=1-subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    plt.scatter(np.full(11,2),C_d2,c=1-subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    plt.scatter(np.full(11,3),C_d3,c=1-subsC_RT_acc,cmap='Blues',s=60,zorder=2)
+    cbar = plt.colorbar()
+    cbar.set_label('Real-time decoding error rate')
     ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
     
     for i in range(11):
         plt.plot([(np.full(11,1))[i],(np.full(11,2))[i],(np.full(11,3))[i]],\
-                  [(C_d1)[i],(C_d2)[i],(C_d3)[i]],c=cmBlues(normC(subsC_RT_acc[i])),linewidth=3,zorder=3)#c=cm.hot(i/11))   
+                  [(C_d1)[i],(C_d2)[i],(C_d3)[i]],c=cmBlues(normC(1-subsC_RT_acc[i])),linewidth=3,zorder=3)  
     
     
     

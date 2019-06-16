@@ -106,6 +106,7 @@ matplotlib.rcParams['mathtext.it'] = 'Bitstream Vera Sans:italic'
 matplotlib.rcParams['mathtext.bf'] = 'Bitstream Vera Sans:bold'
 matplotlib.rcParams['legend.frameon'] = True
 matplotlib.rc('text',usetex=True)
+# matplotlib.rc('text',usetex=False)
 matplotlib.rc('font',family='serif')
 plt.rcParams.update({'font.size':12})
 matplotlib.rcParams['grid.alpha'] = 1
