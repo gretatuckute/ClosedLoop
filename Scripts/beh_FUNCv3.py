@@ -644,7 +644,7 @@ def plotResponseTimes(expDay):
     
     plt.figure(random.randint(0,100))
     colorAll = sns.color_palette("Set2",22)
-    plt.title('Response times, EEG session')
+    plt.title('Response times, EEG session (day 2)')
     
     if expDay != '2':
         plt.xticks(np.arange(0,850,50),[str(item) for item in np.arange(0,850,50)])
@@ -652,13 +652,13 @@ def plotResponseTimes(expDay):
         plt.xticks(np.arange(0,2450,100),[str(item) for item in np.arange(0,2450,100)],rotation=90)
         
     plt.xlabel('Trial number')
-    plt.ylabel('Response time (ms)')
+    plt.ylabel('Response time (s)')
     
     for j in range(len(responseTimes_all)):
         plt.plot(responseTimes_all[j],color=colorAll[j],linewidth=0.3)
         
-    plt.plot(np.nanmean(responseTimes_all,axis=0),label='Mean response time (all participants)',color='black',linewidth=1.5)
-    plt.legend()
+    plt.plot(np.nanmean(responseTimes_all,axis=0),label='Mean all participants',color='black',linewidth=1.5)
+    plt.legend(loc='upper left')
     plt.tight_layout()
     # plt.savefig('rt_alld2.eps', bbox_inches = "tight")
     

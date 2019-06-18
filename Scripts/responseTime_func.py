@@ -525,3 +525,33 @@ def findFiles(fileLst,expDay):
     
     return catFile, stimuliFile, keypressFile
     
+def outputStableLureIdx(subjID):
+    catFile = 'P:\\closed_loop_data\\' + str(subjID) + '\\createIndices_'+subjID+'_day_2.csv'
+
+    # Extract categories from category file
+    domCats, shownCats = extractCat(catFile)
+    
+    lureLst = [] 
+    lureIdx = [] # Lure indices 
+    
+    CRlst = []
+    CR_idx = [] # Indices of correctly rejected lures
+
+    # Figure out whether a shown stimuli is a lure 
+    for count, entry in enumerate(domCats):
+        if entry == shownCats[count]:
+            lureLst.append(0)
+        else:
+            lureLst.append(1) # lures = 1
+            lureIdx.append(count)
+        
+    allIdx = range(len(domCats)) 
+    non_lureIdx = [x for x in allIdx if x not in lureIdx]
+    
+    # extract for stable
+    
+    lureLst_stable_fbrun = np.concatenate([lureLst[400+n*400:600+n*400] for n in range(5)]) # Stable blocks feedback run    
+    lureStable = np.concatenate((lureLst[:400], lureLst_stable_fbrun))
+    
+    return lureStable
+    

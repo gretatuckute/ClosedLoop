@@ -292,7 +292,7 @@ def analyzeOffline(subjID):
         
         # Save clf _coefs
         coefs = clf.coef_
-        coef_r = np.reshape(coefs, [23,90])
+        coef_r = np.reshape(coefs, [23,n_samples_fs100])
         coef_lst.append(coef_r)
 
         # Test accuracy of RT epochs

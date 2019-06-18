@@ -23,6 +23,7 @@ scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
 
 from variables import *
+from responseTime_func import outputStableLureIdx
 
 #%% Pipeline with updated LORO and ouput alpha and clf output values
 
@@ -396,6 +397,9 @@ for el in range(0,90):
 
 plt.figure(50)
 plt.scatter(np.arange(0,90),p_vals)
+plt.figure(52)
+plt.plot(np.arange(0,90),p_vals)
+
 # plt.xticks(np.arange(0,95,5),[str(item) for item in np.arange(-100,850,50)])
 
 sig_p = []
@@ -422,11 +426,50 @@ bools, p_adj, x, x2 = sm.multipletests(p_vals,method='bonferroni')
 # Use MNE cluster permutation
 X_input = [face_5chs,scene_5chs]
 X_3Dinput = [dat_5chs,dat_5chs_face]
+# Reshape to [22, 90, 5]
+dat_5chs_r = dat_5chs.transpose(0, 2, 1)
+dat_5chs_face_r = dat_5chs_face.transpose(0, 2, 1)
 
-Fobs, clusters, clusters_pval, H0 = mne.stats.permutation_cluster_test(X_3Dinput)
-Fobs1, clusters1, clusters_pval1, H01 = mne.stats.permutation_cluster_test(X_input,n_permutations=10)
+# If using 3d:
+# observations x time x space
+# Extract data: transpose because the cluster test requires channels to be last
+# In this case, inference is done over items. In the same manner, we could
+# also conduct the test over, e.g., subjects.
 
-plt.plot(clusters1)
+tfce = dict(start=0.5, step=.6)
+
+
+X_3D_trans = [dat_5chs_face_r,dat_5chs_r]
+F, c, c_pvals, H0 = mne.stats.spatio_temporal_cluster_test(X_3D_trans,threshold=tfce)
+
+
+# If 2d input:
+F, c1, c_pvals1, H01 = mne.stats.permutation_cluster_test(X_input,threshold=tfce,tail=1,n_permutations=100)
+sig_points = c_pvals1.reshape(F.shape).T < .05
+
+plt.figure(10)
+plt.plot(c_pvals1)
+
+plt.figure(10)
+plt.plot(sig_points)
+
+
+# 2d using epochsarray
+t1 = MNEstable_all[2]['face'].get_data()
+t2 = MNEstable_all[2]['scene'].get_data()
+
+t1t = t1.transpose(0, 2, 1)
+t2t = t2.transpose(0, 2, 1)
+
+Fobs1, clusters1, clusters_pval1, H01 = mne.stats.permutation_cluster_test([t1[:,6,:],t2[:,6,:]],threshold=tfce,tail=1)
+plt.plot(clusters_pval1)
+
+Fobs1, clusters1, clusters_pval1, H01=mne.stats.spatio_temporal_cluster_test([t1t,t2t],tfce,n_permutations=100)
+
+significant_points = clusters_pval1.reshape(Fobs1.shape).T < .05
+
+print(str(significant_points.sum()) + " points selected by TFCE ...")
+plt.plot(significant_points)
 
 
 #%%
@@ -561,7 +604,6 @@ evoked_array_c1 = []
 for idx,cat in enumerate(events_list):
     if cat == 0:
         evoked_array_c0.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Scenes 0
-        print
     if cat == 1:
         evoked_array_c1.append(mne.EvokedArray(g2[idx], info_fs100,tmin=-0.1,comment=cat)) # Faces 1
 
@@ -582,6 +624,74 @@ e_dict['Face'] = MNEevoked_face
 mne.viz.plot_compare_evokeds(e_dict,picks=[6,7,12,13,22],colors=['r','b'],\
                              truncate_xaxis=False,title='Scene vs face ERP, meaned across all participants',\
                              show_sensors=True,show_legend=True,truncate_yaxis=False) #cmap='viridis'
+
+#%%
+# Investigate lure vs non lure ERPs
+
+# E.g. for subject 07
+
+b = MNEstable_all[1].get_data()
+
+lureStable = outputStableLureIdx('08')
+
+b_lure = b[lureStable==1]
+b_lure_avg = np.mean(b_lure,axis=0)
+plt.plot(b_lure_avg[6,:])
+b_nonlure = b[lureStable==0]
+
+evoked_lure = []
+evoked_nonlure = []
+
+for idx,cat in enumerate(lureStable):
+    if cat == 0:
+        evoked_nonlure.append(mne.EvokedArray(b[idx], info_fs100, tmin=-0.1,comment=cat)) # nonlures 0
+    if cat == 1:
+        evoked_lure.append(mne.EvokedArray(b[idx], info_fs100,tmin=-0.1,comment=cat)) # lure 1
+
+
+
+e_dict_s = {}
+e_dict_s['nonlure'] = evoked_nonlure
+e_dict_s['lure'] = evoked_lure
+
+mne.viz.plot_compare_evokeds(e_dict_s,picks=[6,7,12,13,22],colors=['r','b'],\
+        truncate_xaxis=False,title='Participant ' + str(subjID_all[idx]),\
+        show_sensors=False,show_legend=True,truncate_yaxis=False,ci=True)
+
+mne.viz.plot_compare_evokeds(e_dict_s,picks=[6])
+
+# True lure labeling
+
+#%% Save lure figs for individuals 
+grand_e_dict = {}
+
+
+for idx,subj in enumerate(MNEstable_all):
+    single_sub = MNEstable_all[idx].get_data()
+    print(idx)
+    lureStable = outputStableLureIdx(subjID_all[idx])
+
+    evoked_lure = []
+    evoked_nonlure = []
+
+    for catidx,cat in enumerate(lureStable):
+        print(catidx)
+        if cat == 0:
+            evoked_nonlure.append(mne.EvokedArray(single_sub[catidx], info_fs100,tmin=-0.1,comment=cat)) # nonlure 0
+        if cat == 1:
+            evoked_lure.append(mne.EvokedArray(single_sub[catidx], info_fs100,tmin=-0.1,comment=cat)) # lure 1
+
+    e_dict_s = {}
+    e_dict_s['Non-lure'] = evoked_nonlure
+    e_dict_s['Lure'] = evoked_lure
+    
+    # grand_e_dict['Non-lure'] = [e_dict_s['Non-lure']] # Rearranges alphabetically
+    # grand_e_dict['Lure'] = [e_dict_s['Lure']]
+
+    fig = mne.viz.plot_compare_evokeds(e_dict_s,picks=[6,7,12,13,22],colors=['r','g'],truncate_xaxis=False,title='Participant ' + str(subjID_all[idx]),show_sensors=False,show_legend=True,truncate_yaxis=False,ci=True)
+    fig.savefig('C://Users//Greta//Desktop//closed_loop//RESULTS//thesis_plots//EEG_done//single_ERPs//lure_evoked_'+str(subjID_all[idx])+'.png',dpi=180)
+
+mne.viz.plot_compare_evokeds(grand_e_dict,picks=[6,7,12,13,22])
 
 
 #%%
