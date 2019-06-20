@@ -288,7 +288,10 @@ def extractHandFA(day_idx,wanted_measure):
     return np.asarray(subsAll), np.asarray(subsNF), np.asarray(subsC)
 
 def extractDividedStats(wanted_measure):
-    wanted_measure_lst = ['sen','fpr','acc','er','rer','a','arer','rt']
+    '''
+    sensitivity, FPR, accuracy, errorrate, A, ARER, RT_mean
+    '''
+    wanted_measure_lst = ['sen','fpr','acc','er','a','arer','rt']
     w_idx = wanted_measure_lst.index(wanted_measure)
     
     subsAll = []
@@ -837,12 +840,12 @@ def computeDividedCorr(wanted_measure):
     '''
     # Load RT acc
     # subsNF_RT_acc = np.load(scriptsDir+'subsNF_RT_acc.npy').flatten()
-    subsNF_RT_acc1 = np.delete(subsNF_RT_acc,2)
+    subsNF_RT_acc1 = 1-np.delete(subsNF_RT_acc,2)
 
     # subsC_RT_acc = np.load(scriptsDir+'subsC_RT_acc.npy').flatten()
     
     # subsAll_RT_acc = np.load(scriptsDir+'subsAll_RT_acc.npy')
-    subsAll_RT_acc1 = np.delete(subsAll_RT_acc, 2)
+    subsAll_RT_acc1 = 1-np.delete(subsAll_RT_acc, 2)
     
     subsAll, subsAll_NFBlocks, subsAll_stableBlocks, subsNF, subsNF_NFBlocks, subsNF_stableBlocks, subsC, subsC_NFBlocks, subsC_stableBlocks = extractDividedStats(wanted_measure)
     
@@ -865,9 +868,9 @@ def computeDividedCorr(wanted_measure):
     print('NF subs, stable blocks corr: ', round((np.corrcoef(subsNF_stableBlocks,subsNF_RT_acc1))[0][1],3))
     
      # C subs
-    print('C subs, all blocks corr: ', round((np.corrcoef(subsC,subsC_RT_acc))[0][1],3))
-    print('C subs, NF blocks corr: ', round((np.corrcoef(subsC_NFBlocks,subsC_RT_acc))[0][1],3))
-    print('C subs, stable blocks corr: ', round((np.corrcoef(subsC_stableBlocks,subsC_RT_acc))[0][1],3))
+    print('C subs, all blocks corr: ', round((np.corrcoef(subsC,1-subsC_RT_acc))[0][1],3))
+    print('C subs, NF blocks corr: ', round((np.corrcoef(subsC_NFBlocks,1-subsC_RT_acc))[0][1],3))
+    print('C subs, stable blocks corr: ', round((np.corrcoef(subsC_stableBlocks,1-subsC_RT_acc))[0][1],3))
 
 def behVSdecode(wanted_measure,ylabel,LOBO=False):
     '''Uses LORO and LOBO'''
@@ -1096,7 +1099,7 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
         plt.scatter((subsNF_meanAlphas),(diffNF),color='tomato',label='NF',zorder=2)
         plt.scatter((subsNF_meanAlphas),(diffCnewsort),color='dodgerblue',label='Control',zorder=2)
         plt.ylabel(r"$\Delta$ Response time (s) (day 1 to 3)")
-        plt.xlabel('Mean task-relevant image proportion (alpha)')
+        plt.xlabel(r"Mean task-relevant image proportion $\alpha$")
         plt.title(r"Mean task-relevant image proportion vs. $\Delta$ response time")
         plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
         plt.legend()

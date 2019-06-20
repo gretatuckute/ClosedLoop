@@ -206,6 +206,8 @@ rer_NF_d2 = np.delete(rer_NF_d2,2)
 a_NF_d2 = np.delete(a_NF_d2,2)
 rt_NF_d2 = np.delete(rt_NF_d2,2)
 
+subsNF_RT_acc = np.delete(subsNF_RT_acc,2)
+
 # Sensitivity
 plt.figure(100)
 plt.scatter(subsAll_c,sen_all_d2_c)
@@ -213,8 +215,8 @@ plt.ylabel('Sensitivity day 2')
 plt.xlabel('Real-time decoding accuracy (NF blocks)')
 plt.title('Sensitivity day 2 vs. real-time decoding accuracy, N=21')
 
-np.corrcoef(sen_NF_d2,subsNF_RT_acc)
-np.corrcoef(sen_C_d2,subsC_RT_acc)
+np.corrcoef(rer_NF_d2,subsNF_RT_acc)
+np.corrcoef(a_C_d2,subsC_RT_acc)
 np.corrcoef(sen_all_d2_c,subsAll_c)
 
 # Accuracy
@@ -250,7 +252,7 @@ np.corrcoef(rt_all_d2_c,subsAll_c)
 # Investigate beh 2 divided into STABLE and NF blocks beh measure
 
 #%% RT accuracy vs all day 2, NF day 2 or stable day 2
-computeDividedCorr('acc',RER=True)    
+computeDividedCorr('a')    
     
 #%% ################### BEH vs BEH #################
 sen_all_d2, sen_NF_d2, sen_C_d2 = extractStatsDay(2,'sen')

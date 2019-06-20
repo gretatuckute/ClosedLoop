@@ -73,6 +73,9 @@ subsNF_meanAlphas = np.load(npyDir+'subsNF_meanAlphas.npy')
 with open(npyDir+'d_all2.pkl', "rb") as fin:
     d_all2 = (pickle.load(fin))
 
+# d_all3
+with open(npyDir+'d_all3.pkl', "rb") as fin:
+    d_all3 = (pickle.load(fin))
 
 #%% Load stats dictionaries for all subjects
 # 3005 includes errorrate, RER, A, ARER. Extracted as 150-150 ms.

@@ -112,9 +112,9 @@ plt.grid(color='gainsboro',linewidth=0.5)
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,len(subsNF),1),(1-subsNF),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(len(subsC),len(subsAll),1),1-subsC,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
-plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)])
+plt.bar(np.arange(0,len(subsNF),1),(1-subsNF),edgecolor='tomato',color='white',zorder=2,linewidth=0.5) # NF subjects
+plt.bar(np.arange(len(subsC),len(subsAll),1),1-subsC,edgecolor='dodgerblue',color='white',zorder=2,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,len(subsAll),1),[str(item) for item in np.arange(1,len(subsAll)+1,1)],zorder=5)
 plt.xlabel('Participants')
 plt.ylabel('Decoding error rate')
 plt.title('Real-time decoding error rate')
@@ -126,6 +126,7 @@ plt.hlines(1-NF_mean,-0.5,11-0.5,label='Mean NF',color='tomato',zorder=4,linesty
 plt.hlines(1-C_mean,11-0.5,22-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
 plt.legend(loc='upper right')
+
 
 
 #%% Plot RT accuracies cor vs uncor
@@ -229,9 +230,9 @@ subsAll_LORO, subsNF_LORO, subsC_LORO, meanAll_LORO, meanNF_LORO, meanC_LORO = e
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,11,1),(1-subsNF_LORO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(11,22,1),1-subsC_LORO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
-plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
+plt.bar(np.arange(0,11,1),(1-subsNF_LORO),edgecolor='tomato',color='white',zorder=2,linewidth=0.5) # NF subjects
+plt.bar(np.arange(11,22,1),1-subsC_LORO,edgecolor='dodgerblue',color='white',zorder=2,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)],zorder=5)
 plt.xlabel('Participants')
 plt.ylabel('Decoding error rate')
 plt.title('Classifier error rate \nLeave-one-run-out cross-validation') #########
@@ -249,9 +250,9 @@ subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = e
 
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
-plt.bar(np.arange(0,11,1),(1-subsNF_LOBO),edgecolor='tomato',color='white',zorder=3,linewidth=0.5) # NF subjects
-plt.bar(np.arange(11,22,1),1-subsC_LOBO,edgecolor='dodgerblue',color='white',zorder=3,linewidth=0.5) # C subjects
-plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)])
+plt.bar(np.arange(0,11,1),(1-subsNF_LOBO),edgecolor='tomato',color='white',zorder=2,linewidth=0.5) # NF subjects
+plt.bar(np.arange(11,22,1),1-subsC_LOBO,edgecolor='dodgerblue',color='white',zorder=2,linewidth=0.5) # C subjects
+plt.xticks(np.arange(0,22,1),[str(item) for item in np.arange(1,22+1,1)],zorder=5)
 plt.xlabel('Participants')
 plt.ylabel('Decoding error rate')
 plt.title('Classifier error rate \nLeave-one-block-out cross-validation') #########

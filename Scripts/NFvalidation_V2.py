@@ -63,6 +63,35 @@ def extractVal2(wkey):
     
     return subsAll, subsNF, subsC
 
+def extractVal3(wkey):
+    '''
+    Extracts a value from the EEG dict, d_all3.
+    '''
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in d_all3.items():
+        subsNF_result = []
+        subsC_result = []
+        
+        for k, v in value.items():        
+            if k == wkey:                
+                subsAll.append(v)
+                
+                if key in subjID_NF:
+                    subsNF_result.append(v)
+                if key in subjID_C:
+                    subsC_result.append(v)
+        
+        if len(subsNF_result) == 1:
+            subsNF.append(subsNF_result[0])
+            
+        if len(subsC_result) == 1:
+            subsC.append(subsC_result[0])
+    
+    return subsAll, subsNF, subsC
+
 #%%
 def blockAlpha():
     '''
@@ -1292,13 +1321,43 @@ plt.legend()
 #     cap.set_markeredgewidth(2)
 
 
+#%% Extracting dictionary based on 14th June experiments
+# d_all3 = {}
+
+# for subj in subjID_all:
+#     with open(EEGDir+'14Jun_subj_'+subj+'.pkl', "rb") as fin:
+#           d_all3[subj] = (pickle.load(fin))[0]
+
+# fname = 'd_all3.pkl'         
+# with open(npyDir+fname, 'wb') as fout:
+#       pickle.dump(d_all3, fout)
+
 
 #%% Analyzing coefs
-coef_avg = np.mean(coef_lst, axis=0)
+subsAll_c, subsNF_c, subsC_c = extractVal3('RT_coefs')
 
+# Average across one person, 5 clfs
+coef_avg_lst = []
+c=0
+for subj in subsAll_c:
+    coef_avg = np.mean(subj, axis=0)
+    
+    if c < 3:
+        print('y')
+        coef_avg = coef_avg[:,:90]
 
+    coef_avg_lst.append(coef_avg)
+    c+=1
+    
+# Avg across all
+coefs_all = np.zeros((22,23,90))
 
-plt.matshow(coef_avg, cmap = 'RdBu')
+for idx,entry in enumerate(coef_avg_lst):
+    coefs_all[idx] = entry
+
+coefs_all_avg = np.mean(coefs_all,axis=0)
+
+plt.matshow(coefs_all_avg, cmap = 'RdBu')
 channel_vector = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
 time_vector = ['-100','0','100','200','300','400','500','600','700','800']
 plt.xlabel('Time (ms)')
@@ -1307,6 +1366,12 @@ plt.yticks(np.arange(23),channel_vector)
 plt.ylabel('Channel name ')
 plt.colorbar()
 
+#%% First vs last train run
+subsAll_1, subsNF_1, subsC_1 = extractVal3('LORO_first_acc_corr')
+subsAll_2, subsNF_2, subsC_2 = extractVal3('LORO_last_acc_corr')
+
+np.mean(subsAll_1)
+np.mean(subsAll_2)
 
 
 

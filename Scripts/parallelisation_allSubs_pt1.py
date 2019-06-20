@@ -8,7 +8,7 @@ Created on Fri Aug 17 12:47:28 2018
 import numpy as np
 import multiprocessing
 
-from offline_additional_FUNC import *
+from offline_additional_FUNC_v1 import *
 
 multiprocessing.cpu_count()
 
@@ -28,7 +28,7 @@ def fit(subjID):
     
 
 def train():
-    sub_types = ['07','08','11']#,'13','14','15','16','17','18','19','21']#,'22','23','24','25','26','27','30','31','32','33','34']
+    sub_types = ['07','08','11','13','14','15','16','17','18','19','21']#,'22','23','24','25','26','27','30','31','32','33','34']
         
     processes   = [] # for parallelism
     

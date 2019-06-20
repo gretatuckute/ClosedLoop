@@ -8,7 +8,7 @@ Created on Fri Aug 17 12:47:28 2018
 import numpy as np
 import multiprocessing
 
-from offline_additional_FUNC import *
+from offline_additional_FUNC_v1 import *
 
 multiprocessing.cpu_count()
 
