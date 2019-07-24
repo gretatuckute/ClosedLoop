@@ -13,6 +13,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 import numpy as np
 from scipy.stats import zscore
+from sympy import symbols, solve
 
 def scale2DArray(eeg_array,axis=1):
     '''
@@ -269,10 +270,10 @@ def sigmoid(x):
     Transfer function not continuous.
     
     Input:
-    - x: Integer between -1 and 1, prediction probability value.
+    - x: Float between -1 and 1, prediction probability value.
     
     Output:
-    - alpha: Integer between 0.17 and 0.98, mapped using the sigmoid function with specified parameters.
+    - alpha: Float between 0.17 and 0.98, mapped using the sigmoid function with specified parameters.
     
     '''
     
@@ -294,5 +295,44 @@ def sigmoid(x):
     return alpha
 
 
+def solveSigmoid(alpha):
+    '''
+    alpha = ((A-D)/(1+10**((C-x)*B))) + D
+    '''
+    x = symbols('x',real=True)
 
     
+    offset1 = 0.0507
+    offset2 = 0.0348
+    A1 = 0.98 + offset1
+    B = 1.3 # Steepness
+    C = 0 # Inflection point
+    D1 = 1 - A1 # 0.17
+    D2 = 0.17 - offset2
+    A2 = 1 - D2
+    
+    if alpha >= 0.5: # I.e. when the clf output is >= 0 
+        expr = (((A1-D1)/(1+10**((C-x)*B))) + D1) - alpha # Last val here is alpha, i.e. the output from the sigmoid function
+    if alpha < 0.5:
+        expr = (((A2-D2)/(1+10**((C-x)*B))) + D2) - alpha
+        
+    return solve(expr)
+
+#%% Test if sigmoid conversion works
+# clfout = d_all2['13']
+# clfout_13 = clfout['CLFO_test']
+# alpha_13 = clfout['ALPHA_test']
+
+# clfout_match = []
+# for alpha in alpha_13[:20]:
+#     clfout_val = (solveSigmoid(alpha)[0]).evalf(3)
+#     clfout_match.append(clfout_val)
+
+
+
+
+
+
+
+
+

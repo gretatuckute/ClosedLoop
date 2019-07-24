@@ -18,6 +18,10 @@ import os
 import numpy as np
 import mne
 import matplotlib.cm as cm
+import statsmodels.stats.multitest as sm
+from scipy import stats
+
+
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
@@ -151,7 +155,7 @@ plt.hlines(1-NF_mean_uncor,-0.5,11-0.5,color='brown',zorder=4,linestyles='dashed
 
 plt.hlines(1-C_mean,11-0.5,22-0.5,color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(1-C_mean_uncor,11-0.5,22-0.5,color='navy',zorder=4,linestyles='dashed',linewidth=2)
-#plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
+
 
 plt.ylim(0.27,0.55)
 plt.legend(loc='upper right')
@@ -421,31 +425,82 @@ plt.xlabel('Samples')
 plt.ylabel('-log(p)')
 plt.hlines(cor_alphalog,0,90,color='red')
 
-import statsmodels.stats.multitest as sm
 bools, p_adj, x, x2 = sm.multipletests(p_vals,method='bonferroni')
 
-# Use MNE cluster permutation
+#%% Use MNE cluster permutation
 X_input = [face_5chs,scene_5chs]
 X_3Dinput = [dat_5chs,dat_5chs_face]
 # Reshape to [22, 90, 5]
 dat_5chs_r = dat_5chs.transpose(0, 2, 1)
 dat_5chs_face_r = dat_5chs_face.transpose(0, 2, 1)
 
-# If using 3d:
-# observations x time x space
-# Extract data: transpose because the cluster test requires channels to be last
-# In this case, inference is done over items. In the same manner, we could
-# also conduct the test over, e.g., subjects.
+tfce = dict(start=0.2, step=.2)
 
-tfce = dict(start=0.5, step=.6)
+# Make a simple test with mean of 2D input
+face_mean = np.mean(face_5chs, axis=0)
+scene_mean = np.mean(scene_5chs, axis=0)
+
+# Visualize the means
+plt.figure(100)
+plt.plot(face_mean)
+plt.plot(scene_mean)
+
+F, c1, c_pvals1, H01 = mne.stats.permutation_cluster_test([face_mean,scene_mean])
+
+# Create artificial data
+noise = np.random.normal(0,0.2,[22,90])
+noise2 = np.random.normal(0,0.2,[22,30])
+
+cond1 = np.ones((22,90)) + noise
+
+flat = np.ones((22,30)) + noise2
+peak = np.full((22,30),10) + noise2
+
+cond2 = np.hstack((flat,peak,flat))
+
+cond1_3d = np.dstack((cond1,cond1,cond1))
+cond2_3d = np.dstack((cond2,cond2,cond2))
+
+F, c1, c_pvals1, H01 = mne.stats.permutation_cluster_test([cond1,cond2],n_permutations=100,threshold=10,tail=1) # Finds one cluster
+
+# The above test corresponds to 
+T_obs, clusters, cluster_p_values, H0 = mne.stats.permutation_cluster_test([face_5chs,scene_5chs],threshold=0.1,n_permutations=1000,tail=1)#,threshold=3) 
+
+times = np.arange(0,90)
+
+plt.subplot(211)
+plt.plot(np.arange(0,90),face_mean)
+plt.plot(np.arange(0,90),scene_mean)
+
+plt.subplot(212)
+for i_c, c in enumerate(clusters):
+    c = c[0]
+    
+    h = plt.axvspan(times[c.start], times[c.stop - 1],
+                        color='r', alpha=0.3)
+    
+# Artificial data
+T_obs1, clusters1, cluster_p_values1, H01 = mne.stats.permutation_cluster_test([cond1,cond2],n_permutations=1000,tail=1,threshold=3) 
 
 
-X_3D_trans = [dat_5chs_face_r,dat_5chs_r]
-F, c, c_pvals, H0 = mne.stats.spatio_temporal_cluster_test(X_3D_trans,threshold=tfce)
+plt.subplot(211)
+plt.plot(np.arange(0,90),np.mean(cond1,axis=0))
+plt.plot(np.arange(0,90),np.mean(cond2,axis=0))
 
+plt.subplot(212)
+for i_c, c in enumerate(clusters1):
+    c = c[0]
+    
+    h = plt.axvspan(times[c.start], times[c.stop - 1],
+                        color='r', alpha=0.3)    
+
+
+#%% Artificial data, 3d
+F, c1, c_pvals1, H01 = mne.stats.spatio_temporal_cluster_test([cond1_3d,cond2_3d])
+# Finds the one, big cluster
 
 # If 2d input:
-F, c1, c_pvals1, H01 = mne.stats.permutation_cluster_test(X_input,threshold=tfce,tail=1,n_permutations=100)
+F, c1, c_pvals1, H01 = mne.stats.permutation_cluster_test(X_input,tfce,tail=1,n_permutations=1000)
 sig_points = c_pvals1.reshape(F.shape).T < .05
 
 plt.figure(10)
@@ -455,6 +510,16 @@ plt.figure(10)
 plt.plot(sig_points)
 
 
+
+
+
+X_3D_trans = [dat_5chs_face_r,dat_5chs_r]
+F, c, c_pvals, H0 = mne.stats.spatio_temporal_cluster_test(X_3D_trans,threshold=tfce)
+
+
+
+
+
 # 2d using epochsarray
 t1 = MNEstable_all[2]['face'].get_data()
 t2 = MNEstable_all[2]['scene'].get_data()
@@ -462,10 +527,24 @@ t2 = MNEstable_all[2]['scene'].get_data()
 t1t = t1.transpose(0, 2, 1)
 t2t = t2.transpose(0, 2, 1)
 
+t1t_oc = t1t[:,:,ch_idx]
+t2t_oc = t2t[:,:,ch_idx]
+
+# If using 3d:
+# observations x time x space
+# Extract data: transpose because the cluster test requires channels to be last
+# In this case, inference is done over items. In the same manner, we could
+# also conduct the test over, e.g., subjects.
+Fobs1, clusters1, clusters_pval1, H01=mne.stats.spatio_temporal_cluster_test([t1t_oc,t2t_oc],n_permutations=100)
+
+
+
+
+
 Fobs1, clusters1, clusters_pval1, H01 = mne.stats.permutation_cluster_test([t1[:,6,:],t2[:,6,:]],threshold=tfce,tail=1)
 plt.plot(clusters_pval1)
 
-Fobs1, clusters1, clusters_pval1, H01=mne.stats.spatio_temporal_cluster_test([t1t,t2t],tfce,n_permutations=100)
+Fobs1, clusters1, clusters_pval1, H01=mne.stats.spatio_temporal_cluster_test(t1t,t2t,n_permutations=100)
 
 significant_points = clusters_pval1.reshape(Fobs1.shape).T < .05
 

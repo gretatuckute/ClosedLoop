@@ -92,6 +92,35 @@ def extractVal3(wkey):
     
     return subsAll, subsNF, subsC
 
+def extractVal4(wkey):
+    '''
+    Extracts a value from the EEG dict, d_all4.
+    '''
+    subsAll = []
+    subsNF = []
+    subsC = []
+    
+    for key, value in d_all4.items():
+        subsNF_result = []
+        subsC_result = []
+        
+        for k, v in value.items():        
+            if k == wkey:                
+                subsAll.append(v)
+                
+                if key in subjID_NF:
+                    subsNF_result.append(v)
+                if key in subjID_C:
+                    subsC_result.append(v)
+        
+        if len(subsNF_result) == 1:
+            subsNF.append(subsNF_result[0])
+            
+        if len(subsC_result) == 1:
+            subsC.append(subsC_result[0])
+    
+    return subsAll, subsNF, subsC
+
 #%%
 def blockAlpha():
     '''
@@ -819,10 +848,10 @@ for subjID in subjID_NF:
     s = computeShownAlpha(subjID)
     alpha_all_shown_window.append(s)
 
-plt.figure(5)
+plt.figure(7)
 plt.hist(alpha_all_shown_window,color=['black']*11,bins=11)
 plt.xticks(np.arange(0.1,1.1,0.1),['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1'])
-plt.xlabel('Mixture proportion (alpha) of attended category')
+#plt.xlabel(r'Image proportion ($\alpha$) of task-relevant category')
 plt.ylabel('Count (number of trials)')
 plt.axvline(0.17,color='black',linewidth=0.5)
 plt.axvline(0.27,color='black',linewidth=0.5)
@@ -836,8 +865,10 @@ plt.text(x=0.5,y=311,s='0',horizontalalignment='center',fontsize=10)
 plt.text(x=0.84,y=311,s='0.5',horizontalalignment='center',fontsize=10)
 plt.text(x=0.98,y=311,s='1',horizontalalignment='center',fontsize=10)
 # plt.tight_layout(pad=3.3, w_pad=0, h_pad=0)
+plt.title(r'Shown image proportion values ($\alpha$) across participants'+"\n")
 plt.tight_layout(pad=3)
-plt.title('Shown mixture proportion values across participants\n')
+plt.savefig(figDir+'alpha_shown2.tiff')
+
 
 #%% Alpha correlation, shown ones
 
@@ -1357,7 +1388,8 @@ for idx,entry in enumerate(coef_avg_lst):
 
 coefs_all_avg = np.mean(coefs_all,axis=0)
 
-plt.matshow(coefs_all_avg, cmap = 'RdBu')
+plt.figure(random.randint(10,200))
+plt.imshow(coefs_all_avg, cmap = 'RdBu',interpolation=None,aspect='auto')
 channel_vector = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
 time_vector = ['-100','0','100','200','300','400','500','600','700','800']
 plt.xlabel('Time (ms)')
@@ -1366,6 +1398,100 @@ plt.yticks(np.arange(23),channel_vector)
 plt.ylabel('Channel name ')
 plt.colorbar()
 
+#%% NPAIRS
+no_runs = 10000
+# Use coef_avg_lst. Randomly sample 11 and 11. Reshape. Diff. Square. 
+idx_lst = np.arange(0,22)
+random_state = np.random.RandomState(0)
+
+def outputSq_smap():
+    eleven = np.random.choice(idx_lst, 11, replace = False)
+    eleven_rest = [x for x in idx_lst if x not in eleven] 
+    
+    split1 = []
+    for number in eleven:
+        split1.append(coef_avg_lst[number])
+    
+    split2 = []
+    for number in eleven_rest:
+        split2.append(coef_avg_lst[number])
+    
+    split1_m = np.mean(split1,axis=0)
+    split2_m = np.mean(split2,axis=0)
+    
+    # plt.subplots()
+    # plt.imshow(split1_m, cmap = 'RdBu',interpolation=None,aspect='auto')
+    
+    # plt.subplots()
+    # plt.imshow(split2_m, cmap = 'RdBu',interpolation=None,aspect='auto')
+    
+    diff_smap = np.subtract(split1_m,split2_m) 
+    sq_smap = np.square(diff_smap)
+    
+    return sq_smap
+
+smaps = []
+for ii in range(no_runs):
+    sq_smap = outputSq_smap()
+    smaps.append(sq_smap)
+
+###### MEAN OVER SENSITIVITY MAPS #######
+mean_smaps = np.mean(smaps,axis=0)
+std_smaps = np.sqrt(mean_smaps) # Standard deviation
+
+# Divide the std_smaps with the original sensitivity map for all 15 subjs
+effect_smap = np.divide(coefs_all_avg,std_smaps)
+
+plt.imshow(effect_smap)
+plt.colorbar()
+
+#%% Make nice effect size plot
+
+#%% Reverse RdBu to make red positive..
+cmRdBu=cm.get_cmap("RdBu")
+def reverse_colourmap(cmap, name = 'my_cmap_r'):      
+    reverse = []
+    k = []   
+
+    for key in cmap._segmentdata:    
+        k.append(key)
+        channel = cmap._segmentdata[key]
+        data = []
+
+        for t in channel:                    
+            data.append((1-t[0],t[2],t[1]))            
+        reverse.append(sorted(data))    
+
+    LinearL = dict(zip(k,reverse))
+    my_cmap_r = matplotlib.colors.LinearSegmentedColormap(name, LinearL) 
+    return my_cmap_r
+
+reversemap = reverse_colourmap(cmRdBu)
+
+
+#%%
+matplotlib.rcParams['xtick.direction'] = 'out'
+
+plt.figure(random.randint(10,200))
+plt.imshow(effect_smap, cmap = reversemap,interpolation='quadric',aspect='auto')
+channel_vector = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
+time_vector = ['-100','0','100','200','300','400','500','600','700','800']
+plt.xlabel('Time (ms)')
+# plt.xticks(np.arange(0,90,10),time_vector)
+plt.xticks(np.arange(-0.5,85.5,10),time_vector)
+plt.yticks(np.arange(23),channel_vector)
+plt.ylabel('Channel name ')
+plt.colorbar()
+
+# Add scalp maps 
+evoked_array = mne.EvokedArray(effect_smap, info_fs100, tmin=-0.1)
+times = [0.08, 0.180, 0.28, 0.38,0.48,0.58,0.68]
+times2 = [0.08, 0.180, 0.28, 0.38,0.48,0.520,0.58,0.64]
+
+evoked_array.plot_topomap(times=times2)
+ev = evoked_array.plot_topomap(times='peaks')
+# ev.savefig(figDir+'peaks_smap.pdf',dpi=300)
+
 #%% First vs last train run
 subsAll_1, subsNF_1, subsC_1 = extractVal3('LORO_first_acc_corr')
 subsAll_2, subsNF_2, subsC_2 = extractVal3('LORO_last_acc_corr')
@@ -1373,7 +1499,25 @@ subsAll_2, subsNF_2, subsC_2 = extractVal3('LORO_last_acc_corr')
 np.mean(subsAll_1)
 np.mean(subsAll_2)
 
+plt.plot(subsAll_1,color='red')
+plt.plot(subsAll_2,color='blue')
+
+#%% Extracting dictionary based on 18th June experiments
+d_all4 = {}
+
+for subj in subjID_all:
+    with open(EEGDir+'18Jun_subj_'+subj+'.pkl', "rb") as fin:
+          d_all4[subj] = (pickle.load(fin))[0]
+
+fname = 'd_all4.pkl'         
+with open(npyDir+fname, 'wb') as fout:
+      pickle.dump(d_all4, fout)
 
 
-
+#%% Extract second last experiments.. 
+subsAll_sec1, subsNF_sec1, subsC_sec1 = extractVal4('LORO_first_acc_corr')
+subsAll_sec2, subsNF_sec2, subsC_sec2 = extractVal4('LORO_last_acc_corr')
+     
+plt.plot(subsAll_sec1,color='red')
+plt.plot(subsAll_sec2,color='blue')
 

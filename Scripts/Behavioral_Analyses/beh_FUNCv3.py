@@ -1098,9 +1098,9 @@ def improvStimuli(wanted_measure,actual_stim=False,rt_acc=False,LORO=False):
 
         plt.scatter((subsNF_meanAlphas),(diffNF),color='tomato',label='NF',zorder=2)
         plt.scatter((subsNF_meanAlphas),(diffCnewsort),color='dodgerblue',label='Control',zorder=2)
-        plt.ylabel(r"$\Delta$ Response time (s) (day 1 to 3)")
-        plt.xlabel(r"Mean task-relevant image proportion $\alpha$")
-        plt.title(r"Mean task-relevant image proportion vs. $\Delta$ response time")
+        plt.ylabel(r"$\Delta$ A' (day 1 to 3)")
+        plt.xlabel(r"Mean task-relevant image proportion, $\alpha$")
+        plt.title(r"Mean task-relevant image proportion vs. $\Delta$ A'")
         plt.grid(color='gainsboro',linewidth=0.5,zorder=0)
         plt.legend()
         

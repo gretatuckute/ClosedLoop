@@ -9,6 +9,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 import numpy as np
 import pickle
+import random
 
 #%%
 matplotlib.rcParams['figure.constrained_layout.use'] = True
@@ -115,3 +116,4 @@ plt.rcParams.update({'font.size':12})
 matplotlib.rcParams['grid.alpha'] = 1
 matplotlib.rcParams['xtick.labelsize'] = 'medium'
 matplotlib.rcParams['ytick.labelsize'] = 'medium'
+
