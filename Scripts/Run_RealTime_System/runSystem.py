@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct  1 08:12:52 2018
+The function, runNFday (from experimentFunctions) runs the neurofeedback system (experimental script synchronized with EEG recordings).
 
-@author: Greta
+@author: Greta Tuckute
 """
 
 # Imports
@@ -19,13 +19,13 @@ from experimentFunctions import *
 global blockIdx
 global imgIdx
 
-### TEST RUNS ###
-# runTest(day='1') # Show example of 
-# runTest(day='2')
+###### TEST RUNS ######
+# runTest(day='1') # Show example of the behavioral paradigm
+# runTest(day='2') # Show example of the neurofeedback paradigm
 
-###  Behavioral run ### 
+###### Behavioral run ######
 # runBehDay(day=1) 
 
-### Neurofeedback run ### 
-runNFday(subjID='90',numRuns=5,numBlocks=8,blockLen=50)
+###### Neurofeedback run ######
+runNFday(subjID='10', numRuns=5, numBlocks=8, blockLen=50)
 

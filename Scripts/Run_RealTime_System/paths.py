@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 20 13:08:54 2018
-
 Initialization of paths for EEG scripts, stimuli scripts, subjects directory, and data directory
 
-@author: gretatuckute
+@author: Greta Tuckute
 """
 
 import os

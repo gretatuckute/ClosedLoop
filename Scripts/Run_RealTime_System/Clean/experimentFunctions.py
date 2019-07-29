@@ -1,55 +1,39 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep 20 13:08:54 2018
+Functions for running the PsychoPy experimental script and creating stimuli (composite images) for the experiment.
 
-@author: gretatuckute
-
-vol2.1: Possible to display fused images before saving them first (only based on indices)
-vol2.2: Refines vol2.1 and adds breaks, probe
-vol2.3: outlet
-vol2.4: remove logging, fix indicesfile to start with python numbering (0)
-vol2.5: add subjID info to .csv files, creating a list (timeLst) and .csv log for when a stimuli image is presented. 
-Functions for displaying and drawing single images (not fused) from multiple categories.
-vol2.6: add global subjID from info file. Add the possibility to change the subjID arg in createIndices. Added binary category column in
-createIndices file, push imgIdx in runImage function instead of [1], added expDay info to createIndices function, runBehDay and runNFday functions added,
-save alpha to lst and csv, save imgIdx to lst and csv, add read_alpha_stream function, add alpha inlet search in runNFday function,
-added autoLog again to imagestim (EXP mode), 
-
-vol2.9. Manual subject and expDay info 
-vol3.0: remove not used code, new paths
+@author: Greta Tuckute
 
 """
 # Imports
 import os
-import glob
-import sys  
+import numpy as np
+import time 
+import csv
+import pandas as pd
+
 from PIL import Image
 import random
 from random import sample
 from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, resolve_byprop
-from random_1subject import assign_subject,add_avail_feedback_sub,gen_group_fname
+from random_1subject import assign_subject, add_avail_feedback_sub, gen_group_fname
 
-import numpy as np
-from psychopy import gui, visual, core, data, event, monitors, logging
-import time 
-import csv
-import pandas as pd
+from psychopy import visual, core, data, event, monitors, logging
 from paths import data_path_init, subject_path_init, script_path_init
 
-# Paths
+# Initialize paths
 data_path = data_path_init()
 subject_path = subject_path_init()
 script_path = script_path_init()
 
 os.chdir(subject_path)
 
-######### Input subject ID and experiment day #######
+###### Input subject ID and experimental day ######
 
-subjID = '16'
-expDay = '4' # '2': feedback day
+subjID = '10'
+expDay = '2' # '2': feedback day
 
-
-############### Global variables ###############
+###### Global variables ######
 
 global blockIdx 
 global imgIdx
@@ -57,11 +41,17 @@ global imgIdx
 blockIdx = 1 
 imgIdx = 0
 
-############### Data frames for logging ###############
-df_stableSave = pd.DataFrame(columns=['attentive_cat','binary_cat','img1', 'img2']) # For createIndices function
-df_timeLst = pd.DataFrame()
-df_alphaLst = pd.DataFrame()
-df_meanAlphaLst = pd.DataFrame()
+###### Data frames for logging ######
+df_imgIdxSave = pd.DataFrame(columns=['attentive_cat','binary_cat','img1', 'img2']) 
+# For createIndices function. Columns: 
+# 1) Name of attentive category
+# 2) Binary category number
+# 3) Path to image 1
+# 4) Path to image 2 
+
+df_timeLst = pd.DataFrame() # For saving the time points where experimental stimuli were shown in the experiment
+df_alphaLst = pd.DataFrame() # For saving alpha values used in the experiment
+df_meanAlphaLst = pd.DataFrame() # For saving meaned alpha values used in the experiment
 
 timeLst = []
 imgIdxLst = []
@@ -69,15 +59,14 @@ alphaLst = []
 alphaLstSave = []
 meanAlphaLst = []
 
-
-############### Outlet ###############
-info = StreamInfo('PsychopyExperiment20', 'Markers', 1, 0, 'int32', 'myuidw43536')
+###### Outlet ######
+info = StreamInfo('PsychopyExperiment', 'Markers', 1, 0, 'int32', 'myuidw43536') # Has to match the experiment name in runClosedLoop.py script
 outlet = StreamOutlet(info)
 
-############### Experimental initialization ###############
+###### Experiment initialization ######
 
 # Initializing window
-win = visual.Window(size=[1910, 1070], fullscr=True,winType='pyglet',allowGUI=True,screen=1,units='pix') #GPU
+win = visual.Window(size=[1910, 1070], fullscr=True, winType='pyglet', allowGUI=True, screen=1, units='pix') 
 
 # Initializing fixation text and probe word text 
 textFix = visual.TextStim(win=win, name='textFix', text='+', font='Arial',units='pix',height=42,
@@ -109,29 +98,27 @@ logging.setDefaultClock(globalClock)
 logging.console = True
 
 def log(msg):
-    """Prints messages in the promt and adds msg to PsychoPy log file. """ 
+    '''Prints messages in the promt and adds msg to PsychoPy log file. '''
     logging.log(level=logging.EXP, msg=msg) 
-
     
 def closeWin():
-    """Closes the pre-defined experimental window (win). """
+    '''Closes the pre-defined experimental window (win). '''
     win.close()
     
-if event.getKeys(keyList=["escape"]):
-    closeWin()
-
-
-############### Experiment functions ###############
+###### Experiment functions ######
 
 def findCategories(directory):
-    """Returns the overall category folders in /data/.
+    '''
+    Returns the category folders in the given input directory.
     
     # Arguments
-        directory: Path to the data (use data_path)
+        directory: string
+            Path to the data (use data_path).
         
     # Returns
-        found_categories: List of overall categories
-    """
+        found_categories: list
+            List of overall categories.
+    '''
     
     found_categories = []
     for subdir in sorted(os.listdir(directory)):
@@ -140,34 +127,40 @@ def findCategories(directory):
     return found_categories
 
 def recursiveList(directory):
-    """Returns list of tuples. Each tuple contains the path to the folder 
-    along with the names of the images in that folder.
+    '''
+    Returns list of tuples. Each tuple contains the path to the folder along with the names of the images in that folder.
     
     # Arguments
-        directory: Path to the data.
+        directory: string
+            Path to the data.
         
     # Returns
-        list to use in findImages to iterate through folders
-    """
+        os.walk: function
+        Function for iterating through folders (to use in findImages).
+    '''
     
     follow_links = False
     return sorted(os.walk(directory, followlinks=follow_links), key=lambda tpl: tpl[0])
 
 def findImages(directory):
-    """Returns the number of images and categories (subcategories) in a given folder.
+    '''
+    Returns the number of images and categories (subcategories) in a given folder.
     
     # Arguments
-        directory: Path to the data.
+        directory: string
+            Path to the data.
         
     # Returns
-        noImages: Total number of images in each category folder
-        imagesInEachCategory = dictionary of size 2 (if 2 categories), with key = category name, and value = list containing image paths
-    """
+        noImages: int
+            Total number of images in each category folder.
+        imagesInEachCategory: dict
+            Dictionary of size 2 (if 2 categories), with key = category name, and value = list containing image paths.
+    '''
 
     imageFormats = {'jpg', 'jpeg', 'pgm'}
 
     categories = findCategories(directory)
-    noCategories = len(categories) # Total number of folders/categories in the given folder - currently not dierctly returned
+    # noCategories = len(categories) # Total number of folders/categories in the given folder - currently not returned
 
     noImages = 0
     imagesInEachCategory = {}
@@ -187,15 +180,24 @@ def findImages(directory):
     return noImages, imagesInEachCategory
 
 
-def createRandomImages(dom='female',lure='male'):
-    """Takes two input categories, and draws 45 images from the dominant category, and 5 from the lure category
+def createRandomImages(dom='female', lure='male'):
+    '''
+    Takes two input categories, and draws 45 images from the dominant category, and 5 from the lure category.
+    
+    # Arguments
+        dom: string
+            Category name of dominant image category.
+        lure: string
+            Category name of non-dominant (lure) image category.
     
     # Returns
-        fusedList: One list consisting of 50 images from dominant and lure categories in random order
-        fusedCats: One list of the category names from fusedList (used in directory indexing)
-    """
+        fusedList: list
+            List consisting of 50 images from dominant and lure categories in random order.
+        fusedCats: list
+            List of the category names from fusedList (used in directory indexing).
+    '''
     
-    categories = findCategories(data_path) 
+    # categories = findCategories(data_path) 
     noImages, imagesInEachCategory = findImages(data_path)
     
     for key, value in imagesInEachCategory.items():        
@@ -217,20 +219,24 @@ def createRandomImages(dom='female',lure='male'):
 
 
 def createIndices(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1): 
-    """ Returns 50 fused images (only the indices) based on a chosen attentive category, and a chosen unattentive category.
-        It is possible to save the fused images in a folder named after the attentive category:
-            Uncomment code in this function
+    '''
+    Returns 50 fused images (only the indices/string of paths) based on a chosen attentive category, and a chosen unattentive category.
+    It is possible to save the fused images in a folder named after the attentive category: Uncomment code in this function.
     
-    # Input:
-    - aDom, aLure, nDom, nLure: names of attentive dominant category, attentive lure category, nonattentive dominant category and nonattentive lure category.
-    - subjID_forfile: subject ID used for naming the .csv file with indices.
-    - exp_day: experimental day for naming the .csv file with indices.
+    # Arguments
+        aDom, aLure, nDom, nLure: string
+            Names of attentive dominant category, attentive lure category, non-attentive dominant category and non-attentive lure category.
+        subjID_forfile: string
+            Subject ID used for naming the .csv file with indices.
+        exp_day: string
+            Experimental day for naming the .csv file with indices.
     
-    # Output:
+    # Returns
     No direct output, but writes to a .csv file with 4 columns: attentive category name, binary category number, image 1 used in the composite
-    image and image 2 used in the composite image. Writes to a .csv file in log_file_path with the title "createIndices + subjID_forfile + exp_day.csv".
+    image and image 2 used in the composite image. 
     
-    """
+    Writes to a .csv file in log_file_path with the title "createIndices + subjID_forfile + exp_day.csv".
+    '''
 
     aCatImages, aCats = createRandomImages(dom=aDom,lure=aLure) # 50 attend category images
     nCatImages, nCats = createRandomImages(dom=nDom,lure=nLure) 
@@ -269,31 +275,20 @@ def createIndices(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1):
         imageCount += 1
         
         # Logging the image paths/IDs to a df
-        df_stableSave.loc[i + (blockIdx * len(aCatImages))-50] = [aDom, binary_cat, aCatImages[i], nCatImages[i]] 
+        df_imgIdxSave.loc[i + (blockIdx * len(aCatImages))-50] = [aDom, binary_cat, aCatImages[i], nCatImages[i]] 
         
     print('Created {0} fused image indices, with a total no. of blocks currently created: {1}.\n'.format(len(aCatImages), str(blockIdx)))
 
-    df_stableSave.to_csv(subject_path + '\\createIndices_' + str(subjID_forfile) + '_day_' + str(exp_day) + '.csv') 
+    df_imgIdxSave.to_csv(subject_path + '\\createIndices_' + str(subjID_forfile) + '_day_' + str(exp_day) + '.csv') 
 
     blockIdx += 1
     
     del aDom, aLure, nDom, nLure
     
 def createIndicesNew(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1): 
-    """ Returns 50 fused images (only the indices) based on a chosen attentive category, and a chosen unattentive category.
-        It is possible to save the fused images in a folder named after the attentive category:
-            Uncomment code in this function
-    
-    # Input:
-    - aDom, aLure, nDom, nLure: names of attentive dominant category, attentive lure category, nonattentive dominant category and nonattentive lure category.
-    - subjID_forfile: subject ID used for naming the .csv file with indices.
-    - exp_day: experimental day for naming the .csv file with indices.
-    
-    # Output:
-    No direct output, but writes to a .csv file with 4 columns: attentive category name, binary category number, image 1 used in the composite
-    image and image 2 used in the composite image. Writes to a .csv file in log_file_path with the title "createIndices + subjID_forfile + exp_day.csv".
-    
-    """
+    ''' 
+    Same function as createIndices, but uses different categories (bus and airplane + cat and dog).
+    '''
 
     aCatImages, aCats = createRandomImages(dom=aDom,lure=aLure) # 50 attend category images
     nCatImages, nCats = createRandomImages(dom=nDom,lure=nLure) 
@@ -318,28 +313,32 @@ def createIndicesNew(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1)
         imageCount += 1
         
         # Logging the image paths/IDs to a df
-        df_stableSave.loc[i + (blockIdx * len(aCatImages))-50] = [aDom, binary_cat, aCatImages[i], nCatImages[i]] 
+        df_imgIdxSave.loc[i + (blockIdx * len(aCatImages))-50] = [aDom, binary_cat, aCatImages[i], nCatImages[i]] 
         
     print('Created {0} fused image indices, with a total no. of blocks currently created: {1}.\n'.format(len(aCatImages), str(blockIdx)))
 
-    df_stableSave.to_csv(subject_path + '\\createIndices_' + str(subjID_forfile) + '_day_' + str(exp_day) + '.csv') 
+    df_imgIdxSave.to_csv(subject_path + '\\createIndices_' + str(subjID_forfile) + '_day_' + str(exp_day) + '.csv') 
 
     blockIdx += 1
     
     del aDom, aLure, nDom, nLure
 
 
-def createNonFusedIndices(mixture=[12,13,12,13],no_blocks=8,no_runs=3):
-    """ Returns indices of non-fused images (random order) in a .csv file.
+def createNonFusedIndices(mixture=[12,13,12,13], no_blocks=8, no_runs=3):
+    ''' 
+    Returns indices of non-fused images (random order) in a .csv file.
     
-    # Arguments:
-        mixture: Assuming a block size of 50 and 4 categories, the mixture is a list consisting of ratios for the different categories.
-        no_blocks: number of blocks to run. Block size depends on the mixture list. Currently set to 50.
-        no_runs: number of runs to complete of the blocks.
+    # Arguments
+        mixture: list
+            Assuming a block size of 50 and 4 categories, the mixture is a list consisting of ratios for the different categories.
+        no_blocks: int
+            Number of blocks to run. Block size depends on the mixture list. Currently set to 50.
+        no_runs: int
+            Number of runs.
         
     # Returns
-        Creates a .csv file with image indices as well as overall image category (faces/scenes), saved to the log path. 
-    """
+        No direct output, but writes to a .csv file with image indices as well as overall image category (faces/scenes), saved to the log path. 
+    '''
 
     allImages = [[],[],[],[]]
         
@@ -397,29 +396,29 @@ def createNonFusedIndices(mixture=[12,13,12,13],no_blocks=8,no_runs=3):
     df_nonFused.to_csv(subject_path + '\\createIndicesNonFused_' + str(subjID) + '.csv') 
     
 
-def fuseImage(csvfile,alpha=0.5):
-    """Returns a single fused image based on a pre-generated csv file with indices of images.
+def fuseImage(csvfile, alpha=0.5):
+    '''
+    Returns a single fused image based on a pre-generated .csv file with indices of images.
     
-    # Arguments:
-        csvfile: containing indices of which images to fuse in column 2 and 3, and name of the attentive category in column 1
-        alpha: blending proportion. Default 0.5 for stable blocks.
+    # Arguments
+        csvfile: string
+            String path containing indices of which images to fuse in column 2 and 3, and name of the attentive category in column 1.
+        alpha: float
+            Blending proportion. Default 0.5 for stable blocks.
         
-    # Output
+    # Returns
         Calls runImage, displaying the fused image    
-    """
+    '''
     
-    # Read from csv file here and use the img IDs as input
+    # Read from csv file and use the img IDs as input.
     global imgIdx
     
     with open(csvfile) as csv_file:
-    #with open(log_path + '\\createIndices.csv') as csv_file:
         csv_reader = list(csv.reader(csv_file, delimiter=','))
     
-    # Implement some kind of global count that knows which row to take
-        wantedRow = imgIdx + 1 # counter...
+        wantedRow = imgIdx + 1 
         
         rowInfo = csv_reader[wantedRow]
-        # print(rowInfo)
         
         foregroundID = rowInfo[3]
         backgroundID = rowInfo[4]
@@ -429,7 +428,7 @@ def fuseImage(csvfile,alpha=0.5):
     
     fusedImg = Image.blend(background, foreground, alpha)
     
-    # fusedImg.show()
+    # fusedImg.show() # Show composite image
     runImage(fusedImg)
     
     imgIdxLst.append(imgIdx)
@@ -440,28 +439,18 @@ def fuseImage(csvfile,alpha=0.5):
     foreground.close()
     
 def fuseImageSlow(csvfile,alpha=0.5):
-    """Returns a single fused image based on a pre-generated csv file with indices of images.
+    '''
+    Same function as fuseImage, but shows the image in a longer time interval (for demos).    
+    '''
     
-    # Arguments:
-        csvfile: containing indices of which images to fuse in column 2 and 3, and name of the attentive category in column 1
-        alpha: blending proportion. Default 0.5 for stable blocks.
-        
-    # Output
-        Calls runImage, displaying the fused image    
-    """
-    
-    # Read from csv file here and use the img IDs as input
     global imgIdx
     
     with open(csvfile) as csv_file:
-    #with open(log_path + '\\createIndices.csv') as csv_file:
         csv_reader = list(csv.reader(csv_file, delimiter=','))
     
-    # Implement some kind of global count that knows which row to take
-        wantedRow = imgIdx + 1 # counter...
+        wantedRow = imgIdx + 1 
         
         rowInfo = csv_reader[wantedRow]
-        # print(rowInfo)
         
         foregroundID = rowInfo[3]
         backgroundID = rowInfo[4]
@@ -471,7 +460,6 @@ def fuseImageSlow(csvfile,alpha=0.5):
     
     fusedImg = Image.blend(background, foreground, alpha)
     
-    # fusedImg.show()
     runImageSlow(fusedImg)
     
     imgIdxLst.append(imgIdx)
@@ -482,24 +470,23 @@ def fuseImageSlow(csvfile,alpha=0.5):
     foreground.close()
     
 def prepNonFusedImage(csvfile):
-    """Returns a single non-fused image based on a pre-generated csv file with indices of images.
+    '''
+    Returns a single non-fused image based on a pre-generated csv file with indices of images.
     
-    # Arguments:
-        csvfile: containing indices of which image to display. Based on global imgIdx counter.
+    # Arguments
+        csvfile: string
+            String path containing indices of which image to display. Based on global imgIdx counter.
         
-    # Output
+    # Returns
         Calls runImage, displaying the image in the pre-selected window (win).
-    """
+    '''
     
-    # Read from csv file here and use the img IDs as input
     global imgIdx
     
     with open(csvfile) as csv_file:
-    #with open(log_path + '\\createIndices.csv') as csv_file:
         csv_reader = list(csv.reader(csv_file, delimiter=','))
     
-    # Implement some kind of global count that knows which row to take
-        wantedRow = imgIdx # counter...
+        wantedRow = imgIdx
         
         rowInfo = csv_reader[wantedRow]
         img = rowInfo[1]
@@ -510,14 +497,16 @@ def prepNonFusedImage(csvfile):
     
 
 def runImage(fusedImg):
-    """Runs a single fused image based on output from fuseImage in the defined experimental window (win).
+    '''
+    Runs a single fused image based on output from fuseImage in the defined experimental window (win).
     
-    # Arguments:
-        The fused image (from fuseImage function)
+    # Arguments
+        fusedImg: Image object
+            The fused image (from fuseImage function).
     
-    # Output:
-        Shows the image in a predefined no. of Hz
-    """
+    # Returns
+        No direct output. Shows the image in a predefined number of frames.
+    '''
     
     image = visual.ImageStim(win, image = fusedImg, autoLog=True,units='pix',size=(175,175))
     
@@ -531,14 +520,9 @@ def runImage(fusedImg):
         win.flip()
     
 def runImageSlow(fusedImg):
-    """Runs a single fused image based on output from fuseImage in the defined experimental window (win).
-    
-    # Arguments:
-        The fused image (from fuseImage function)
-    
-    # Output:
-        Shows the image in a predefined no. of Hz
-    """
+    '''
+    Same as runImage, but shows the image in 120 frames (instead of the default: 60 frames).
+    '''
     
     image = visual.ImageStim(win, image = fusedImg, autoLog=True,units='pix',size=(175,175))
     
@@ -552,14 +536,16 @@ def runImageSlow(fusedImg):
         win.flip()
         
 def runBreak(breakLen,message):
-    """Runs a break the defined experimental window (win).
+    '''
+    Runs a break the defined experimental window (win).
     
-    # Arguments:
-        breakLen: in frames
+    # Arguments
+        breakLen: int
+            Length of break in frames.
     
-    # Output:
-        Displays the break in a predefined no. of frames
-    """
+    # Returns
+        No direct output. Displays the break in a predefined number of frames.
+    '''
     
     message = str(message)
     
@@ -572,16 +558,17 @@ def runBreak(breakLen,message):
         win.flip()
 
 
-
 def runFixProbe(csvfile):
-    """Displays fixation cross and probe word text in the defined experimental window (win).
+    '''
+    Displays fixation cross and probe word text in the defined experimental window (win).
     
-    # Arguments:
-        csvfile used for the image indices (containing name of attentive category in column 1)
+    # Arguments
+        csvfile: string
+            String path containing indices of which images to fuse in column 2 and 3, and name of the attentive category in column 1.
     
-    # Output:
-        Displays fixation and probe text in a predefined no. of Hz
-    """
+    # Returns
+        No direct output. Displays fixation and probe text in a predefined number of frames.
+    '''
     
     with open(csvfile) as csv_file:
         csv_reader = list(csv.reader(csv_file, delimiter=','))
@@ -596,7 +583,6 @@ def runFixProbe(csvfile):
                              units='norm', pos=(0, 0), wrapWidth=None, ori=0,
                              color='white', colorSpace='rgb', opacity=1, depth=0.0)    
     
-    #outlet.push_sample([3])
     for frameN in range(0,probeTime):
         textGeneral.draw()
         win.flip() 
@@ -607,46 +593,53 @@ def runFixProbe(csvfile):
 
     
 def saveDataFrame(subjID):
-    """
-    
-    """
+    '''
+    Saves the data frame to the subject_path.
+    '''
     df_timeLst = pd.DataFrame(timeLst,imgIdxLst)
     df_timeLst.to_csv(subject_path + '\\' + subjID + '\\imageTime_subjID_' + str(subjID) + '_day_' + str(expDay) + '_' + str(log_base) + '.csv') 
     
     
 def saveAlphaDataFrame(subjID):
-    """
-    
-    """
+    '''
+    Saves the data frame to the subject_path.
+    '''
     df_alphaLst = pd.DataFrame(alphaLst)
     df_alphaLst.to_csv(subject_path + '\\' + subjID + '\\alpha_subjID_' + str(subjID) + '.csv') 
     
     
 def saveMeanAlphaDataFrame(subjID):
-    """
-    
-    """
+    '''
+    Saves the data frame to the subject_path.
+    '''
     df_meanAlphaLst = pd.DataFrame(meanAlphaLst)
     df_meanAlphaLst.to_csv(subject_path + '\\' + subjID + '\\MEANalpha_subjID_' + str(subjID) + '_'  + '_day_' + str(expDay) + str(log_base) + '.csv') 
     
-def read_marker_stream(stream_name ='alphaStream'):
+def readMarkerStream(stream_name ='alphaStream'):
     '''
-    Reads stream from an outlet (alphaStream from run_CL script)
+    Reads stream from an outlet (alphaStream from runClosedLoop.py script).
+    The outlet contains alpha values for updating the image stimuli based on recorded and decoded EEG.
+    
+    # Arguments
+    stream_name: string
+        Name of stream from runClosedLoop.py script.
+    
+    # Returns
+        inlet: Pylsl object
+            Inlet for connecting with the EEG runClosedLoop.py script.
+            The inlet contains the alpha values (decoded EEG responses) for updating stimuli.
     
     '''
     index_alpha = []
     alpha_created = []
-    streams = resolve_byprop('type', 'Markers',timeout=10)
+    streams = resolve_byprop('type', 'Markers', timeout=10)
     for i in range (len(streams)):
         if (streams[i].name() == stream_name):
             index_alpha.append(i)
             alpha_created.append(streams[i].created_at())
     if index_alpha:
-        if len(index_alpha)>1:
-            #print("Not unique marker stream name, using most recent one")
-            index_alpha=index_alpha[np.argmax(alpha_created)]
-        #print ("alpha stream available")
-        #inlet = StreamInlet(streams[index_alpha[0]]) #REAL ONE
+        if len(index_alpha) > 1:
+            index_alpha = index_alpha[np.argmax(alpha_created)]
         inlet = StreamInlet(streams[index_alpha[0]])
     else:
         print('Warning: No marker inlet available')
@@ -654,11 +647,14 @@ def read_marker_stream(stream_name ='alphaStream'):
 
 def runTest(day='1'):
     '''
-    Runs a demo version of the experimental script (either day 1 and or 3) without EEG recordings.
+    Runs a demo version of the experimental script (either day 1 and or 2) without EEG recordings.
     
-    # Input
-    - day: either '1' or '2'. Day 1 illustrate stable blocks and day 2 illustrates neurofeedback blocks.
-    
+    # Arguments
+        day: string
+            either '1' or '2'. Day 1 illustrate stable blocks and day 2 illustrates neurofeedback blocks.
+            
+    # Returns
+        Runs the experimental demo script.
     '''    
     
     time.sleep(5)
@@ -706,7 +702,7 @@ def runTest(day='1'):
             fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=0.5)
             
             if ii == runLenHalf-1: # Break between the stable blocks of NF runs
-                runBreak(600,'10 second break') # Remove this break? Or, this is when the clf is trained
+                runBreak(600,'10 second break')
                             
         for jj in list(range(0,runLenHalf)): # The last 4 blocks
  
@@ -716,7 +712,7 @@ def runTest(day='1'):
             if jj % blockLen == 0: # Shows the category text probe
                 runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
        
-            if jj in [0,1,10]: # First 3 trials are stable. Currently hardcoded.
+            if jj in [0,1,10]: # First 3 trials are stable, alpha = 0.5
                 fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=0.5)
                 alphaIdx += 1
                 
@@ -735,20 +731,33 @@ def runTest(day='1'):
                 closeWin()
 
 
-def runBehDay(numRuns=2,numBlocks=8,blockLen=50,day=1):
+def runBehDay(numRuns=2, numBlocks=8, blockLen=50, day=1):
     '''
     Runs the experimental script for behavioral days (1 and 3) without EEG recordings.
     
-    numRuns = 2
+    # Arguments
+        numRuns: int
+            Number of runs (one run is a certain number of blocks).
+        
+        numBlocks: int
+            Number of blocks (one run).
+        
+        blockLen: int
+            Number of images to display in each block.
+        
+        day: int
+            Experimental day.    
     
+    # Returns
+        No direct output. Runs the experimental script for the behavioral paradigm.    
     '''
-    if day==1:
-        assign_subject(subjID)
     
+    if day == 1:
+        assign_subject(subjID) # For distributing participants into neurofeedback and control participants.
     
     time.sleep(25)
 
-    runLen = numBlocks * blockLen # Should be 8 * 50 
+    runLen = numBlocks * blockLen 
     runLenHalf = runLen/2
         
     for run in list(range(0,numRuns)):
@@ -770,34 +779,50 @@ def runBehDay(numRuns=2,numBlocks=8,blockLen=50,day=1):
             saveDataFrame(subjID) # Saves the timing of image stimuli 
             
             closeWin()
-            
 
 
 def runNFday(subjID,numRuns,numBlocks,blockLen):
     '''
     Runs the experimental script for neurofeedback real-time EEG recordings.
+    The script checks whether the subject (based on subjID) is a control or neurofeedback subject (based on a .txt file in the subject folder).
+    If control: sham feedback. If neurofeedback: real-time, correct neurofeedback.
+        
+    # Arguments
+        subjID: string
+            Subject ID.
+            
+        numRuns: int
+            Number of runs (one run is a certain number of blocks).
+        
+        numBlocks: int
+            Number of blocks (one run).
+        
+        blockLen: int
+            Number of images to display in each block.
+        
+        day: int
+            Experimental day.  
     
-    # Input
-    - numRuns: number of NF runs (besides the first, stable run)
-    
+    # Returns
+        No direct output. Runs the experimental script for the EEG neurofeedback paradigm.
     '''
     
     import copy
     
     time.sleep(30)
     
-    runLen = numBlocks * blockLen # Should be 8 * 50
+    runLen = numBlocks * blockLen 
     runLenHalf = int(runLen/2)
     
-    # read whether subject is control or feedback subject from file generated at day 1
+    # Read whether participant is control or feedback subject from file generated on day 1. 
     control_file = open(subject_path + '\\' + subjID + '\\feedback_subjID' + str(subjID) + '.txt','r')
     control = [x.rstrip("\n") for x in control_file.readlines()]
 
      ### CONTROL SUBJECTS ###
     if control[0] == '0':
-        subj_orig=copy.copy(subjID) #True copy
+        subj_orig=copy.copy(subjID) 
         
-        subjID=control[1] # use alpha (fuse) file and createIndices file from matched feedback subject
+        subjID=control[1] # Use alpha file and createIndices file from matched feedback subject
         alphafile = subject_path + '\\' + subjID + '\\alpha_subjID_' + str(subjID) + '.csv'
 
         with open(alphafile) as csv_file:
@@ -821,7 +846,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if ii % blockLen == 0: # Correct: ii % 50?
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
 
-                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')#,alpha=randomAlpha)    
+                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')    
                 
                 if ii == runLen-1:
                     runBreak(1800,'30 second break')
@@ -836,12 +861,12 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if ii % blockLen == 0: # Shows the category text probe
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
 
-                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')#,alpha=randomAlpha)
+                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
                 
                 if ii == runLenHalf-1: # Break between the stable blocks of NF runs
                     runBreak(1800,'30 second break') # This is when the clf is trained
         
-            # Train classifier and find alpha stream - MOCK
+            # Train classifier and find alpha stream - SHAM feedback
             
             for jj in list(range(0,runLenHalf)):
                 
@@ -851,8 +876,8 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if jj % blockLen == 0:
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
                     
-                if jj in [0,1,2,50,51,52,100,101,102,150,151,152]: # First 3 trials are stable. Currently hardcoded.
-                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=0.5)
+                if jj in [0,1,2,50,51,52,100,101,102,150,151,152]: # First 3 trials are stable, alpha = 0.5
+                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv', alpha=0.5)
                     alphaVal = alphaLstMock[alphaIdx]
                     alphaVal = float(alphaVal) 
                     alphaLst.append(alphaVal)
@@ -873,7 +898,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                     mean_alpha = np.mean(alphaLst[-3:])
                     meanAlphaLst.append(mean_alpha)
                     
-                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=mean_alpha)
+                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv', alpha=mean_alpha)
                     
                 if jj == runLenHalf-1:
                     
@@ -887,15 +912,14 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
             if run == numRuns-1:  
                 runBreak(300,'Experiment finished')
                 saveDataFrame(subj_orig) # Saves the timing of image stimuli 
-                saveAlphaDataFrame(subj_orig) # Saves alpha values used in the NF experiment
-                saveMeanAlphaDataFrame(subj_orig) #TYPE ERROR, har rettet
+                saveAlphaDataFrame(subj_orig) # Saves alpha values used in the experiment
+                saveMeanAlphaDataFrame(subj_orig) 
                 
                 closeWin()
         
     
-    ### NF SUBJECTS ###
+    ### NEUROFEEDBACK SUBJECTS ###
     if control[0] == '1':
-        # proceed onto the rest
         subjID = control[1]
         
         # Stable run
@@ -911,7 +935,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if ii % blockLen == 0: # Correct: ii % 50?
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
 
-                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')#,alpha=randomAlpha)    
+                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')    
                 if ii == runLen-1:
                     runBreak(1800,'30 second break')
                                     
@@ -925,14 +949,14 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if ii % blockLen == 0: # Shows the category text probe
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
                     
-                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')#,alpha=randomAlpha)
+                fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
                 
                 if ii == runLenHalf-1: # Break between the stable blocks of NF runs
                     runBreak(1800,'30 second break') # This is when the clf is trained
         
                     
             # Train classifier and find alpha stream
-            inlet_alpha = read_marker_stream(stream_name ='alphaStream')
+            inlet_alpha = readMarkerStream(stream_name ='alphaStream')
             
             for jj in list(range(0,runLenHalf)): # The last 4 blocks
     
@@ -942,7 +966,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 if jj % blockLen == 0: # Shows the category text probe
                     runFixProbe(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv')
            
-                if jj in [0,1,2,50,51,52,100,101,102,150,151,152]: # First 3 trials are stable. Currently hardcoded.
+                if jj in [0,1,2,50,51,52,100,101,102,150,151,152]: # First 3 trials are stable
                     alphamarker,timestamp = inlet_alpha.pull_chunk(timeout=0.005)
                    
                     if len(alphamarker):
@@ -951,7 +975,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                        alphaVal = 0.5
                        
                     alphaLst.append(alphaVal)
-                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=0.5)
+                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv', alpha=0.5)
                     
                 else:
                     alphamarker,timestamp  = inlet_alpha.pull_chunk(timeout=0.005)
@@ -969,12 +993,10 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                     mean_alpha = np.mean(alphaLst[-3:])
                     meanAlphaLst.append(mean_alpha)
                     
-                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv',alpha=mean_alpha) 
+                    fuseImage(subject_path + '\\' + subjID + '\\createIndices_' + str(subjID) + '_day_' + str(expDay) + '.csv', alpha=mean_alpha) 
                 
                 if jj == runLenHalf-1: # Break after a finished run
-                    
                     if run != numRuns-1: # Avoid a break after the very last run 
-                    
                         runBreak(1800,'30 second break')
                     
             if run == 1:
@@ -984,11 +1006,10 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
             if run == numRuns-1:  
                 runBreak(300,'Experiment finished')
                 saveDataFrame(subjID) # Saves the timing of image stimuli 
-                saveAlphaDataFrame(subjID) # Saves alpha values used in the NF experiment
+                saveAlphaDataFrame(subjID) # Saves alpha values used in the experiment
                 saveMeanAlphaDataFrame(subjID)
                 group_fname=gen_group_fname(subjID)
                 add_avail_feedback_sub(subjID,group_fname)
-
                 
                 closeWin()
 
