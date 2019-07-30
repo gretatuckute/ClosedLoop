@@ -775,7 +775,7 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
     runLenHalf = int(runLen/2)
     
     # Read whether participant is control or feedback subject from file generated on day 1. 
-    control_file = open(subject_path + '\\' + subjID + '\\feedback_subjID' + str(subjID) + '.txt','r')
+    control_file = open(subject_path + '\\' + subjID + '\\feedback_subjID_' + str(subjID) + '.txt','r')
     control = [x.rstrip("\n") for x in control_file.readlines()]
 
      ### CONTROL SUBJECTS ###
