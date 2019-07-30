@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 '''
-Generates .csv files for experimental stimuli (composite images). The .csv file contains 
+Generates .csv files for experimental stimuli (composite images). The .csv file contains 4 columns: attentive category name, binary category number, 
+image 1 used in the composite image and image 2 used in the composite image (strings of file directories to the images). 
 '''
 
 # Imports
@@ -19,7 +20,7 @@ closeWin()
 global blockIdx
 global imgIdx
 
-subjID_prep = '10'
+subjID_prep = '01'
 
 numRuns = 6 # E.g. 6 runs creates 6*8*50 = 2400 composite images indices (string of path to directories of images)
 

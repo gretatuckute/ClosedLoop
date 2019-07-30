@@ -1,20 +1,11 @@
 # -*- coding: utf-8 -*-
 
-"""
-Created on Tue Jan 22 13:26:22 2019
+'''
+Functions for working with real-time EEG data in Python:
+Standardizing, scaling, artefact correction (SSP projections), preprocessing, classification.
 
-Functions for working with EEG in Python: computing and analyzing variance of SSP projection
-vectors, preprocessing of epoched EEG data (filtering, baseline correction, rereferencing, resampling)
-
-Contains functions for preprocessing EEG in real-time (first part) and decoding EEG in real-time (second part).
-
-@author: Greta & Sofie
-
-
-EEG_classification.py and EEG_analysis_RT and offline fused..
-
-
-"""
+The first part contains EEG signal processing and preprocessing, while the second part is EEG decoding in real-time.
+'''
 
 # Imports 
 import numpy as np
@@ -25,11 +16,6 @@ from scipy.signal import detrend
 from sklearn.linear_model import LogisticRegression
 
 #### 1) EEG PREPROCESSING FUNCTIONS ####
-
-# EEG preprocessing variables 
-LP = 40 # Low-pass filter cut-off
-HP = 0 # High-pass filter cut-off
-phase = 'zero-double' # FIR filter phase (refer to MNE filtering for options)
 
 def scale1DArray(eeg_array, axis=1):
     '''
@@ -53,7 +39,6 @@ def scale1DArray(eeg_array, axis=1):
     X_z = zscore(X_res, axis=axis)
     
     return X_z
-
 
 def scale2DArray(eeg_array, axis=1):
     '''
@@ -290,9 +275,9 @@ def createInfoMNE(reject_ch=0, sfreq=100):
     
     return info
     
-def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reject_ch=None, flat=None, bad_channels=[] ,opt_detrend=1):
-    '''
-    Preprocesses epoched EEG data.
+def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reject_ch=None, flat=None, bad_channels=[] ,opt_detrend=1, HP=0, LP=40, phase='zero-double'):
+    '''    
+    Preprocesses EEG data epoch-wise. 
     
     # Arguments
         eeg: numPy array
@@ -304,7 +289,7 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
         projs: list
             MNE SSP projector objects. Used if SSP = True. 
             
-        SSP: boolean.
+        SSP: boolean
             Whether to apply SSP projectors (artefact correction) to the EEG epoch.
             
         reject: boolean
@@ -324,6 +309,16 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
             
         opt_detrend: boolean
             Whether to apply temporal EEG detrending (linear).
+        
+        HP: int
+            High-pass filter cut-off, default 0 Hz.
+        
+        LP: int
+            Low-pass filter cut-off, default 40 Hz.
+
+        phase: string
+            FIR filter phase (refer to MNE filtering function for options), default 'zero-double'.
+
     
     # Preprocessing steps - based on inputs 
     
@@ -406,55 +401,52 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
 
 #### CLASSIFICATION FUNCTIONS ####
 
-def extractCat(indicesFile, exp_type='fused'):
+def extractCat(indicesFile):
     ''' 
-    Extracts .csv file with file directories of shown experimental trials (two images for each trial).
+    Extracts information from a .csv file with file directories of shown experimental trials (two images for each trial).
     
-    # Output
-    - Binary list with 0 denoting scenes, and 1 denoting faces.
+    # Arguments
+        indicesFile: csv file
+            A .csv file containing experimental trials as rows, and the following columns: 
+            1) Experimental trial number, 2) Attentive category string name, e.g. 'indoor' or 'female',
+            3) Binary category label, i.e. 0 or 1, 4) String of file directory to image 1,
+            5) String of file directory to image 2.
+        
+    # Returns
+        binary_categories: list
+            List with 0 denoting scenes, and 1 denoting faces.
     
     '''
     
-    if exp_type == 'fused':
-        colnames = ['1', 'att_cat', 'binary_cat', '3', '4']
-        data = pd.read_csv(indicesFile, names=colnames)
-        categories = data.att_cat.tolist()
-        binary_categories = data.binary_cat.tolist()
-        del categories[0:1]
-        del binary_categories[0:1]
-    
-            
-    if exp_type == 'nonfused':
-        colnames = ['cat', 'path']
-        data = pd.read_csv(indicesFile,names=colnames)
-        categories = data.cat.tolist()
-        del categories[0:1]
-        
-        binary_categories = []
-        for c in categories:
-            if c == 'scene':
-                binary_categories.append(0)
-            else:
-                binary_categories.append(1)
-                
+    colnames = ['1', 'att_cat', 'binary_cat', '3', '4']
+    data = pd.read_csv(indicesFile, names=colnames)
+    categories = data.att_cat.tolist()
+    binary_categories = data.binary_cat.tolist()
+    del categories[0:1]
+    del binary_categories[0:1]
+
     return binary_categories
 
 
-def trainLogReg(X,y):
+def trainLogReg(X, y):
     '''
-    Trains a classifier on EEG epochs from stable blocks: (n_trials,n_channels,n_samples)
+    Trains a logistic regression classifier based on recorded EEG epochs. 
     No offset for correction of classifier bias.
 
-    Input:
-    - X: Epochs. 
-    - y: Binary category array.
+    # Arguments
+        X: NumPy array
+            EEG data in the following format: [trials, channels, samples]
+            
+        y: NumPy Array
+            Binary category array.
     
-    Output:
-    - clf: SAGA LogReg with L1 penalty, fitted on X and y.
+    # Returns
+        clf: scikit-learn classifier object
+            SAGA LogReg with L1 penalty, fitted on X and y.
     '''
     
-    X = scale2DArray(X,axis=1)
-    classifier = LogisticRegression(solver='saga',C=1,random_state=1,penalty='l1')
+    X = scale2DArray(X, axis=1)
+    classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1')
     
     clf = classifier.fit(X,y)
 
@@ -464,24 +456,33 @@ def trainLogReg(X,y):
     return clf
 
 
-def trainLogReg_cross(X,y):
+def trainLogRegCV(X, y):
     '''
-    Trains a classifier on EEG epochs from stable blocks: (600,n_channels,n_samples). 
-    For the first NF run (n_run=0).
-    Offset for correction of classifier bias computed in 3-fold cross-validation (mean of 3 offset values)
+    Trains a logistic regression classifier based on recorded EEG epochs. 
+    For the first neurofeedback run (n_run = 0), using 600 trials.
 
-    Input:
-    - X: Epochs (after preprocessing, SSP correction and two-trial averaging). Length 600 trials.
-    - y: Binary category array.
+    The classifier bias is corrected (i.e. tendency of the classifier to be overly confident in predicting one of the categories):
+    The offset for correction of classifier bias is computed in 3-fold cross-validation (mean of 3 offset values).
     
-    Output:
-    - clf: SAGA LogReg with L1 penalty, fitted on X and y.
-    - offset: Offset value for correction of classification bias.
+    For validation accuracy and confusion matrices, code in the function can be uncommented.
+
+    # Arguments
+        X: NumPy array
+            EEG data in the following format: [trials, channels, samples]
+            
+        y: NumPy Array
+            Binary category array.
+    
+    # Returns
+        clf: scikit-learn classifier object
+            SAGA LogReg with L1 penalty, fitted on X and y.
+            
+        offset: float
+            Float value for correcting the prediction probability of the classifier.
     '''
+    X = scale2DArray(X, axis=1)
     
-    X = scale2DArray(X,axis=1)
-    
-    classifier = LogisticRegression(solver='saga',C=1,random_state=1,penalty='l1',max_iter=100)
+    classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
     
     # score = []
     # conf = []
@@ -491,7 +492,7 @@ def trainLogReg_cross(X,y):
     X_train = X[0:400,:]
     y_train = y[0:400]
     
-    clf = classifier.fit(X_train,y_train)
+    clf = classifier.fit(X_train, y_train)
     X_val = X[400:,:]
     # y_val = y[400:]
     pred_prob_val = clf.predict_proba(X_val)
@@ -504,9 +505,9 @@ def trainLogReg_cross(X,y):
     # conf.append(metrics.confusion_matrix(y_val,y_pred))
 
     # Cross-validation fold number 2.
-    X_train = np.concatenate((X[0:200,:],X[400:600,:]),axis=0)
-    y_train = np.concatenate((y[0:200],y[400:600]),axis=0)
-    clf = classifier.fit(X_train,y_train)
+    X_train = np.concatenate((X[0:200,:], X[400:600,:]), axis=0)
+    y_train = np.concatenate((y[0:200], y[400:600]), axis=0)
+    clf = classifier.fit(X_train, y_train)
     X_val = X[200:400,:]
     # y_val = y[200:400]
     pred_prob_val = clf.predict_proba(X_val)
@@ -520,7 +521,7 @@ def trainLogReg_cross(X,y):
     # Cross-validation fold number 3.
     X_train = X[200:,:]
     y_train = y[200:]
-    clf = classifier.fit(X_train,y_train)
+    clf = classifier.fit(X_train, y_train)
     X_val = X[:200,:]
     # y_val = y[:200]
     pred_prob_val = clf.predict_proba(X_val)
@@ -534,37 +535,47 @@ def trainLogReg_cross(X,y):
 
     offset = (offset1+offset2+offset3)/3
     
-    clf = classifier.fit(X,y)
+    clf = classifier.fit(X, y)
 
     # pred_prob = clf.predict_proba(X) 
     # score_train = clf.score(X,y) 
     
     return clf, offset #,score,conf
 
-def trainLogReg_cross2(X,y):
+def trainLogRegCV2(X, y):
     '''
-    Trains a classifier on EEG epochs from stable blocks and recent NF blocks: (800,n_channels,n_samples)
-    The offset is computed based on the most recent 200 trials.
+    Trains a logistic regression classifier based on recorded EEG epochs. 
+    For neurofeedback runs after the first one (n_run > 0), using 800 trials.
+
+    The classifier bias is corrected (i.e. tendency of the classifier to be overly confident in predicting one of the categories):
+    The offset for correction of classifier bias is computed based on the most recent 200 trials.
     
-    Input:
-    - X: Epochs (after preprocessing, SSP correction and two-trial averaging). Length 800 trials.
-    - y: Binary category array.
+    For validation accuracy and confusion matrices, code in the function can be uncommented.
+
+    # Arguments
+        X: NumPy array
+            EEG data in the following format: [trials, channels, samples]
+            
+        y: NumPy Array
+            Binary category array.
     
-    Output:
-    - clf: SAGA LogReg with L1 penalty, fitted on X and y.
-    - offset: Offset value for correction of classification bias.
-    '''
+    # Returns
+        clf: scikit-learn classifier object
+            SAGA LogReg with L1 penalty, fitted on X and y.
+            
+        offset: float
+            Float value for correcting the prediction probability of the classifier.
+    '''   
+    X = scale2DArray(X, axis=1)
     
-    X = scale2DArray(X,axis=1)
-    
-    classifier = LogisticRegression(solver='saga',C=1,random_state=1,penalty='l1',max_iter=100)
+    classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
     
     # score = []
     # conf = []
     X_train = X[0:600,:]
     y_train = y[0:600]
     
-    clf = classifier.fit(X_train,y_train)
+    clf = classifier.fit(X_train, y_train)
     X_val = X[600:,:]
     # y_val = y[600:]
     pred_prob_val = clf.predict_proba(X_val)
@@ -575,35 +586,41 @@ def trainLogReg_cross2(X,y):
     # score.append(metrics.accuracy_score(y_val,y_pred))
     # conf.append(metrics.confusion_matrix(y_val,y_pred))
 
-    clf = classifier.fit(X,y)
+    clf = classifier.fit(X, y)
 
 #    pred_prob =  clf.predict_proba(X) 
 #    score_train = clf.score(X,y) 
     
     return clf, offset #,score,conf
 
-def testEpoch(clf,epoch,y=None):
+def testEpoch(clf, epoch):
     '''
-    Tests an epoch based on a trained classifier. 
+    Classifies an epoch based on a trained classifier. 
 
-    Input:
-    - clf: Trained classifier.
-    - X: Epoch (after preprocessing, SSP correction and averaging).
+    # Arguments
+        clf: scikit-learn classifier object
+        
+        epoch: NumPy array
+            EEG Epoch in the following format: [channels, samples].
     
-    Output:
-    - pred_prob: Prediction probability of classifier.
-    - clf.predict(epoch): Predicted, binary value of the classifier.
+    # Returns
+        pred_prob: float (range = {0;1})
+            Prediction probability of classifier.
+        
+        pred: int (0 or 1)
+            Predicted, binary value of the classifier.
     '''
     
     epoch = scale1DArray(epoch)
     # y_pred = clf.predict(epoch)
     
     pred_prob =  clf.predict_proba(epoch)
+    pred = clf.predict(epoch) 
 
-    return pred_prob, clf.predict(epoch) 
+    return pred_prob, pred
 
 
-def sigmoid_base(x, A, B, C, D):
+def sigmoidBase(x, A, B, C, D):
     '''
     Sigmoid 4 parameter base.
     '''
@@ -615,11 +632,13 @@ def sigmoid(x):
     Transfer function for mapping prediction probability to alpha value between 0.17 and 0.98.
     Transfer function not continuous.
     
-    Input:
-    - x: Float between -1 and 1, prediction probability value.
+    # Arguments
+        x: float (range = {-1,1}
+            Classifier output value, 1 denoting a maximum correct prediction probability. 
     
-    Output:
-    - alpha: Float between 0.17 and 0.98, mapped using the sigmoid function with specified parameters.
+    # Returns
+        alpha: float (range = {0.17,0.98}
+            Alpha value mapped using the sigmoid function with specified parameters.
     
     '''
     
@@ -628,15 +647,15 @@ def sigmoid(x):
     A1 = 0.98 + offset1
     B = 1.3 # Steepness
     C = 0 # Inflection point
-    D1 = 1 - A1 # 0.17
+    D1 = 1 - A1 
     D2 = 0.17 - offset2
     A2 = 1 - D2
     
     if x >= 0:
-        alpha = sigmoid_base(x,A1,B,C,D1)
+        alpha = sigmoidBase(x,A1,B,C,D1)
 
     else:
-        alpha = sigmoid_base(x,A2,B,C,D2)
+        alpha = sigmoidBase(x,A2,B,C,D2)
         
     return alpha
 

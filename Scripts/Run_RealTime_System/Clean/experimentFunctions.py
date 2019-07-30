@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Functions for running the PsychoPy experimental script and creating stimuli (composite images) for the experiment.
+'''
+Functions for running the PsychoPy experimental script and generating stimuli (composite images) for the experiment.
+The script creates and outlet for sending markers (trigger points) for each stimuli onset.
+'''
 
-@author: Greta Tuckute
-
-"""
 # Imports
 import os
 import numpy as np
@@ -16,7 +15,7 @@ from PIL import Image
 import random
 from random import sample
 from pylsl import StreamInfo, StreamOutlet, StreamInlet, resolve_stream, resolve_byprop
-from random_1subject import assign_subject, add_avail_feedback_sub, gen_group_fname
+from randomizeParticipants import assign_subject, add_avail_feedback_sub, gen_group_fname
 
 from psychopy import visual, core, data, event, monitors, logging
 from paths import data_path_init, subject_path_init, script_path_init
@@ -30,7 +29,7 @@ os.chdir(subject_path)
 
 ###### Input subject ID and experimental day ######
 
-subjID = '10'
+subjID = '01'
 expDay = '2' # '2': feedback day
 
 ###### Global variables ######
@@ -220,7 +219,7 @@ def createRandomImages(dom='female', lure='male'):
 
 def createIndices(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1): 
     '''
-    Returns 50 fused images (only the indices/string of paths) based on a chosen attentive category, and a chosen unattentive category.
+    Creates 50 fused images (only the indices/string of paths) based on a chosen attentive category, and a chosen unattentive category.
     It is possible to save the fused images in a folder named after the attentive category: Uncomment code in this function.
     
     # Arguments
@@ -232,8 +231,8 @@ def createIndices(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1):
             Experimental day for naming the .csv file with indices.
     
     # Returns
-    No direct output, but writes to a .csv file with 4 columns: attentive category name, binary category number, image 1 used in the composite
-    image and image 2 used in the composite image. 
+        No direct output, but writes to a .csv file with 4 columns: attentive category name, binary category number, image 1 used in the composite
+        image and image 2 used in the composite image. 
     
     Writes to a .csv file in log_file_path with the title "createIndices + subjID_forfile + exp_day.csv".
     '''
@@ -284,49 +283,11 @@ def createIndices(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1):
     blockIdx += 1
     
     del aDom, aLure, nDom, nLure
-    
-def createIndicesNew(aDom, aLure, nDom, nLure, subjID_forfile=subjID, exp_day=1): 
-    ''' 
-    Same function as createIndices, but uses different categories (bus and airplane + cat and dog).
-    '''
-
-    aCatImages, aCats = createRandomImages(dom=aDom,lure=aLure) # 50 attend category images
-    nCatImages, nCats = createRandomImages(dom=nDom,lure=nLure) 
-
-    if aDom == 'bus' or aDom == 'airplane':
-        binary_cat = 0
-    if aDom == 'cat' or aDom == 'dog':
-        binary_cat = 1
-
-    imageCount = 0
-    global blockIdx
-    
-    for i in range(len(aCatImages)):
-        
-        background = Image.open(os.path.join(aCatImages[i]), mode='r')
-        foreground = Image.open(os.path.join(nCatImages[i]))
- 
-        background.close()
-        foreground.close()
-        # fusedImage.close()
-    
-        imageCount += 1
-        
-        # Logging the image paths/IDs to a df
-        df_imgIdxSave.loc[i + (blockIdx * len(aCatImages))-50] = [aDom, binary_cat, aCatImages[i], nCatImages[i]] 
-        
-    print('Created {0} fused image indices, with a total no. of blocks currently created: {1}.\n'.format(len(aCatImages), str(blockIdx)))
-
-    df_imgIdxSave.to_csv(subject_path + '\\createIndices_' + str(subjID_forfile) + '_day_' + str(exp_day) + '.csv') 
-
-    blockIdx += 1
-    
-    del aDom, aLure, nDom, nLure
 
 
 def createNonFusedIndices(mixture=[12,13,12,13], no_blocks=8, no_runs=3):
     ''' 
-    Returns indices of non-fused images (random order) in a .csv file.
+    Creates indices of non-fused images (random order) in a .csv file.
     
     # Arguments
         mixture: list
@@ -613,7 +574,7 @@ def saveMeanAlphaDataFrame(subjID):
     Saves the data frame to the subject_path.
     '''
     df_meanAlphaLst = pd.DataFrame(meanAlphaLst)
-    df_meanAlphaLst.to_csv(subject_path + '\\' + subjID + '\\MEANalpha_subjID_' + str(subjID) + '_'  + '_day_' + str(expDay) + str(log_base) + '.csv') 
+    df_meanAlphaLst.to_csv(subject_path + '\\' + subjID + '\\MEAN_alpha_subjID_' + str(subjID) + '_'  + 'day_' + str(expDay) + str(log_base) + '.csv') 
     
 def readMarkerStream(stream_name ='alphaStream'):
     '''
@@ -731,9 +692,11 @@ def runTest(day='1'):
                 closeWin()
 
 
-def runBehDay(numRuns=2, numBlocks=8, blockLen=50, day=1):
+def runBehDay(numRuns=2, numBlocks=8, blockLen=50):
     '''
     Runs the experimental script for behavioral days (1 and 3) without EEG recordings.
+    
+    If expDay is day 1, the participant can be randonmly assigned to an experimental group using randomizeParticipants.py (uncomment code).
     
     # Arguments
         numRuns: int
@@ -743,17 +706,14 @@ def runBehDay(numRuns=2, numBlocks=8, blockLen=50, day=1):
             Number of blocks (one run).
         
         blockLen: int
-            Number of images to display in each block.
-        
-        day: int
-            Experimental day.    
+            Number of images to display in each block. 
     
     # Returns
         No direct output. Runs the experimental script for the behavioral paradigm.    
     '''
     
-    if day == 1:
-        assign_subject(subjID) # For distributing participants into neurofeedback and control participants.
+    # if expDay == '1':
+    #     assign_subject(subjID) # For assigning participants into neurofeedback and control groups.
     
     time.sleep(25)
 
@@ -1008,8 +968,10 @@ def runNFday(subjID,numRuns,numBlocks,blockLen):
                 saveDataFrame(subjID) # Saves the timing of image stimuli 
                 saveAlphaDataFrame(subjID) # Saves alpha values used in the experiment
                 saveMeanAlphaDataFrame(subjID)
-                group_fname=gen_group_fname(subjID)
-                add_avail_feedback_sub(subjID,group_fname)
+                
+                # Uncomment code below if using randomizeParticipants.py
+                # group_fname = gen_group_fname(subjID)
+                # add_avail_feedback_sub(subjID,group_fname)
                 
                 closeWin()
 

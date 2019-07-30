@@ -1,7 +1,8 @@
-"""
-The script finds the EEG stream and the experimental script outlet (from runSystem.py script).
-
-"""
+'''
+The script finds the markers (trigger points for stimuli onset) from the experimental script and samples EEG epochs 0.1 s pre-stimuli onset 
+to 1 s post-stimuli onset. Based on a specified number of epochs, the system changes between the following states: 
+'stable' for recording EEG, 'train' for training a real-time decoding model, and 'feedback' for recording and providing neurofeedback in real-time).
+'''
 
 # Imports
 import numpy as np
@@ -15,20 +16,18 @@ script_path = script_path_init()
 subject_path = subject_path_init()
 os.chdir(script_path)
 
-from EEG_analysis_RT import preproc1epoch, createInfoMNE, applySSP, averageStable
-from EEG_analysis_offline import extractCat
-from EEG_classification import sigmoid, testEpoch, trainLogReg_cross, trainLogReg_cross2
-from stream_functions import *
+from realtimeFunctions import *
+from streamFunctions import *
 
 ###### Manual input of subject ID for streaming and logging ######
-subject_id = '10' 
+subject_id = '01' 
 
 # Extract experimental categories 
-y = extractCat(subject_path+'\\'+subject_id+'\\createIndices_'+subject_id+'_day_2.csv', exp_type='fused')
+y = extractCat(subject_path+'\\'+subject_id+'\\createIndices_'+subject_id+'_day_2.csv')
 y = np.array([int(x) for x in y])
 
 #%% Tracking of print outputs. Saved as a log file to the subject ID folder.
-Transcript.start(subject_path+'\\'+subject_id+'\\stream_logfile_subject'+subject_id+time.strftime('%m-%d-%y_%H-%M')+'.log')
+Transcript.start(subject_path+'\\'+subject_id+'\\stream_logfile_subject_'+subject_id+'_'+time.strftime('%m-%d-%y_%H-%M')+'.log')
 
 #%% Look for a recent stream from the Psychopy experimental script (will localize the experimental stream after runSystem is started).
 
@@ -53,7 +52,7 @@ while marker_not_present:
 fs = 500 # Sampling rate
 inlet_EEG,store_EEG = read_EEG_stream(fs=fs, max_buf=2) # EEG stream
 inlet_marker, store_marker = read_marker_stream(stream_name ='PsychopyExperiment') # Experimental marker stream
-info_outlet = StreamInfo('alphaStream','Markers',1,0,'float32','myuniquesourceid23441') # Outlet for alpha values from the trained classifier. Used for updating the experimental stimuli
+info_outlet = StreamInfo('alphaStream', 'Markers', 1, 0, 'float32', 'myuniquesourceid23441') # Outlet for alpha values from the trained classifier. Used for updating the experimental stimuli
 outlet_alpha = StreamOutlet(info_outlet)
 
 # Variables for sampling of EEG and classifier training/feedback
@@ -136,7 +135,6 @@ while marker[0]+1 < n_trials:
         
         # Train classifier for other runs than the first run and estimate classifier bias for offset correction
         if n_run > 0:
-            print('Number of run is above 1')
             # Test if neurofeedback epochs are missing
             ss_fb = np.sum(np.sum(np.abs(epochs_fb),axis=2), axis=1)
             epochs0_idx = np.where(ss_fb==0)[0]
@@ -145,7 +143,7 @@ while marker[0]+1 < n_trials:
                 while rep < 30:
                     print('WARNING missing '+str(len(epochs0_idx))+' neurofeedback epochs\n')
                     rep += 1
-                    epochs_non0_avg = np.mean(np.delete(epochs_fb,epochs0_idx,axis=0), axis=0)
+                    epochs_non0_avg = np.mean(np.delete(epochs_fb, epochs0_idx,axis=0), axis=0)
                     epochs_fb[epochs0_idx] = epochs_non0_avg
             
             # Append SSP corrected neurofeedback blocks to array with SSP corrected stable blocks (stable_blocksSSP_append)
@@ -153,15 +151,13 @@ while marker[0]+1 < n_trials:
             fb_start = (n_run-1)*n_feedback_epochs
             y_run_append = np.append(y_run,y_feedback[fb_start:fb_start+n_feedback_epochs])
             print('About to train classifier for n_run > 0')
-            clf,offset = trainLogReg_cross2(stable_blocksSSP_append,y_run_append)
+            clf, offset = trainLogRegCV2(stable_blocksSSP_append,y_run_append)
 
-            print('Mean classifier coefficient' + str(np.mean(clf.coef_)))
+            # print('Mean classifier coefficient' + str(np.mean(clf.coef_)))
         
         # Train classifier for the first run and estimate classifier bias for offset correction 
         else:
-            print('About to train classifier for n_run = 0')
-            clf,offset = trainLogReg_cross(stable_blocksSSP, y_run)
-            print('Mean ' + str(np.mean(clf.coef_)))
+            clf,offset = trainLogRegCV(stable_blocksSSP, y_run)
         
         # Limit offset correction to abs(0.125)
         offset = (np.max([np.min([offset,0.25]),-0.25]))/2
