@@ -22,14 +22,54 @@ The current paradigm uses composite images (an overlay of two images from differ
 
 ![](createIndices_example.png)
 
+The number of rows have to correspond to the number of experimental trials.
+
+The .csv file can be generated using the script *prepareImageStimuli.py*. This requires images in the folders in \ClosedLoop\imageStimuli\. For the face images we used the [FERET database](https://www.nist.gov/itl/iad/image-group/color-feret-database) and for the scene images we used the [SUN database](https://groups.csail.mit.edu/vision/SUN/).
+
+The script assumes four different image categories: male, female, indoor, outdoor (can be changed by changing folder names and category combinations, catComb, in *prepareImageStimuli.py*, lines 28-38).
+
+Non-composite images can also be generated using the function *createNonFusedIndices* in *experimentFunctions.py* and run using the function *prepNonFusedImage* instead of fuseImage in either runBehDay for the behavioral paradigm, and runNFday for the neurofeedback paradigm (has to be manually changed).
+
+
 ## Experimental paradigm
 Participants had to respond to and, by extension, focus their attention towards subcategories of faces: female
 and male, and scenes: indoor and outdoor. Stimuli were composite images of the two categories (equal image
 mixture ratio during training blocks). During feedback blocks, the decoded task-relevant EEG representation
 was used to continuously update the image mixture of the stimuli in a closed-loop manner. If participants
 attended well (high levels of task-relevant information in their brain) the task-relevant image became easier to
-see, and vice versa. Thus, the feedback worked as an amplifier of participants attentional state, with the goal
-to make participants’ aware of attention fluctuations and hence improve sustained attention abilities
+see, and vice versa (see [deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)).
+
+The experiment contains behavioral days (visual stimuli presentation without EEG recording) and a neurofeedback day (EEG recording and neurofeedback during visual stimuli presentation). 
+
+The experimental structure for the neurofeedback day is as follows:
+
+- One block consists of 50 images (can be changed using the argument blockLen (block length, default 50) in the function runNFday or runBehDay). Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
+- One run consists of 8 blocks (can be changed using the argument numBlocks (number of blocks, default 8) in the function runNFday or runBehDay).
+- The experiment consists of 6 runs (can be changed using the argument numRuns (number of runs, default 6) in the function runNFday or runBehDay). 
+- For behavioral days, the number of runs is 2 instead of 6 runs.
+
+For the neurofeedback paradigm, the first 600 trials (12 blocks) are used for recording EEG data. A classifier is trained based on these blocks, and used for providing feedback in the subsequent 200 trials (4 blocks). This is followed by runs consisting of 4 blocks of recording EEG (‘stable’ blocks) and 4 blocks of providing feedback (‘feedback’ blocks). 
+
+# Description of scripts
+
+## runClosedLoop.py
+*runClosedLoop.py* must be started before *runSystem.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runSystem.py*.
+*runClosedLoop.py* will stream the EEG data. The EEG sampling rate, number of channels and epoch length can be changed in this script. Based on the experimental structure, the script will change the system states among:
+
+1) ‘stable’ (recording of EEG data for training of the decoding classifier)
+2) ‘train’ (training of the decoding classifier)
+3) ‘feedback’ (preprocessing and classification of EEG data for neurofeedback)
+
+## runSystem.py
+*runSystem.py* starts the experimental script. As explained in **Experimental paradigm**, the paradigm consists of behavioral days (day 1 and 3), and a neurofeedback day (day 2). 
+
+For the behavioral experiment, the function *runBehDay* from *experimentFunctions.py* is used.  
+For the neurofeedback experiment, the function *runNFday* from *experimentFunctions.py* is used.
+
+Manually enter the experimental day and subject ID in *experimentFunctions.py* (line 32-33) and in *runClosedLoop.py* (line 23). The information in these scripts must match.
+
+A simple .txt file named “feedback_subjID_01.txt” has to be located in the subject’s folder containing 1 in the first row and their own subject ID in the second line (example provided in \ClosedLoop\subjectsData\01\). 
+This feedback .txt file provides an opportunity to make participants function as controls, and hence receive yoked, sham neurofeedback (feedback based on another participant’s brain response). In this case, the .txt file has to contain 0 in the first row, and the subject ID of the matched neurofeedback participant in the second row.
 
 
 ## Dependencies/acknowledgements:
@@ -37,4 +77,3 @@ to make participants’ aware of attention fluctuations and hence improve sustai
 - MNE (https://mne-tools.github.io/stable/index.html) 
 - Lab streaming layer (https://github.com/sccn/labstreaminglayer)
 
-Additionally a number of images must be available. For the face images we used the FERET database (https://www.nist.gov/itl/iad/image-group/color-feret-database) and for the scene images we used the SUN database (https://groups.csail.mit.edu/vision/SUN/).
