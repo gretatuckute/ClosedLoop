@@ -13,7 +13,7 @@ The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
 Visualization of the major components of the system:
 
-![](systemComponents.pdf)
+![](systemComponents.png)
 
 
 
