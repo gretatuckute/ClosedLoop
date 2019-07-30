@@ -15,7 +15,7 @@ Visualization of the major components of the system:
 
 ![](systemComponents.png)
 
-The system requires images for the visual paradigm (see **Stimuli**). The recorded EEG data will be saved in the \ClosedLoop\subjectsData folder (see “”)
+The system requires images for the visual paradigm (see **Stimuli**). The recorded EEG data will be saved in the \ClosedLoop\subjectsData folder (see “Saving data”).
 
 ## Stimuli
 The current paradigm uses composite images (an overlay of two images from different categories). The stimuli are provided by a .csv file, as illustrated below:
