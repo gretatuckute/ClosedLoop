@@ -18,8 +18,18 @@ Visualization of the major components of the system:
 The system requires images for the visual paradigm (see **Stimuli**). The recorded EEG data will be saved in the \ClosedLoop\subjectsData folder (see “”)
 
 ## Stimuli
+The current paradigm uses composite images (an overlay of two images from different categories). The stimuli are provided by a .csv file, as illustrated below:
 
+![](createIndices_example.png)
 
+## Experimental paradigm
+Participants had to respond to and, by extension, focus their attention towards subcategories of faces: female
+and male, and scenes: indoor and outdoor. Stimuli were composite images of the two categories (equal image
+mixture ratio during training blocks). During feedback blocks, the decoded task-relevant EEG representation
+was used to continuously update the image mixture of the stimuli in a closed-loop manner. If participants
+attended well (high levels of task-relevant information in their brain) the task-relevant image became easier to
+see, and vice versa. Thus, the feedback worked as an amplifier of participants attentional state, with the goal
+to make participants’ aware of attention fluctuations and hence improve sustained attention abilities
 
 
 ## Dependencies/acknowledgements:
