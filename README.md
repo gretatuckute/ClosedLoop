@@ -67,7 +67,7 @@ The data will be stored and saved in the subject's folder \ClosedLoop\subjectsDa
 
 # Description of scripts
 
-## runClosedLoop.py
+### runClosedLoop.py
 *runClosedLoop.py* must be started before *runSystem.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runSystem.py*.
 *runClosedLoop.py* will stream the EEG data. The EEG sampling rate, number of channels and epoch length can be changed in this script. Based on the experimental structure, the script will change the system states among:
 
@@ -75,16 +75,16 @@ The data will be stored and saved in the subject's folder \ClosedLoop\subjectsDa
 2) ‘train’ (training of the decoding classifier)
 3) ‘feedback’ (preprocessing and classification of EEG data for neurofeedback)
 
-## realtimeFunctions.py
+### realtimeFunctions.py
 Functions for working with real-time EEG data in Python:
 Standardizing, scaling, artefact correction (SSP projection), preprocessing, classification.
 The functions are called in *runClosedLoop.py*.
 
-## streamFunctions.py
+### streamFunctions.py
 Functions for finding the EEG stream and the experimental stream containing markers (trigger points for stimuli onset, from experimental script: *experimentFunctions.py*), saving data, writing log files and changing system states for the neurofeedback system.
 The functions are called in *runClosedLoop.py*.
 
-## runSystem.py
+### runSystem.py
 *runSystem.py* starts the experimental script. As explained in **Experimental paradigm**, the paradigm consists of behavioral days (day 1 and 3), and a neurofeedback day (day 2). 
 
 For the behavioral experiment, the function *runBehDay* from *experimentFunctions.py* is used.  
@@ -95,14 +95,21 @@ Manually enter the experimental day and subject ID in *experimentFunctions.py* (
 A simple .txt file named “feedback_subjID_01.txt” has to be located in the subject’s folder containing 1 in the first row and their own subject ID in the second line (example provided in \ClosedLoop\subjectsData\01\). 
 This feedback .txt file provides an opportunity to make participants function as controls, and hence receive yoked, sham neurofeedback (feedback based on another participant’s brain response). In this case, the .txt file has to contain 0 in the first row, and the subject ID of the matched neurofeedback participant in the second row.
 
-## experimentFunctions.py
+### experimentFunctions.py
 Functions for running the PsychoPy experimental script and generating stimuli (composite images) for the experiment.
 The functions are called in *runSystem.py*.
 
-## paths.py
+### paths.py
 Initialization of paths for scripts, subjects directory, and image stimuli directory.
 
-# Dependencies/acknowledgements:
+## Additional scripts (not necessary for running the system)
+
+1)	Functions for automated randomization of participants into 'feedback' participants or matched controls. Generates the “feedback_subjID_X.txt file in the subject's folder \ClosedLoop\subjectData\subjectID\, denoting whether a participant
+is feedback (first row containing 1) or control (first row containing 0).
+
+2) Offline analysis: 
+
+## Dependencies/acknowledgements:
 - [PsychoPy](https://www.psychopy.org/)
 - [MNE](https://mne-tools.github.io/stable/index.html) 
 - [Lab Streaming Layer](https://github.com/sccn/labstreaminglayer)
@@ -110,4 +117,5 @@ Initialization of paths for scripts, subjects directory, and image stimuli direc
 - [Scikit-Learn](https://scikit-learn.org/stable/)
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
+
 In collaboration with [Sofie Therese Hansen](https://github.com/STherese) and Professor Lars Kai Hansen.
