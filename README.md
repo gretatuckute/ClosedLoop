@@ -109,3 +109,5 @@ Initialization of paths for scripts, subjects directory, and image stimuli direc
 - [NumPy](https://www.numpy.org/)
 - [Scikit-Learn](https://scikit-learn.org/stable/)
 
+*Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
+In collaboration with [Sofie Therese Hansen](https://github.com/STherese) and Professor Lars Kai Hansen.
