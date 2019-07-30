@@ -2,7 +2,7 @@
 
 This GitHub contains code for running a closed-loop, real-time EEG neurofeedback system.
 
-The system is initially designed for a visual attention paradigm (deBettencourt), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
+The system is initially designed for a visual attention paradigm ([deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
 
 The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
@@ -14,6 +14,11 @@ The system can easily be adapted for various visual paradigms (see **Stimuli**).
 Visualization of the major components of the system:
 
 ![](systemComponents.png)
+
+The system requires images for the visual paradigm (see **Stimuli**). The recorded EEG data will be saved in the \ClosedLoop\subjectsData folder (see “”)
+
+## Stimuli
+
 
 
 
