@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
 Functions for randomly assigning participants as feedback participants or matched controls.
+Generates a .txt file in the subject_path (folder named with the subjectID), denoting whether a participant
+is feedback (first row containing 1) or control (first row containing 0)
 '''
 
 # Imports
