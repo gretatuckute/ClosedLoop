@@ -104,7 +104,7 @@ Initialization of paths for scripts, subjects directory, and image stimuli direc
 
 ## Additional scripts (not necessary for running the system)
 
-1)	Functions for automated randomization of participants into 'feedback' participants or matched controls. Generates the “feedback_subjID_X.txt file in the subject's folder \ClosedLoop\subjectData\subjectID\, denoting whether a participant
+1)	*randomizeParticipants.py*: Functions for automated randomization of participants into 'feedback' participants or matched controls. Generates the “feedback_subjID_X.txt file in the subject's folder \ClosedLoop\subjectData\subjectID\, denoting whether a participant
 is feedback (first row containing 1) or control (first row containing 0).
 
 2) Offline analysis: 
