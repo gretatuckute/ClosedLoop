@@ -10,7 +10,8 @@ The first part contains EEG signal processing and preprocessing, while the secon
 # Imports 
 import numpy as np
 from scipy.stats import zscore
-import os 
+import os
+import pandas as pd
 import mne
 from scipy.signal import detrend
 from sklearn.linear_model import LogisticRegression
