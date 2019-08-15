@@ -5,13 +5,13 @@ Initialization of paths for system scripts, subjects directory, and data directo
 
 import os
 
-def base_dir_init(): # Base directory for ClosedLoop GitHub
-    this_base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    return this_base_dir
-
-def script_path_init():
-    script_path = base_dir_init() + '\Scripts'
+def script_path_init(): # Base directory for ClosedLoop GitHub
+    script_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     return script_path
+
+# def script_path_init():
+#     script_path = base_dir_init() + '\Scripts'
+#     return script_path
 
 def data_path_init(): # Data (images) storage directory
     data_path = base_dir_init() + '\imageStimuli'
@@ -23,7 +23,7 @@ def subject_path_init(): # Subjects directory, for storing EEG data
 
 
 if __name__ == '__main__':
-    base_dir = base_dir_init()
+    base_dir = script_path_init()
     print('====== Current directory ======')
     print(base_dir)
    
