@@ -27,19 +27,19 @@ scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
 
 from variables import *
-from responseTime_func import outputStableLureIdx
+# from responseTime_func import outputStableLureIdx
 
 #%% Pipeline with updated LORO and ouput alpha and clf output values
 
-# d_all2 = {}
-
-# for subj in subjID_all:
-#     with open(EEGDir+'09May_subj_'+subj+'.pkl', "rb") as fin:
-#          d_all2[subj] = (pickle.load(fin))[0]
-
-# fname = 'd_all2.pkl'         
-# with open(npyDir+fname, 'wb') as fout:
-#      pickle.dump(d_all2, fout)
+#d_all_stats = {}
+#
+#for subj in subjID_all:
+#    with open(EEGDir+'15Oct_subj_'+subj+'.pkl', "rb") as fin:
+#         d_all_stats[subj] = (pickle.load(fin))[0]
+#
+#fname = 'd_all_stats.pkl'         
+#with open(npyDir+fname, 'wb') as fout:
+#     pickle.dump(d_all_stats, fout)
 
 #%% ######## FUNCTIONS ########
 def extractVal(wanted_key):
@@ -93,6 +93,10 @@ def extractEvokeds(epochsArray):
     evokeds = [epochsArray[name].average() for name in ('scene','face')]
     return evokeds, evokeds[0],evokeds[1] # 0 for scenes, 1 for faces
 
+#%% Remember to change extractVal back to e.g. d_all2
+subsAll_95, subsNF_95, subsC_95, meanAll_95, meanNF_95, meanC_95 = extractVal('LORO_CI95_significant')
+
+
 #%% Extract RT acc, corr and non-corr
 subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')
 subsAll_uncor, subsNF_uncor, subsC_uncor, meanAll_uncor, meanNF_uncor, meanC_uncor = extractVal('RT_test_acc_uncorr')
@@ -113,7 +117,7 @@ plt.plot(np.arange(len(subsNF),len(subsAll)),C_mean, label='Mean control',color=
 plt.legend()
 plt.grid(color='gainsboro',linewidth=0.5)
 
-
+# barplot
 fig,ax = plt.subplots()
 ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
 plt.bar(np.arange(0,len(subsNF),1),(1-subsNF),edgecolor='tomato',color='white',zorder=2,linewidth=0.5) # NF subjects
@@ -131,7 +135,32 @@ plt.hlines(1-C_mean,11-0.5,22-0.5,label='Mean control',color='dodgerblue',zorder
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
 plt.legend(loc='upper right')
 
+#%% Make grouped barplot
+subsC_sorted = [y for x,y in sorted(zip(idxLst,subsC))] # I.e. just sort behavioral measure based on this list. 
+subsC_sorted = np.asarray(subsC_sorted)
 
+labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+
+x = np.arange(len(labels))  # the label locations
+width = 0.35  # the width of the bars
+
+fig, ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+rects1 = ax.bar(x - width/2, 1-subsNF, width, edgecolor='tomato',color='white',zorder=2,linewidth=0.5)
+rects2 = ax.bar(x + width/2, 1-subsC_sorted, width, edgecolor='dodgerblue',color='white',zorder=2,linewidth=0.5)
+
+ax.hlines(1-NF_mean,-0.5,11-0.5,label='Neurofeedback group',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+ax.hlines(1-C_mean,-0.5,11-0.5,label='Control group',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+ax.hlines(0.5,xmin=-0.5,xmax=10.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2, color='grey')
+
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax.set_ylabel('Error rate')
+ax.set_xlabel('Matched participant pairs')
+ax.set_title('Real-time decoding error rate')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+ax.set_ylim(0.25,0.6)
 
 #%% Plot RT accuracies cor vs uncor
 fig,ax = plt.subplots()
@@ -248,6 +277,33 @@ plt.hlines(1-NF_mean_LORO,-0.5,11-0.5,label='Mean NF',color='tomato',zorder=4,li
 plt.hlines(1-C_mean_LORO,11-0.5,len(subsAll)-0.5,label='Mean control',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
 plt.hlines(0.5,xmin=-0.5,xmax=21.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2)
 plt.legend(loc='upper right')
+
+#%% Make grouped barplot, LORO
+subsC_sorted_LORO = [y for x,y in sorted(zip(idxLst,subsC_LORO))] # I.e. just sort behavioral measure based on this list. 
+subsC_sorted_LORO = np.asarray(subsC_sorted_LORO)
+
+labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+
+x = np.arange(len(labels))  # the label locations
+width = 0.35  # the width of the bars
+
+fig, ax = plt.subplots()
+ax.grid(color='gainsboro',linewidth=0.5,zorder=0)
+rects1 = ax.bar(x - width/2, 1-subsNF_LORO, width, edgecolor='tomato',color='white',zorder=2,linewidth=0.5)
+rects2 = ax.bar(x + width/2, 1-subsC_sorted_LORO, width, edgecolor='dodgerblue',color='white',zorder=2,linewidth=0.5)
+
+ax.hlines(1-NF_mean_LORO,-0.5,11-0.5,label='Neurofeedback group',color='tomato',zorder=4,linestyles='dashed',linewidth=2)
+ax.hlines(1-C_mean_LORO,-0.5,11-0.5,label='Control group',color='dodgerblue',zorder=4,linestyles='dashed',linewidth=2)
+ax.hlines(0.5,xmin=-0.5,xmax=10.5,linestyles='dashed',label='Chance',zorder=4,linewidth=2, color='grey')
+
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax.set_ylabel('Error rate')
+ax.set_xlabel('Matched participant pairs')
+ax.set_title('Classifier error rate')
+ax.set_xticks(x)
+ax.set_xticklabels(labels)
+ax.legend()
+ax.set_ylim(0.15,0.6)
 
 #%% Plot offline train LOBO accuracies, corrected, stable
 subsAll_LOBO, subsNF_LOBO, subsC_LOBO, meanAll_LOBO, meanNF_LOBO, meanC_LOBO = extractVal('LOBO_stable_train_acc_corr')

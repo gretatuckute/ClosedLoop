@@ -20,7 +20,7 @@ saveDir = 'P:\\closed_loop_data\\beh_analysis\\'
 # saveDir = 'P:\\closed_loop_data\\beh_analysis\\V3_200_1200\\'
 
 figDir = 'C:\\Users\\Greta\\Desktop\\closed_loop\\RESULTS\\EEG\\'
-EEGDir = 'P:\\closed_loop_data\\offline_analysis_pckl\\' 
+EEGDir = 'P:\\Research2018_2019\\DTU_closed_loop\\closed_loop_data\\offline_analysis_pckl\\' 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 npyDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Documents\\npy\\'
 
@@ -77,6 +77,10 @@ with open(npyDir+'d_all2.pkl', "rb") as fin:
 # d_all3
 with open(npyDir+'d_all3.pkl', "rb") as fin:
     d_all3 = (pickle.load(fin))
+
+# d_all_stats, oct15
+with open(npyDir+'d_all_stats.pkl', "rb") as fin:
+    d_all_stats = (pickle.load(fin))
 
 #%% Load stats dictionaries for all subjects
 # 3005 includes errorrate, RER, A, ARER. Extracted as 150-150 ms.
