@@ -118,4 +118,4 @@ is feedback (first row containing 1) or control (first row containing 0).
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
 
-In collaboration with [Sofie Therese Hansen](https://github.com/STherese) and Professor Lars Kai Hansen.
+In collaboration with Dr. [Sofie Therese Hansen](https://github.com/STherese) and Professor Lars Kai Hansen.
