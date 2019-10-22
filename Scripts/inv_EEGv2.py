@@ -96,6 +96,8 @@ def extractEvokeds(epochsArray):
 #%% Remember to change extractVal back to e.g. d_all2
 subsAll_95, subsNF_95, subsC_95, meanAll_95, meanNF_95, meanC_95 = extractVal('LORO_CI95_significant')
 
+subsAll_66, subsNF_66, subsC_66, meanAll_66, meanNF_66, meanC_66 = extractVal('LORO_CI66_significant')
+
 
 #%% Extract RT acc, corr and non-corr
 subsAll, subsNF, subsC, meanAll, meanNF, meanC = extractVal('RT_test_acc_corr')

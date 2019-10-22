@@ -216,7 +216,7 @@ def analyzeOffline(subjID):
 
     #%% Run NF RT offline analysis
     coef_lst = []
-    stable_blocks0 = e[:600,:,:] # Fi+st run
+    stable_blocks0 = e[:600,:,:] # First run
     stable_blocks1 = np.zeros((600,n_channels,n_samples_fs100)) 
     
     y = np.array([int(x) for x in cat])
@@ -293,6 +293,7 @@ def analyzeOffline(subjID):
         # Save clf _coefs
         coefs = clf.coef_
         coef_r = np.reshape(coefs, [23,n_samples_fs100])
+        # coef_r_diffres = np.reshape(coefs, [n_samples_fs100, 23])
         coef_lst.append(coef_r)
 
         # Test accuracy of RT epochs

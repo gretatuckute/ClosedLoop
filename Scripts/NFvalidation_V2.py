@@ -20,12 +20,13 @@ from scipy.stats import zscore
 from pandas import Series
 import pandas as pd
 from sklearn.cross_decomposition import CCA
+import matplotlib.cm as cm
 
 scriptsDir = 'C:\\Users\\Greta\\Documents\\GitHub\\ClosedLoop\\Scripts\\'
 os.chdir(scriptsDir)
-from responseTime_func import extractCat, findRTsBlocks
+# from responseTime_func import extractCat, findRTsBlocks
 from variables import *
-from beh_FUNCv2 import extractStatsBlockDay2
+# from beh_FUNCv2 import extractStatsBlockDay2
 
 #%% Create d_match
 d_match = {}
@@ -1473,7 +1474,7 @@ reversemap = reverse_colourmap(cmRdBu)
 matplotlib.rcParams['xtick.direction'] = 'out'
 
 plt.figure(random.randint(10,200))
-plt.imshow(effect_smap, cmap = reversemap,interpolation='quadric',aspect='auto')
+plt.imshow(effect_smap, cmap = reversemap,aspect='auto')
 channel_vector = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
 time_vector = ['-100','0','100','200','300','400','500','600','700','800']
 plt.xlabel('Time (ms)')
@@ -1491,6 +1492,78 @@ times2 = [0.08, 0.180, 0.28, 0.38,0.48,0.520,0.58,0.64]
 evoked_array.plot_topomap(times=times2)
 ev = evoked_array.plot_topomap(times='peaks')
 # ev.savefig(figDir+'peaks_smap.pdf',dpi=300)
+
+#%% Create sensitivity map with different order of channels 
+
+# For reorganizing
+channel_vector =       ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
+wanted_channel_order = ['F3','F4','FC1','FC2','FC5','FC6','Cz','C3','C4','CP1','CP2','CP5','CP6','Pz','P3','P4','P7','P8','PO3','PO4','Oz','O1','O2']
+
+idxLst_channels = [16,15,6,13,14,17,21,22,8,1,7,0,20,18,4,2,11,9,10,12,3,5,19] # 
+
+# sort
+newSortChannels = [y for x,y in sorted(zip(idxLst_channels, channel_vector))] # correct order sorting
+
+# Now I want to sort all the rows in effect_smap
+effect_smap2 = np.copy(effect_smap)
+
+perm_mat = np.zeros((len(idxLst_channels), len(idxLst_channels)))
+
+for idx, i in enumerate(idxLst_channels):
+    perm_mat[i, idx] = 1
+    
+sorted_effect_smap = np.dot(perm_mat, effect_smap2)
+
+
+# plot
+matplotlib.rcParams['xtick.direction'] = 'out'
+
+plt.figure(random.randint(10,200))
+plt.imshow(sorted_effect_smap, cmap = reversemap,aspect='auto')
+plt.xlabel('Time (ms)')
+# plt.xticks(np.arange(0,90,10),time_vector)
+plt.xticks(np.arange(-0.5,85.5,10),time_vector)
+plt.yticks(np.arange(23),wanted_channel_order)
+plt.ylabel('Channel name ')
+plt.colorbar()
+
+plt.savefig(figDir+'sensmap_sorted.pdf',dpi=300)
+
+
+# Add scalp maps 
+
+#%% Need to create a new info file with the correct channel ordering
+def create_info_mne_sorted(reject_ch=0,sfreq=100):
+    '''
+    Creates an MNE info data structure.
+    
+    # Input:
+        reject_ch: bool. Whether to reject predefined channels.
+        sfreq: int. Sampling frequency.
+        
+    # Output:
+        info: MNE info data structure.
+    '''
+    
+    if reject_ch == True:
+        channel_names = ['F3','F4','FC1','FC2','FC5','FC6','Cz','C3','C4','CP1','CP2','CP5','CP6','Pz','P3','P4','P7','P8','PO3','PO4','Oz','O1','O2']
+        channel_types = ['eeg']*23
+    else:
+        channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
+        channel_types = ['eeg']*32
+        
+    montage = 'standard_1020' 
+    info = mne.create_info(channel_names, sfreq, channel_types, montage)
+    
+    return info
+    
+info_fs100_sorted = create_info_mne_sorted(reject_ch=1,sfreq=100)
+
+#%%
+evoked_array2 = mne.EvokedArray(sorted_effect_smap, info_fs100_sorted, tmin=-0.1)
+
+ev = evoked_array2.plot_topomap(times='peaks')
+ev.savefig(figDir+'peaks_smap_sorted.pdf',dpi=300)
 
 #%% First vs last train run
 subsAll_1, subsNF_1, subsC_1 = extractVal3('LORO_first_acc_corr')
