@@ -7,7 +7,7 @@ The framework is:
 2. A fully automated, real-time implementation without the need for any manual throughout the neurofeedback session.
 3. Not dependent on any preliminary EEG recordings prior to the neurofeedback session.
 4. Feasible to run using consumer-grade, portable EEG acquisition equipment with dry electrodes.
-5. Robust to decoding of cognitive states across intra- and inter-individidual variability (*paper: Tuckute et al., 2019: "A framework for closed-loop neurofeedback for real-time EEG decoding" in prep*). 
+5. Robust to decoding of cognitive states across intra- and inter-individidual variability (paper: Tuckute et al., 2019: *"A framework for closed-loop neurofeedback for real-time EEG decoding"* in prep). 
 
 The framework is initially designed for a visual attention paradigm ([deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
 
@@ -48,18 +48,15 @@ The experiment contains behavioral days (visual stimuli presentation without EEG
 
 The experimental structure for the neurofeedback day is as follows:
 
+![](experimentalParadigm.png)
 
+Participants completed six task runs consisting of eight blocks each. Every block (graded box) consisted of 50 trials displayed successively for one second each. The blocks with a red, dashed outline are denoted as 'stable' blocks, and the blue blocks are denoted as 'feedback' blocks.
 
-*Participants completed six task runs consisting of eight blocks each.
-Every block (graded box) consisted of 50 trials displayed successively for one second each. The blocks with
-a red, dashed outline are denoted as 'stable' blocks, and the blue blocks are denoted as 'feedback' blocks.*
+- One block consists of 50 images (graded box). This can be changed using the argument blockLen (block length, default 50) in the function *runNFday* or *runBehDay*. Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
+- One run consists of 8 blocks. This can be changed using the argument numBlocks (number of blocks, default 8) in the function *runNFday* or *runBehDay*.
+- The experiment consists of 6 runs. This can be changed using the argument numRuns (number of runs, default 6) in the function *runNFday* or *runBehDay*. 
 
-- One block consists of 50 images (can be changed using the argument blockLen (block length, default 50) in the function *runNFday* or *runBehDay*). Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
-- One run consists of 8 blocks (can be changed using the argument numBlocks (number of blocks, default 8) in the function *runNFday* or *runBehDay*).
-- The experiment consists of 6 runs (can be changed using the argument numRuns (number of runs, default 6) in the function *runNFday* or *runBehDay*). 
-- For behavioral days, the number of runs is 2 instead of 6 runs.
-
-For the neurofeedback paradigm, the first 600 trials (12 blocks) are used for recording EEG data. A classifier is trained based on these blocks, and used for providing feedback in the subsequent 200 trials (4 blocks). This is followed by runs consisting of 4 blocks of recording EEG (‘stable’ blocks) and 4 blocks of providing feedback (‘feedback’ blocks). 
+For the neurofeedback paradigm, the first 600 trials (12 blocks, illustrated as boxes with a red, dashed outline) are used for recording EEG data. A classifier is trained based on these blocks, and used for providing feedback in the subsequent 200 trials (4 blocks, illustrated as boxes with a blue, dashed outline). This is followed by runs consisting of 4 blocks of recording EEG (‘stable’ blocks) and 4 blocks of providing feedback (‘feedback’ blocks). 
 
 ## Saving data
 The data will be stored and saved in the subject's folder \ClosedLoop\subjectsData\subjectID\. The .csv file containing image stimuli also has to be located in this folder (default in *prepareImageStimuli.py*, see **Stimuli**).
