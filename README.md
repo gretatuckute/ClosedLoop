@@ -1,8 +1,15 @@
 # Closed-Loop EEG Neurofeedback System
 
-This GitHub contains code for running a closed-loop, real-time EEG neurofeedback system.
+This GitHub contains code for running a closed-loop, real-time EEG neurofeedback system. 
 
-The system is initially designed for a visual attention paradigm ([deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
+The framework is:
+1. Written using exclusively Python source code for a high degree of modularity and transparency.
+2. A fully automated, real-time implementation without the need for any manual throughout the neurofeedback session.
+3. Not dependent on any preliminary EEG recordings prior to the neurofeedback session.
+4. Feasible to run using consumer-grade, portable EEG acquisition equipment with dry electrodes.
+5. Robust to decoding of cognitive states across intra- and inter-individidual variability (*paper: Tuckute et al., 2019: "A framework for closed-loop neurofeedback for real-time EEG decoding" in prep*). 
+
+The framework is initially designed for a visual attention paradigm ([deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
 
 The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
@@ -41,8 +48,14 @@ The experiment contains behavioral days (visual stimuli presentation without EEG
 
 The experimental structure for the neurofeedback day is as follows:
 
-- One block consists of 50 images (can be changed using the argument blockLen (block length, default 50) in the function runNFday or runBehDay). Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
-- One run consists of 8 blocks (can be changed using the argument numBlocks (number of blocks, default 8) in the function runNFday or runBehDay).
+
+
+*Participants completed six task runs consisting of eight blocks each.
+Every block (graded box) consisted of 50 trials displayed successively for one second each. The blocks with
+a red, dashed outline are denoted as 'stable' blocks, and the blue blocks are denoted as 'feedback' blocks.*
+
+- One block consists of 50 images (can be changed using the argument blockLen (block length, default 50) in the function *runNFday* or *runBehDay*). Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
+- One run consists of 8 blocks (can be changed using the argument numBlocks (number of blocks, default 8) in the function *runNFday* or *runBehDay*).
 - The experiment consists of 6 runs (can be changed using the argument numRuns (number of runs, default 6) in the function *runNFday* or *runBehDay*). 
 - For behavioral days, the number of runs is 2 instead of 6 runs.
 
@@ -66,15 +79,16 @@ The data will be stored and saved in the subject's folder \ClosedLoop\subjectsDa
 
 ### runSystem.py
 *runSystem.py* must be started before *runExperiment.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runExperiment.py*.
+
 *runSystem.py* will stream the EEG data. The EEG sampling rate, number of channels and epoch length can be changed in this script. Based on the experimental structure, the script will change the system states among:
 
-1) ‘stable’ (recording of EEG data for training of the decoding classifier)
-2) ‘train’ (training of the decoding classifier)
-3) ‘feedback’ (preprocessing and classification of EEG data for neurofeedback)
+1) ‘stable’ (Data acquisition: Recording of EEG data. No feedback provided)
+2) ‘train’ (Classification: Identification of artifactual data components and training of the decoding classifier)
+3) ‘feedback’ (Neurofeedback: Update of the stimulus on a trial-to-trial basis based on the decoding classifier)
 
 ### realtimeFunctions.py
 Functions for working with real-time EEG data in Python:
-Standardizing, scaling, artefact correction (SSP projection), preprocessing, classification.
+Standardizing, scaling, artifact correction (SSP projection), preprocessing, classification.
 The functions are called in *runClosedLoop.py*.
 
 ### streamFunctions.py
