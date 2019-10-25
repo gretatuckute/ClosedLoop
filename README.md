@@ -8,8 +8,8 @@ The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
 ## Running the system
 1)	Start recording using the EEG equipment (we used [Enobio 32](https://www.neuroelectrics.com/products/enobio/)).
-2)	Start *runClosedLoop.py* (the script will wait for initialization of step 3). 
-3)	In a different terminal/console, start *runSystem.py* (initializes the experimental script). 
+2)	Start *runSystem.py* (the script will wait for initialization of step 3). 
+3)	In a different terminal/console, start *runExperiment.py* (initializes the experimental script). 
 
 Visualization of the major components of the system:
 
@@ -35,10 +35,7 @@ Non-composite images can also be generated using the function *createNonFusedInd
 ## Experimental paradigm
 Participants had to respond to and, by extension, focus their attention towards subcategories of faces: female
 and male, and scenes: indoor and outdoor. Stimuli were composite images of the two categories (equal image
-mixture ratio, alpha, during training blocks). During feedback blocks, the decoded task-relevant EEG representation
-was used to continuously update the image mixture of the stimuli in a closed-loop manner. If participants
-attended well (high levels of task-relevant information in their brain) the task-relevant image became easier to
-see, and vice versa (see [deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)).
+mixture ratio, alpha, during training blocks). During feedback blocks, the decoded task-relevant EEG representation was used to continuously update the image mixture of the stimuli in a closed-loop manner. If participants attended well (high levels of task-relevant information in their brain) the task-relevant image became easier to see, and vice versa (see [deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)).
 
 The experiment contains behavioral days (visual stimuli presentation without EEG recording) and a neurofeedback day (EEG recording and neurofeedback during visual stimuli presentation). 
 
@@ -46,7 +43,7 @@ The experimental structure for the neurofeedback day is as follows:
 
 - One block consists of 50 images (can be changed using the argument blockLen (block length, default 50) in the function runNFday or runBehDay). Each image is displayed for 1 second (60 frames, assuming a frame rate of 60 Hz). 
 - One run consists of 8 blocks (can be changed using the argument numBlocks (number of blocks, default 8) in the function runNFday or runBehDay).
-- The experiment consists of 6 runs (can be changed using the argument numRuns (number of runs, default 6) in the function runNFday or runBehDay). 
+- The experiment consists of 6 runs (can be changed using the argument numRuns (number of runs, default 6) in the function *runNFday* or *runBehDay*). 
 - For behavioral days, the number of runs is 2 instead of 6 runs.
 
 For the neurofeedback paradigm, the first 600 trials (12 blocks) are used for recording EEG data. A classifier is trained based on these blocks, and used for providing feedback in the subsequent 200 trials (4 blocks). This is followed by runs consisting of 4 blocks of recording EEG (‘stable’ blocks) and 4 blocks of providing feedback (‘feedback’ blocks). 
@@ -54,7 +51,7 @@ For the neurofeedback paradigm, the first 600 trials (12 blocks) are used for re
 ## Saving data
 The data will be stored and saved in the subject's folder \ClosedLoop\subjectsData\subjectID\. The .csv file containing image stimuli also has to be located in this folder (default in *prepareImageStimuli.py*, see **Stimuli**).
 
-*runSystem.py* will save the following files after a completed neurofeedback session:
+*runExperiment.py* will save the following files after a completed neurofeedback session:
 -	subject_01_EEG_TIMESTAMP.csv: All of the recorded, raw EEG data. 
 -	subject_01_marker_TIMESTAMP.csv: All the markers (time points of stimuli/EEG epoch onset) for experimental trials. 
 -	stream_logfile_subject_01_TIMETAMP.log: A log of the EEG streaming (created by runClosedLoop.py and streamFunctions.py).
@@ -67,9 +64,9 @@ The data will be stored and saved in the subject's folder \ClosedLoop\subjectsDa
 
 # Description of scripts
 
-### runClosedLoop.py
-*runClosedLoop.py* must be started before *runSystem.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runSystem.py*.
-*runClosedLoop.py* will stream the EEG data. The EEG sampling rate, number of channels and epoch length can be changed in this script. Based on the experimental structure, the script will change the system states among:
+### runSystem.py
+*runSystem.py* must be started before *runExperiment.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runExperiment.py*.
+*runSystem.py* will stream the EEG data. The EEG sampling rate, number of channels and epoch length can be changed in this script. Based on the experimental structure, the script will change the system states among:
 
 1) ‘stable’ (recording of EEG data for training of the decoding classifier)
 2) ‘train’ (training of the decoding classifier)
@@ -84,30 +81,29 @@ The functions are called in *runClosedLoop.py*.
 Functions for finding the EEG stream and the experimental stream containing markers (trigger points for stimuli onset, from experimental script: *experimentFunctions.py*), saving data, writing log files and changing system states for the neurofeedback system.
 The functions are called in *runClosedLoop.py*.
 
-### runSystem.py
-*runSystem.py* starts the experimental script. As explained in **Experimental paradigm**, the paradigm consists of behavioral days (day 1 and 3), and a neurofeedback day (day 2). 
+### runExperiment.py
+*runExperiment.py* starts the experimental script. As explained in **Experimental paradigm**, the paradigm consists of behavioral days (day 1 and 3), and a neurofeedback day (day 2). 
 
 For the behavioral experiment, the function *runBehDay* from *experimentFunctions.py* is used.  
 For the neurofeedback experiment, the function *runNFday* from *experimentFunctions.py* is used.
 
-Manually enter the experimental day and subject ID in *experimentFunctions.py* (line 32-33) and in *runClosedLoop.py* (line 23). The information in these scripts must match.
+Manually enter the experimental day and subject ID in *experimentFunctions.py* (line 32-33) and in *runSystem.py* (line 23). The information in these scripts must match.
 
 A simple .txt file named “feedback_subjID_01.txt” has to be located in the subject’s folder containing 1 in the first row and their own subject ID in the second line (example provided in \ClosedLoop\subjectsData\01\). 
 This feedback .txt file provides an opportunity to make participants function as controls, and hence receive yoked, sham neurofeedback (feedback based on another participant’s brain response). In this case, the .txt file has to contain 0 in the first row, and the subject ID of the matched neurofeedback participant in the second row.
 
 ### experimentFunctions.py
 Functions for running the PsychoPy experimental script and generating stimuli (composite images) for the experiment.
-The functions are called in *runSystem.py*.
+The functions are called in *runExperiment.py*.
 
 ### paths.py
 Initialization of paths for scripts, subjects directory, and image stimuli directory.
 
 ## Additional scripts (not necessary for running the system)
 
-1)	*randomizeParticipants.py*: Functions for automated randomization of participants into 'feedback' participants or matched controls. Generates the “feedback_subjID_X.txt file in the subject's folder \ClosedLoop\subjectData\subjectID\, denoting whether a participant
-is feedback (first row containing 1) or control (first row containing 0).
+1)	*randomizeParticipants.py*: Functions for automated randomization of participants into 'feedback' participants or matched controls. Generates the “feedback_subjID_X.txt file in the subject's folder \ClosedLoop\subjectData\subjectID\, denoting whether a participant is feedback (first row containing 1) or control (first row containing 0).
 
-2) Offline analysis: 
+2) Offline analysis: Code for offline analyses of data (EEG data as well as behavioral data) can be found in the [ClosedLoop_Offline GitHub](https://github.com/gretatuckute/ClosedLoop_Offline).
 
 ## Dependencies/acknowledgements:
 - [PsychoPy](https://www.psychopy.org/)
