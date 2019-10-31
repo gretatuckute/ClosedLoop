@@ -9,7 +9,7 @@ The framework is:
 2. A fully automated, real-time implementation without the need for any manual throughout the neurofeedback session.
 3. Not dependent on any preliminary EEG recordings prior to the neurofeedback session.
 4. Feasible to run using consumer-grade, portable EEG acquisition equipment with dry electrodes.
-5. Robust to decoding of cognitive states across intra- and inter-individidual variability (paper: Tuckute et al., 2019: *"A framework for closed-loop neurofeedback for real-time EEG decoding"* in prep). 
+5. Robust to decoding of cognitive states across intra- and inter-individidual variability.
 
 The framework is initially designed for a visual attention paradigm ([deBettencourt et al., 2015](https://www.nature.com/articles/nn.3940)), where the subjective attentional state of the participant is decoded in real-time and used to update the subsequent visual stimuli to modulate the attentional state using feedback.
 
@@ -124,6 +124,9 @@ Initialization of paths for scripts, subjects directory, and image stimuli direc
 - [Lab Streaming Layer](https://github.com/sccn/labstreaminglayer)
 - [NumPy](https://www.numpy.org/)
 - [Scikit-Learn](https://scikit-learn.org/stable/)
+
+## Reference
+Paper: Tuckute et al., 2019: *"A framework for closed-loop neurofeedback for real-time EEG decoding"* in prep. 
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
 
