@@ -1,6 +1,7 @@
 # Closed-Loop EEG Neurofeedback System
 
 This GitHub contains code for running a closed-loop, real-time EEG neurofeedback system. 
+A video demo of the neurofeedback system is available [here](https://www.youtube.com/watch?v=Ns8AHIg_Wtc&feature=youtu.be).
 
 The framework is:
 1. Written using exclusively Python source code for a high degree of modularity and transparency.
