@@ -16,6 +16,8 @@ import mne
 from scipy.signal import detrend
 from sklearn.linear_model import LogisticRegression
 
+import settings
+
 #### 1) EEG PREPROCESSING FUNCTIONS ####
 
 def scale1DArray(eeg_array, axis=1):
@@ -240,7 +242,7 @@ def removeEpochs(EEG, info, interpolate=0):
             if len(bad_epochs) > 0.60*no_trials:
                 print('More than 60% are bad, keeping all epochs')
                 log = []
-        EEG.drop(bad_epochs,reason='Reject')
+        EEG.drop(bad_epochs, reason='Reject')
     else:
         bad_epochs = []
         bad_above_thres = []
@@ -249,13 +251,13 @@ def removeEpochs(EEG, info, interpolate=0):
 
     return EEG
 
-def createInfoMNE(reject_ch=0, sfreq=100):
+def createInfoMNE(channel_names, sfreq=100):
     '''
     Creates an MNE info data structure.
     
     # Arguments
-        reject_ch: boolean
-            Whether to reject predefined channels.
+        channel_names: list
+            List of strings of channel names
             
         sfreq: int
             Sampling frequency.
@@ -264,19 +266,15 @@ def createInfoMNE(reject_ch=0, sfreq=100):
         info: MNE info structure
     '''
     
-    if reject_ch == True:
-        channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3','F3','Oz','PO3','FC5','FC1','CP5','CP1','CP2','CP6','FC2','FC6','PO4']
-        channel_types = ['eeg']*23
-    else:
-        channel_names = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4']
-        channel_types = ['eeg']*32
+    channel_types = ['eeg']*len(channel_names)
+    channel_types = ['eeg']*len(channel_names)
         
-    montage = 'standard_1020' 
+    montage = settings.montage
     info = mne.create_info(channel_names, sfreq, channel_types, montage)
     
     return info
     
-def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reject_ch=None, flat=None, bad_channels=[] ,opt_detrend=1, HP=0, LP=40, phase='zero-double'):
+def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reject_ch=None, flat=None, bad_channels=[], opt_detrend=1, HP=settings.highpass, LP=settings.lowpass, phase=settings.filterPhase):
     '''    
     Preprocesses EEG data epoch-wise. 
     
@@ -349,7 +347,7 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
     n_samples = eeg.shape[0]
     n_channels = eeg.shape[1]
     eeg = np.reshape(eeg.T,(1,n_channels,n_samples))
-    tmin = -0.1 # Baseline start, i.e. 100 ms before stimulus onset
+    tmin = settings.baselineTime # Baseline start, i.e. 100 ms before stimulus onset
     
     # Temporal detrending:
     if opt_detrend == 1:
@@ -359,14 +357,14 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
     
     # Drop list of channels known to be problematic:
     if reject_ch == True: 
-        bads =  ['Fp1','Fp2','Fz','AF3','AF4','T7','T8','F7','F8']
+        bads = settings.channelNamesExcluded
         epoch.drop_channels(bads)
     
     # Lowpass
     epoch.filter(HP, LP, fir_design='firwin', phase=phase, verbose=False)
     
     # Downsample
-    epoch.resample(100, npad='auto',verbose=False)
+    epoch.resample(settings.samplingRateResample, npad='auto',verbose=False)
     
     # Apply baseline correction
     epoch.apply_baseline(baseline=(None,0), verbose=False)
@@ -376,14 +374,12 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
         epoch.add_proj(projs)
         epoch.apply_proj()
         
-    if reject is not None: # Rejection of channels, either manually defined or based on MNE analysis. Currently not used.
-        if mne_reject == 1: # Use MNE method to reject+interpolate bad channels
+    if reject is not None: # Rejection of channels, either manually defined or based on MNE analysis
+        if mne_reject == 1: # Use MNE method to reject + interpolate bad channels
             from mne.epochs import _is_good
             from mne.io.pick import channel_indices_by_type    
-            # reject=dict(eeg=100)
             idx_by_type = channel_indices_by_type(epoch.info)
-            A,bad_channels = _is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type, reject=reject, flat=flat, full_report=True)
-            print(A)
+            A, bad_channels = _is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type, reject=reject, flat=flat, full_report=True)
             if A == False:
                 epoch.info['bads'] = bad_channels    
                 epoch.interpolate_bads(reset_bads=True, verbose=False)
@@ -460,7 +456,7 @@ def trainLogReg(X, y):
 def trainLogRegCV(X, y):
     '''
     Trains a logistic regression classifier based on recorded EEG epochs. 
-    For the first neurofeedback run (n_run = 0), using 600 trials.
+    For the first neurofeedback run (n_run = 0), using number of trials corresponding to a single run + 1/2 run.
 
     The classifier bias is corrected (i.e. tendency of the classifier to be overly confident in predicting one of the categories):
     The offset for correction of classifier bias is computed in 3-fold cross-validation (mean of 3 offset values).
@@ -481,6 +477,10 @@ def trainLogRegCV(X, y):
         offset: float
             Float value for correcting the prediction probability of the classifier.
     '''
+    
+    no_trials = X.shape[0]
+    no_test = int((settings.numBlocks/2) * settings.blockLen)
+
     X = scale2DArray(X, axis=1)
     
     classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
@@ -490,15 +490,15 @@ def trainLogRegCV(X, y):
     
     # Estimation of offset for correction of classifier bias. 3-fold cross-validation. 
     # Cross-validation fold number 1.
-    X_train = X[0:400,:]
-    y_train = y[0:400]
+    X_train = X[0:(2*no_test),:]
+    y_train = y[0:(2*no_test)]
     
     clf = classifier.fit(X_train, y_train)
-    X_val = X[400:,:]
+    X_val = X[(2*no_test):,:]
     # y_val = y[400:]
     pred_prob_val = clf.predict_proba(X_val)
     pred_sort = np.sort(pred_prob_val[:,0])
-    offset1 = 0.5 - pred_sort[100]
+    offset1 = 0.5 - pred_sort[int(no_test/2)]
     
     # Following piece of code can be uncommented for validation accuracy and confusion matrices.
     # y_pred = clf.predict(X_val)
@@ -506,35 +506,35 @@ def trainLogRegCV(X, y):
     # conf.append(metrics.confusion_matrix(y_val,y_pred))
 
     # Cross-validation fold number 2.
-    X_train = np.concatenate((X[0:200,:], X[400:600,:]), axis=0)
-    y_train = np.concatenate((y[0:200], y[400:600]), axis=0)
+    X_train = np.concatenate((X[0:no_test,:], X[no_trials-no_test:no_trials,:]), axis=0)
+    y_train = np.concatenate((y[0:no_test], y[no_trials-no_test:no_trials]), axis=0)
     clf = classifier.fit(X_train, y_train)
-    X_val = X[200:400,:]
+    X_val = X[no_test:no_trials-no_test,:]
     # y_val = y[200:400]
     pred_prob_val = clf.predict_proba(X_val)
     pred_sort = np.sort(pred_prob_val[:,0])
-    offset2 = 0.5-pred_sort[100]
+    offset2 = 0.5-pred_sort[int(no_test/2)]
     
     # y_pred = clf.predict(X_val)
     # score.append(metrics.accuracy_score(y_val,y_pred))
     # conf.append(metrics.confusion_matrix(y_val,y_pred))
 
     # Cross-validation fold number 3.
-    X_train = X[200:,:]
-    y_train = y[200:]
+    X_train = X[no_test:,:]
+    y_train = y[no_test:]
     clf = classifier.fit(X_train, y_train)
-    X_val = X[:200,:]
+    X_val = X[:no_test,:]
     # y_val = y[:200]
     pred_prob_val = clf.predict_proba(X_val)
     
     pred_sort = np.sort(pred_prob_val[:,0])
-    offset3 = 0.5-pred_sort[100]
+    offset3 = 0.5-pred_sort[int(no_test/2)]
     
     # y_pred = clf.predict(X_val)
     # score.append(metrics.accuracy_score(y_val,y_pred))
     # conf.append(metrics.confusion_matrix(y_val,y_pred))
 
-    offset = (offset1+offset2+offset3)/3
+    offset = (offset1 + offset2 + offset3)/3
     
     clf = classifier.fit(X, y)
 
@@ -546,10 +546,10 @@ def trainLogRegCV(X, y):
 def trainLogRegCV2(X, y):
     '''
     Trains a logistic regression classifier based on recorded EEG epochs. 
-    For neurofeedback runs after the first one (n_run > 0), using 800 trials.
+    For neurofeedback runs after the first one (n_run > 0), using trials corresponding to two runs.
 
     The classifier bias is corrected (i.e. tendency of the classifier to be overly confident in predicting one of the categories):
-    The offset for correction of classifier bias is computed based on the most recent 200 trials.
+    The offset for correction of classifier bias is computed based on the most recent 4 blocks.
     
     For validation accuracy and confusion matrices, code in the function can be uncommented.
 
@@ -569,19 +569,22 @@ def trainLogRegCV2(X, y):
     '''   
     X = scale2DArray(X, axis=1)
     
+    no_trials = X.shape[0]
+    no_test = int((settings.numBlocks/2) * settings.blockLen)
+    
     classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
     
     # score = []
     # conf = []
-    X_train = X[0:600,:]
-    y_train = y[0:600]
+    X_train = X[0:no_trials-no_test,:]
+    y_train = y[0:no_trials-no_test]
     
     clf = classifier.fit(X_train, y_train)
-    X_val = X[600:,:]
+    X_val = X[no_trials-no_test:,:]
     # y_val = y[600:]
     pred_prob_val = clf.predict_proba(X_val)
     pred_sort = np.sort(pred_prob_val[:,0])
-    offset = 0.5-pred_sort[100]
+    offset = 0.5-pred_sort[int(no_test/2)]
     
     # y_pred = clf.predict(X_val)
     # score.append(metrics.accuracy_score(y_val,y_pred))

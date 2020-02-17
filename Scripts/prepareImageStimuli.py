@@ -7,7 +7,7 @@ image 1 used in the composite image and image 2 used in the composite image (str
 # Imports
 import os
 import random
-from paths import script_path_init
+from settings import script_path_init
 
 script_path = script_path_init()
 os.chdir(script_path)

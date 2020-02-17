@@ -10,9 +10,9 @@ import csv
 import time
 import numpy as np
 import sys
-from paths import subject_path_init
+import settings
 
-subject_path = subject_path_init()
+subject_path = settings.subject_path_init()
 
 class data_init:
     
@@ -27,7 +27,7 @@ class data_init:
                 
             filename: string
         '''
-        self.fs,self.filename,self.data_type = fs,filename,data_type
+        self.fs, self.filename, self.data_type = fs, filename, data_type
         
 
 def save_data(data_info, sample, timestamp, user_id):
@@ -49,8 +49,8 @@ def save_data(data_info, sample, timestamp, user_id):
     
     '''
     if data_info.filename == None: # If the file does not already exist, create file
-        data_info.filename = subject_path+'\\'+user_id+'\\subject_'+user_id+'_'+data_info.data_type+'_'+time.strftime('%m-%d-%y_%H-%M')+'.csv'
-        with open(data_info.filename,'w', newline='') as csvfile:
+        data_info.filename = subject_path + '\\' + user_id + '\\subject_' + user_id + '_' + data_info.data_type + '_' + time.strftime('%m-%d-%y_%H-%M') + '.csv'
+        with open(data_info.filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(data_info.header)
     with open(data_info.filename, 'a', newline='') as csvfile:
@@ -58,7 +58,7 @@ def save_data(data_info, sample, timestamp, user_id):
         if len(sample) <= 1:
             writer.writerow(np.append(np.array([sample]), np.array([timestamp])))
         else:
-            writer.writerows(np.append(sample, np.array([timestamp]).T,axis=1))
+            writer.writerows(np.append(sample, np.array([timestamp]).T, axis=1))
             
     return data_info
 
@@ -68,7 +68,7 @@ def clear_stream(inlet):
     '''
     sample0, timestamp0 = inlet.pull_chunk(max_samples=1500)
     
-def read_EEG_stream(fs=500, max_buf=2):
+def read_EEG_stream(fs=settings.samplingRate, max_buf=settings.maxBufferTime):
     '''
     Initializes the EEG stream. 
     Timeout is an integer denoting the maximum number of seconds to look for whether an EEG stream is available.
@@ -89,7 +89,9 @@ def read_EEG_stream(fs=500, max_buf=2):
     streamsEEG = resolve_byprop('type', 'EEG', timeout=1)
     inlet_EEG = StreamInlet(streamsEEG[0], max_buflen=max_buf)
     store_EEG = data_init(fs, 'EEG') # Initialize object
-    store_EEG.header = ['P7','P4','Cz','Pz','P3','P8','O1','O2','T8','F8','C4','F4','Fp2','Fz','C3','F3','Fp1','T7','F7','Oz','PO3','AF3','FC5','FC1','CP5','CP1','CP2','CP6','AF4','FC2','FC6','PO4','Timestamp']
+    channel_lst = settings.channelNames
+    channel_lst.append('Timestamp')
+    store_EEG.header = channel_lst
     
     return inlet_EEG, store_EEG
 
@@ -121,7 +123,7 @@ def read_marker_stream(stream_name='MyMarkerStream3'):
             index_lsl = index_lsl[np.argmax(lsl_created)]
         print ("lsl stream available")
         inlet_marker = StreamInlet(streams[index_lsl])
-        store_marker = data_init(500, 'marker') # Initialize marker object
+        store_marker = data_init(settings.samplingRate, 'marker') # Initialize marker object
         store_marker.header = ['Marker','Timestamp']
     else:
         inlet_marker = []
@@ -129,7 +131,7 @@ def read_marker_stream(stream_name='MyMarkerStream3'):
         
     return inlet_marker, store_marker
 
-def read_save_from_stream(inlet,store,user_id):
+def read_save_from_stream(inlet, store, user_id):
     '''
     Reads and saves data from a recording inlet.
     '''    
@@ -178,7 +180,7 @@ def get_epoch(inlet_EEG, inlet_marker, store_EEG, store_marker, user_id, excess_
         and as arguments..
     '''
     t_latency = 0 # latency of EEG in relation to trigger
-    tmin = -0.1 # seconds before stimulus onset
+    tmin = settings.baselineTime # seconds before stimulus onset
     t_epoch = tmax-tmin # length of epoch (seconds)
     s_epoch = int(t_epoch*fs) # samples in epoch
     s = 10 # extra samples to store for next epoch
@@ -190,7 +192,7 @@ def get_epoch(inlet_EEG, inlet_marker, store_EEG, store_marker, user_id, excess_
 
         # read from marker stream 
         if look_for_trigger:
-            sample_marker,timestamp_marker,store_marker = read_save_from_stream(inlet_marker,store_marker,user_id)
+            sample_marker,timestamp_marker,store_marker = read_save_from_stream(inlet_marker, store_marker, user_id)
         if use_excess_triggers == 1: # Only go to excess trigger if current trigger has been processed
             if excess_marker: # if delay in system has caused markers to be buffered
                 print('Using excess marker ' + str(excess_marker))
@@ -200,12 +202,12 @@ def get_epoch(inlet_EEG, inlet_marker, store_EEG, store_marker, user_id, excess_
                 excess_marker_time = []    
             
         # read from EEG stream
-        sample_EEG,timestamp_EEG,store_EEG = read_save_from_stream(inlet_EEG, store_EEG ,user_id)
+        sample_EEG,timestamp_EEG,store_EEG = read_save_from_stream(inlet_EEG, store_EEG, user_id)
         if len(excess_EEG): 
             if len(sample_EEG):
                 print(sample_EEG.shape)
                 print(excess_EEG.shape)
-                sample_EEG = np.concatenate((excess_EEG,sample_EEG), axis=0)
+                sample_EEG = np.concatenate((excess_EEG, sample_EEG), axis=0)
                 timestamp_EEG = np.concatenate((excess_EEG_time, timestamp_EEG),axis=0)
             else: # if no new EEG data was read
                 sample_EEG = excess_EEG

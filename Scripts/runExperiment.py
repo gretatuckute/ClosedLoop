@@ -5,25 +5,25 @@ The function, runNFday (from experimentFunctions) runs the neurofeedback system 
 
 # Imports
 import os
-from paths import script_path_init
+import settings
 
-script_path = script_path_init()
+script_path = settings.script_path_init()
 os.chdir(script_path)
 
 # Load experimental functions
-from experimentFunctions import * 
+import experimentFunctions
 
 # Global variables
 global blockIdx
 global imgIdx
 
 ###### TEST RUNS ######
-# runTest(day='1') # Show example of the behavioral paradigm
-# runTest(day='2') # Show example of the neurofeedback paradigm
+# experimentFunctions.runTest(day='1') # Show example of the behavioral paradigm
+# experimentFunctions.runTest(day='2') # Show example of the neurofeedback paradigm
 
 ###### Behavioral run ######
-# runBehDay(numRuns=2, numBlocks=8, blockLen=50) 
+# experimentFunctions.runBehDay(numRuns=settings.numRuns, numBlocks=settings.numBlocks, blockLen=settings.blockLen) 
 
 ###### Neurofeedback run ######
-runNFday(subjID='01', numRuns=5, numBlocks=8, blockLen=50)
+experimentFunctions.runNFday(subjID=settings.subjID, numRuns=settings.numRuns, numBlocks=settings.numBlocks, blockLen=settings.blockLen)
 

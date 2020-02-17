@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import os
 import shutil
-from paths import script_path_init, subject_path_init
+from settings import subject_path_init
 
 subject_path = subject_path_init()
 

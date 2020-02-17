@@ -5,6 +5,11 @@ Initialization of paths for system scripts, subjects directory, and data directo
 
 import os
 
+## DEFINE VARIABLES FOR THE EXPERIMENT ##
+subjID = '01' 
+expDay = '2'  # feedback day
+
+
 def base_dir_init(): # Base directory for ClosedLoop GitHub
     base_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     return base_dir
