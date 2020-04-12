@@ -24,6 +24,7 @@ numBlocks = 8 # Number of blocks within each run
 blockLen = 50 # Number of trials within each block
 
 
+
 ###### EEG SAMPLING (runSystem) ###### 
 samplingRate = 500 
 samplingRateResample = 100
@@ -43,6 +44,7 @@ channelNamesSelected =  ['P7','P4','Cz','Pz','P3','P8','O1','O2','C4','F4','C3',
 channelNamesExcluded = list(set(channelNames) - set(channelNamesSelected))
 
 
+
 ###### EEG preprocessing (realtimeFunctions) ###### 
 highpass = 0  # Hz
 lowpass = 40 # Hz
@@ -52,9 +54,13 @@ montage = 'standard_1020'
 SSP = True # Whether to apply SSP artifact correction
 thresholdSSP = 0.1 # SSP variance threshold for rejection of SSP projections
 
+
+
 ###### EEG real-time classification (realtimeFunctions) ###### 
 from sklearn.linear_model import LogisticRegression # Import and specify classifier of interest
 classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
+
+
 
 ###### DIRECTORY STRUCTURE ###### 
 def base_dir_init(): # Base directory for ClosedLoop GitHub
