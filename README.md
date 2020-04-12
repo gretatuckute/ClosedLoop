@@ -17,7 +17,7 @@ The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
 ## Running the system
 1) Set up experimental, recording, preprocessing and classification parameters in *settings.py*.
-2) Start recording using the EEG equipment (we used [Enobio 32](https://www.neuroelectrics.com/products/enobio/. The most widely used M/EGG hardware devices are supported though Lab Streaming Layer, LSL).
+2) Start recording using the EEG equipment (we used [Enobio 32](https://www.neuroelectrics.com/products/enobio/). The most widely used M/EGG hardware devices are supported though Lab Streaming Layer, LSL).
 3)	Start *runSystem.py* (the script will wait for initialization of step 3). 
 4)	In a different terminal/console, start *runExperiment.py* (initializes the experimental script). 
 
