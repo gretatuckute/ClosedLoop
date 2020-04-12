@@ -16,9 +16,10 @@ The framework is initially designed for a visual attention paradigm ([deBettenco
 The system can easily be adapted for various visual paradigms (see **Stimuli**).
 
 ## Running the system
-1)	Start recording using the EEG equipment (we used [Enobio 32](https://www.neuroelectrics.com/products/enobio/)).
-2)	Start *runSystem.py* (the script will wait for initialization of step 3). 
-3)	In a different terminal/console, start *runExperiment.py* (initializes the experimental script). 
+1) Set up experimental and recording options and parameters in *settings.py*.
+2) Start recording using the EEG equipment (we used [Enobio 32](https://www.neuroelectrics.com/products/enobio/. The most widely used M/EGG hardware devices are supported though Lab Streaming Layer, LSL).
+3)	Start *runSystem.py* (the script will wait for initialization of step 3). 
+4)	In a different terminal/console, start *runExperiment.py* (initializes the experimental script). 
 
 Visualization of the major components of the system:
 
@@ -75,6 +76,8 @@ The data will be stored and saved in the subject's folder \ClosedLoop\subjectsDa
 
 
 # Description of scripts
+### settings.py
+Set up experimental and recording options and parameters in *settings.py*.
 
 ### runSystem.py
 *runSystem.py* must be started before *runExperiment.py*, since it waits for a marker (trigger point for stimuli onset) from the experimental script which is called in *runExperiment.py*.
