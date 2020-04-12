@@ -2,7 +2,7 @@
 
 '''
 Functions for working with real-time EEG data in Python:
-Standardizing, scaling, artefact correction (SSP projections), preprocessing, classification.
+Standardizing, scaling, artifact correction (SSP projections), preprocessing, classification.
 
 The first part contains EEG signal processing and preprocessing, while the second part is EEG decoding in real-time.
 '''
@@ -10,7 +10,6 @@ The first part contains EEG signal processing and preprocessing, while the secon
 # Imports 
 import numpy as np
 from scipy.stats import zscore
-import os
 import pandas as pd
 import mne
 from scipy.signal import detrend
@@ -171,7 +170,7 @@ def averageStable(stable):
 
 def removeEpochs(EEG, info, interpolate=0):
     '''
-    Defines ranges for bad epochs and removes these epochs (currently not used).
+    Defines ranges for bad epochs and removes these epochs.
     Possible to define how large a percentage can maximally be rejected.
     
     # Arguments
@@ -228,7 +227,6 @@ def removeEpochs(EEG, info, interpolate=0):
             epochs_copy.drop_bad(reject=reject, flat=flat, verbose=None)
             log = epochs_copy.drop_log
         
-        
         bad_epochs = [i for i,x in enumerate(log) if x]  
         if len(bad_epochs) > 0.20*no_trials:
             reject_thres = reject_thres*2
@@ -274,7 +272,8 @@ def createInfoMNE(channel_names, sfreq=100):
     
     return info
     
-def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reject_ch=None, flat=None, bad_channels=[], opt_detrend=1, HP=settings.highpass, LP=settings.lowpass, phase=settings.filterPhase):
+def preproc1epoch(eeg, info, projs=[], SSP=settings.SSP, reject_chs=settings.rejectChannels,\
+                  opt_detrend=settings.detrend, HP=settings.highpass, LP=settings.lowpass, phase=settings.filterPhase):
     '''    
     Preprocesses EEG data epoch-wise. 
     
@@ -289,22 +288,10 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
             MNE SSP projector objects. Used if SSP = True. 
             
         SSP: boolean
-            Whether to apply SSP projectors (artefact correction) to the EEG epoch.
+            Whether to apply SSP projectors (artifact correction) to the EEG epoch.
             
-        reject: boolean
-            Whether to reject channels, either manually defined or based on MNE analysis.
-            
-        mne_reject: boolean
-            Whether to use MNE rejection based on the built-in function: epochs._is_good. 
-            
-        reject_ch: boolean
-            Whether to reject nine predefined channels (can be changed to any channels).
-            
-        flat: boolean
-            Input for the MNE built-in function: epochs._is_good. See function documentation.
-            
-        bad_channels: list
-            Input for the MNE built-in function: epochs._is_good. Manual rejection of channels. See function documentation.
+        reject_chs: boolean
+            Whether to reject predefined channels (can be changed to any channels).
             
         opt_detrend: boolean
             Whether to apply temporal EEG detrending (linear).
@@ -329,7 +316,7 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
         
         Resampling to 100 Hz
         
-        SSP artefact correction 
+        SSP artifact correction 
         
         Analysis and rejection of bad channels
             Interpolation of bad channels
@@ -350,13 +337,13 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
     tmin = settings.baselineTime # Baseline start, i.e. 100 ms before stimulus onset
     
     # Temporal detrending:
-    if opt_detrend == 1:
+    if opt_detrend:
         eeg = detrend(eeg, axis=2, type='linear')
         
     epoch = mne.EpochsArray(eeg, info, tmin=tmin, baseline=None, verbose=False)
     
     # Drop list of channels known to be problematic:
-    if reject_ch == True: 
+    if reject_chs: 
         bads = settings.channelNamesExcluded
         epoch.drop_channels(bads)
     
@@ -370,21 +357,9 @@ def preproc1epoch(eeg, info, projs=[], SSP=True, reject=None, mne_reject=1, reje
     epoch.apply_baseline(baseline=(None,0), verbose=False)
     
     # Apply SSP projectors
-    if SSP == True:
+    if SSP:
         epoch.add_proj(projs)
         epoch.apply_proj()
-        
-    if reject is not None: # Rejection of channels, either manually defined or based on MNE analysis
-        if mne_reject == 1: # Use MNE method to reject + interpolate bad channels
-            from mne.epochs import _is_good
-            from mne.io.pick import channel_indices_by_type    
-            idx_by_type = channel_indices_by_type(epoch.info)
-            A, bad_channels = _is_good(epoch.get_data()[0], epoch.ch_names, channel_type_idx=idx_by_type, reject=reject, flat=flat, full_report=True)
-            if A == False:
-                epoch.info['bads'] = bad_channels    
-                epoch.interpolate_bads(reset_bads=True, verbose=False)
-        else: # Predefined bad_channels 
-            epoch.drop_channels(bad_channels)
     
     # Re-referencing
     epoch.set_eeg_reference(verbose=False)

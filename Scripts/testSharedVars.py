@@ -16,6 +16,7 @@ import settings
 def stuff(fr=settings.frameRate):
     print('sup', settings.monitor_size)
     print('frame rate is:' , fr)
+    print(settings.clf)
 
 
 # Initialize paths

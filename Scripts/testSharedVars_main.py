@@ -11,3 +11,4 @@ import testSharedVars
 paths.variables_init()
 testSharedVars.stuff()
 print(paths.variables_init.framerat[0])
+
