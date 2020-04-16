@@ -400,7 +400,7 @@ def extractCat(indicesFile):
     return binary_categories
 
 
-def trainLogReg(X, y):
+def trainClassifier(X, y, classifier):
     '''
     Trains a logistic regression classifier based on recorded EEG epochs. 
     No offset for correction of classifier bias.
@@ -411,15 +411,15 @@ def trainLogReg(X, y):
             
         y: NumPy Array
             Binary category array.
+            
+        classifier: scikit-learn classifier object
     
     # Returns
         clf: scikit-learn classifier object
-            SAGA LogReg with L1 penalty, fitted on X and y.
+             fitted on X and y.
     '''
     
-    X = scale2DArray(X, axis=1)
-    classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1')
-    
+    X = scale2DArray(X, axis=1)    
     clf = classifier.fit(X,y)
 
 #    pred_prob =  clf.predict_proba(X) 
@@ -428,7 +428,7 @@ def trainLogReg(X, y):
     return clf
 
 
-def trainLogRegCV(X, y):
+def trainClassifierCV(X, y, classifier):
     '''
     Trains a logistic regression classifier based on recorded EEG epochs. 
     For the first neurofeedback run (n_run = 0), using number of trials corresponding to a single run + 1/2 run.
@@ -444,10 +444,12 @@ def trainLogRegCV(X, y):
             
         y: NumPy Array
             Binary category array.
+            
+        classifier: scikit-learn classifier object
     
     # Returns
         clf: scikit-learn classifier object
-            SAGA LogReg with L1 penalty, fitted on X and y.
+             fitted on X and y.
             
         offset: float
             Float value for correcting the prediction probability of the classifier.
@@ -518,7 +520,7 @@ def trainLogRegCV(X, y):
     
     return clf, offset #,score,conf
 
-def trainLogRegCV2(X, y):
+def trainClassifierCV2(X, y, classifier):
     '''
     Trains a logistic regression classifier based on recorded EEG epochs. 
     For neurofeedback runs after the first one (n_run > 0), using trials corresponding to two runs.
@@ -534,10 +536,12 @@ def trainLogRegCV2(X, y):
             
         y: NumPy Array
             Binary category array.
+            
+        classifier: scikit-learn classifier object
     
     # Returns
         clf: scikit-learn classifier object
-            SAGA LogReg with L1 penalty, fitted on X and y.
+             fitted on X and y.
             
         offset: float
             Float value for correcting the prediction probability of the classifier.
@@ -546,31 +550,19 @@ def trainLogRegCV2(X, y):
     
     no_trials = X.shape[0]
     no_test = int((settings.numBlocks/2) * settings.blockLen)
-    
-    classifier = LogisticRegression(solver='saga', C=1, random_state=1, penalty='l1', max_iter=100)
-    
-    # score = []
-    # conf = []
+      
     X_train = X[0:no_trials-no_test,:]
     y_train = y[0:no_trials-no_test]
     
     clf = classifier.fit(X_train, y_train)
     X_val = X[no_trials-no_test:,:]
-    # y_val = y[600:]
     pred_prob_val = clf.predict_proba(X_val)
     pred_sort = np.sort(pred_prob_val[:,0])
     offset = 0.5-pred_sort[int(no_test/2)]
     
-    # y_pred = clf.predict(X_val)
-    # score.append(metrics.accuracy_score(y_val,y_pred))
-    # conf.append(metrics.confusion_matrix(y_val,y_pred))
-
     clf = classifier.fit(X, y)
 
-#    pred_prob =  clf.predict_proba(X) 
-#    score_train = clf.score(X,y) 
-    
-    return clf, offset #,score,conf
+    return clf, offset 
 
 def testEpoch(clf, epoch):
     '''
