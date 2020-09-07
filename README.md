@@ -117,7 +117,16 @@ The functions are called in *runExperiment.py*.
 - [Scikit-Learn](https://scikit-learn.org/stable/)
 
 ## Reference
-Paper: Tuckute et al., 2019: *"A framework for closed-loop neurofeedback for real-time EEG decoding"* in prep. 
+If you found this code useful, please cite:
+
+@article{tuckute2019framework,
+  title={A framework for closed-loop neurofeedback for real-time EEG decoding},
+  author={Tuckute, Greta and Hansen, Sofie T and Kjaer, Troels W and Hansen, Lars Kai},
+  journal={bioRxiv},
+  pages={834713},
+  year={2019},
+  publisher={Cold Spring Harbor Laboratory}
+}
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
 
