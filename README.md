@@ -126,7 +126,9 @@ If you found this code useful, please cite:
   pages={834713},
   year={2019},
   publisher={Cold Spring Harbor Laboratory}
-}```
+} 
+end
+```
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
 
