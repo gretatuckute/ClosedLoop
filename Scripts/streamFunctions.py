@@ -347,7 +347,7 @@ class Transcript(object):
         '''
         sys.stdout = Transcript(filename)
 
-    def stop():
+    def stop(self):
         '''Stops transcript and returns print functionality to normal.
         '''
         sys.stdout.logfile.close()

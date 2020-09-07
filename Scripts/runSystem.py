@@ -10,6 +10,7 @@ import time
 import os
 from pylsl import StreamOutlet, StreamInfo, resolve_byprop, local_clock
 import settings
+import sys
 
 # Paths
 script_path = settings.script_path_init()
@@ -24,7 +25,7 @@ y = realtimeFunctions.extractCat(subject_path + '\\' + settings.subjID + '\\crea
 y = np.array([int(x) for x in y])
 
 #%% Tracking of print outputs. Saved as a log file to the subject ID folder.
-Transcript.start(subject_path + '\\' + settings.subjID + '\\stream_logfile_subject_' + settings.subjID + '_' + time.strftime('%m-%d-%y_%H-%M') + '.log')
+sys.stdout = open(subject_path + '\\' + settings.subjID + '\\stream_logfile_subject_' + settings.subjID + '_' + time.strftime('%m-%d-%y_%H-%M') + '.log')
 
 #%% Look for a recent stream from the Psychopy experimental script (will localize the experimental stream after runSystem is started).
 
@@ -207,6 +208,3 @@ while marker[0]+1 < n_trials:
             outlet_alpha.push_sample([alpha])
             epoch_prev = epoch
             
-    
-#%% Terminate logging of print statements
-Transcript.stop()

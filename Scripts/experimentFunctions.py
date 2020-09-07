@@ -74,7 +74,7 @@ keys = event.getKeys(keyList=None, timeStamped=globalClock)
 
 # Prepare PsychoPy log
 log_base = time.strftime('%m-%d-%y_%H-%M')
-logWritePath = subject_path + '\\' + settings.subjID + '\\PsychoPyLog_subjID_' + str(settings.subjID) + '_day_' + str(paths.expDay) + '_' + str(log_base) + '.csv'
+logWritePath = subject_path + '\\' + settings.subjID + '\\PsychoPyLog_subjID_' + str(settings.subjID) + '_day_' + str(settings.expDay) + '_' + str(log_base) + '.csv'
 
 logWritePathKey = subject_path + '\\' + settings.subjID + '\\keypress_subjID_' + str(settings.subjID) + '_day_' + str(settings.expDay) + '_' + str(log_base) + '.csv'
 
