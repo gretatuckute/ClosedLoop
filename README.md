@@ -119,7 +119,7 @@ The functions are called in *runExperiment.py*.
 ## Reference
 If you found this code useful, please cite:
 
-``@article{tuckute2021real,
+```@article{tuckute2021real,
   title={Real-Time Decoding of Attentional States Using Closed-Loop EEG Neurofeedback},
   author={Tuckute, Greta and Hansen, Sofie Therese and Kjaer, Troels Wesenberg and Hansen, Lars Kai},
   journal={Neural Computation},
