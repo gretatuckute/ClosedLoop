@@ -119,14 +119,13 @@ The functions are called in *runExperiment.py*.
 ## Reference
 If you found this code useful, please cite:
 
-```@article{tuckute2019framework,
-  title={A framework for closed-loop neurofeedback for real-time EEG decoding},
-  author={Tuckute, Greta and Hansen, Sofie T and Kjaer, Troels W and Hansen, Lars Kai},
-  journal={bioRxiv},
-  pages={834713},
-  year={2019},
-  publisher={Cold Spring Harbor Laboratory}
-} 
+``@article{tuckute2021real,
+  title={Real-Time Decoding of Attentional States Using Closed-Loop EEG Neurofeedback},
+  author={Tuckute, Greta and Hansen, Sofie Therese and Kjaer, Troels Wesenberg and Hansen, Lars Kai},
+  journal={Neural Computation},
+  pages={1--38},
+  year={2021}
+}
 ```
 
 *Cognitive Systems, Department of Applied Mathematics and Computer Science, Technical University of Denmark, 2018-19* 
