@@ -68,7 +68,7 @@ def clear_stream(inlet):
     '''
     sample0, timestamp0 = inlet.pull_chunk(max_samples=1500)
     
-def read_EEG_stream(fs=settings.samplingRate, max_buf=settings.maxBufferTime):
+def read_EEG_stream(fs=settings.samplingRate, max_buf=settings.maxBufferData):
     '''
     Initializes the EEG stream. 
     Timeout is an integer denoting the maximum number of seconds to look for whether an EEG stream is available.
